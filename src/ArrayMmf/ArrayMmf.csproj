@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFrameworks>netcoreapp3.1;net45</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1;net46</TargetFrameworks>
     <Company>BruSoftware, LLC</Company>
     <Description>Array&lt;T&gt; on Memory Mapped Files</Description>
     <Copyright>Dale A. Brubaker</Copyright>
@@ -12,13 +12,6 @@
     <StartupObject />
     <AssemblyName>ArrayMmf</AssemblyName>
     <RootNamespace>BruSoftware.ArrayMmf</RootNamespace>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netcoreapp3.1|AnyCPU'">
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netcoreapp3.1|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
