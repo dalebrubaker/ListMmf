@@ -12,6 +12,18 @@ namespace BruSoftware.ArrayMmf
     {
         protected MemoryMappedFile Mmf;
 
+
+        // Note from safebuffer.cs about locking
+        // This design allows multiple
+        // threads to read and write memory simultaneously without locks (as long as
+        // you don't write to a region of memory that overlaps with what another
+        // thread is accessing).
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="headerReserve"></param>
+        /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
         private ArrayMmf(long headerReserve = 0, bool noLocking = false)
         {
             //Mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
