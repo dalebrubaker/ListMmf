@@ -14,7 +14,7 @@ namespace BruSoftware.ArrayMmf
 
         private ArrayMmf(long headerReserve = 0, bool noLocking = false)
         {
-            Mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
+            //Mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
         }
 
         public static ArrayMmf<T> CreateFromFile(string path, FileMode mode = FileMode.Open, string mapName = null, long capacity = 0, 
