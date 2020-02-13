@@ -3,40 +3,55 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
-using System.Text;
+using System.Runtime.CompilerServices;
 using BruSoftware.ArrayMmf.Interfaces;
 
 namespace BruSoftware.ArrayMmf
 {
-    public class ArrayMmf<T> : IMmfArray<T> where T:struct
+    public unsafe class ArrayMmf<T> : IMmfArray<T> where T : struct
     {
-        protected MemoryMappedFile Mmf;
+        private MemoryMappedFile _mmf;
 
+        /// <summary>
+        /// This is the beginning of the View, before the headerReserveBytes and the 8-byte Length of this array 
+        /// </summary>
+        protected byte* BasePointerByte;
 
         // Note from safebuffer.cs about locking
         // This design allows multiple
         // threads to read and write memory simultaneously without locks (as long as
         // you don't write to a region of memory that overlaps with what another
         // thread is accessing).
-        
+
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="headerReserve"></param>
+        /// <param name="headerReserveBytes"></param>
         /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
-        private ArrayMmf(long headerReserve = 0, bool noLocking = false)
+        private ArrayMmf(long headerReserveBytes = 0, bool noLocking = false)
         {
-            //Mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
+            _mmf = null;
+
+            //_mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
         }
 
-        public static ArrayMmf<T> CreateFromFile(string path, FileMode mode = FileMode.Open, string mapName = null, long capacity = 0, 
-            MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite, 
+        /// <summary>
+        /// This method is called whenever Mmf and View are changed.
+        /// Inheritors should first call base.ResetPointers() and then reset their own pointers (if any) from BasePointerByte
+        /// </summary>
+        public virtual void ResetPointers()
+        {
+            BasePointerByte = GetPointer(null);
+        }
+
+        public static ArrayMmf<T> CreateFromFile(string path, FileMode mode = FileMode.Open, string mapName = null, long capacity = 0,
+            MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
             return new ArrayMmf<T>(headerReserve);
         }
 
-        public static ArrayMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacity = 0, 
+        public static ArrayMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacity = 0,
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite, bool leaveOpen = false,
             long headerReserve = 0, bool noLocking = false)
         {
@@ -49,13 +64,13 @@ namespace BruSoftware.ArrayMmf
             return new ArrayMmf<T>(headerReserve);
         }
 
-        public static ArrayMmf<T> CreateNew(string mapName, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite, 
+        public static ArrayMmf<T> CreateNew(string mapName, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
             return new ArrayMmf<T>(headerReserve);
         }
 
-        public static ArrayMmf<T> CreateOrOpen(string mapName, long capacity, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite, 
+        public static ArrayMmf<T> CreateOrOpen(string mapName, long capacity, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
             return new ArrayMmf<T>(headerReserve);
@@ -63,6 +78,7 @@ namespace BruSoftware.ArrayMmf
 
         public long Length { get; }
         public bool IsReadOnly { get; }
+
         public void Clear()
         {
             throw new NotImplementedException();
@@ -119,12 +135,29 @@ namespace BruSoftware.ArrayMmf
             set => throw new NotImplementedException();
         }
 
-        public IReadOnlyList64<T> GetReadOnlyList64(long lowerBound, long count = Int64.MaxValue)
+        public IReadOnlyList64<T> GetReadOnlyList64(long lowerBound, long count = long.MaxValue)
         {
             throw new NotImplementedException();
         }
 
         public long Count => Length;
+
+        private byte* GetPointer(MemoryMappedViewAccessor mmva)
+        {
+            var safeBuffer = mmva.SafeMemoryMappedViewHandle;
+            RuntimeHelpers.PrepareConstrainedRegions();
+            byte* pointer = null;
+            try
+            {
+                safeBuffer.AcquirePointer(ref pointer);
+            }
+            finally
+            {
+                if (pointer != null) safeBuffer.ReleasePointer();
+            }
+            pointer += mmva.PointerOffset;
+            return pointer;
+        }
 
         protected virtual void Dispose(bool disposing)
         {
