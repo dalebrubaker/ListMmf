@@ -417,6 +417,7 @@ namespace BruSoftware.ListMmf
    
         public int FindLastIndex(int startIndex, Predicate<T> match) 
         {
+            throw new NotImplementedException();
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() <= startIndex);
             //return FindLastIndex(startIndex, startIndex + 1, match);
@@ -787,6 +788,7 @@ namespace BruSoftware.ListMmf
         // This requires copying the List, which is an O(n) operation.
         public T[] ToArray() 
         {
+            throw new NotImplementedException();
             //Contract.Ensures(Contract.Result<T[]>() != null);
             //Contract.Ensures(Contract.Result<T[]>().Length == Count);
 
