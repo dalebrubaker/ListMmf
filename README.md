@@ -1,2 +1,2 @@
-# ArrayMmf
-Array&lt;T> using Memory Mapped Files
+# ListMmf
+List&lt;T> using Memory Mapped Files
