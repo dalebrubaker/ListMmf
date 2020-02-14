@@ -11,6 +11,14 @@ namespace BruSoftware.ListMmf
     public unsafe class ListMmf<T> : IMmfArray<T> where T : struct
     {
         private MemoryMappedFile _mmf;
+        private MemoryMappedViewAccessor _view;
+
+        /// <summary>
+        /// Null except when CreateFromFile(FileStream...)
+        /// </summary>
+        private FileStream _fs;
+
+        private string _path;
 
         /// <summary>
         /// This is the beginning of the View, before the headerReserveBytes and the 8-byte Length of this array 
@@ -28,11 +36,11 @@ namespace BruSoftware.ListMmf
         /// </summary>
         /// <param name="headerReserveBytes"></param>
         /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
-        private ListMmf(long headerReserveBytes = 0, bool noLocking = false)
+        private ListMmf(long headerReserveBytes, bool noLocking = false)
         {
             _mmf = null;
 
-            //_mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
+            _mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
         }
 
         /// <summary>
@@ -78,6 +86,17 @@ namespace BruSoftware.ListMmf
 
         public long Length { get; }
         public bool IsReadOnly { get; }
+
+        public long Size { get; set; }
+
+        public long CapacityBytes
+        {
+            get
+            {
+                // TODO This is size times sizeof(T)
+                return 0;
+            }
+        }
 
         public void Clear()
         {
