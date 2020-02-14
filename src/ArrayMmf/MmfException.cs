@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace BruSoftware.ArrayMmf
+namespace BruSoftware.ListMmf
 {
     [Serializable]
     public class MmfException : Exception

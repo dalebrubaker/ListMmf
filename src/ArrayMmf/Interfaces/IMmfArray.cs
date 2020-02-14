@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace BruSoftware.ArrayMmf.Interfaces
+namespace BruSoftware.ListMmf.Interfaces
 {
     public interface IMmfArray<T> : IMmfArray, IReadOnlyList64<T>
     {

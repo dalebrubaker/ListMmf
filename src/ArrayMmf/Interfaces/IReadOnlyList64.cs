@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace BruSoftware.ArrayMmf.Interfaces
+namespace BruSoftware.ListMmf.Interfaces
 {
     public interface IReadOnlyList64<T> : IEnumerable<T>
     {

@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
-using BruSoftware.ArrayMmf.Interfaces;
+using BruSoftware.ListMmf.Interfaces;
 
-namespace BruSoftware.ArrayMmf
+namespace BruSoftware.ListMmf
 {
-    public unsafe class ArrayMmf<T> : IMmfArray<T> where T : struct
+    public unsafe class ListMmf<T> : IMmfArray<T> where T : struct
     {
         private MemoryMappedFile _mmf;
 
@@ -28,7 +28,7 @@ namespace BruSoftware.ArrayMmf
         /// </summary>
         /// <param name="headerReserveBytes"></param>
         /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
-        private ArrayMmf(long headerReserveBytes = 0, bool noLocking = false)
+        private ListMmf(long headerReserveBytes = 0, bool noLocking = false)
         {
             _mmf = null;
 
@@ -44,36 +44,36 @@ namespace BruSoftware.ArrayMmf
             BasePointerByte = GetPointer(null);
         }
 
-        public static ArrayMmf<T> CreateFromFile(string path, FileMode mode = FileMode.Open, string mapName = null, long capacity = 0,
+        public static ListMmf<T> CreateFromFile(string path, FileMode mode = FileMode.Open, string mapName = null, long capacity = 0,
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
-            return new ArrayMmf<T>(headerReserve);
+            return new ListMmf<T>(headerReserve);
         }
 
-        public static ArrayMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacity = 0,
+        public static ListMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacity = 0,
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite, bool leaveOpen = false,
             long headerReserve = 0, bool noLocking = false)
         {
-            return new ArrayMmf<T>(headerReserve);
+            return new ListMmf<T>(headerReserve);
         }
 
-        public static ArrayMmf<T> OpenExisting(string mapName, MemoryMappedFileRights memoryMappedFileRights = MemoryMappedFileRights.ReadWrite,
+        public static ListMmf<T> OpenExisting(string mapName, MemoryMappedFileRights memoryMappedFileRights = MemoryMappedFileRights.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
-            return new ArrayMmf<T>(headerReserve);
+            return new ListMmf<T>(headerReserve);
         }
 
-        public static ArrayMmf<T> CreateNew(string mapName, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
+        public static ListMmf<T> CreateNew(string mapName, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
-            return new ArrayMmf<T>(headerReserve);
+            return new ListMmf<T>(headerReserve);
         }
 
-        public static ArrayMmf<T> CreateOrOpen(string mapName, long capacity, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
+        public static ListMmf<T> CreateOrOpen(string mapName, long capacity, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
-            return new ArrayMmf<T>(headerReserve);
+            return new ListMmf<T>(headerReserve);
         }
 
         public long Length { get; }

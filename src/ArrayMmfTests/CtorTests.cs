@@ -1,15 +1,14 @@
-using System;
-using BruSoftware.ArrayMmf;
+using BruSoftware.ListMmf;
 using Xunit;
 
-namespace ArrayMmfTests
+namespace ListMmfTests
 {
     public class CtorTests
     {
         [Fact]
         public void Test1()
         {
-            var arrayMmf = ArrayMmf<long>.CreateFromFile("TestPath");
+            var listMmf = ListMmf<long>.CreateFromFile("TestPath");
             Assert.True(true);
         }
     }

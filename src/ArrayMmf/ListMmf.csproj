@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFrameworks>netcoreapp3.1;net46</TargetFrameworks>
+    <Company>BruSoftware, LLC</Company>
+    <Description>Array&lt;T&gt; on Memory Mapped Files</Description>
+    <Copyright>Dale A. Brubaker</Copyright>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <RepositoryUrl>https://github.com/dalebrubaker/ArrayMmf</RepositoryUrl>
+    <ApplicationIcon />
+    <StartupObject />
+    <AssemblyName>ListMmf</AssemblyName>
+    <RootNamespace>BruSoftware.ListMmf</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Extensions\" />
+  </ItemGroup>
+
+</Project>

@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29728.190
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ArrayMmf", "ArrayMmf\ArrayMmf.csproj", "{239CB81C-6703-43EB-AD9C-53AA5FA57945}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ListMmf", "ArrayMmf\ListMmf.csproj", "{239CB81C-6703-43EB-AD9C-53AA5FA57945}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArrayMmfTests", "ArrayMmfTests\ArrayMmfTests.csproj", "{EC217B9D-F73C-4322-94AB-A79E88149E1F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ListMmfTests", "ArrayMmfTests\ListMmfTests.csproj", "{EC217B9D-F73C-4322-94AB-A79E88149E1F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
