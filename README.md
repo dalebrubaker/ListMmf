@@ -23,15 +23,11 @@ matters).
 
 The next 8 bytes are a long value of the array Count.
 
-The next 8 bytes are a long value of the array Size. This cannot be calculated
-from the MMF because the MMF allows writing/reading to/from a rounded-up view
-past the end of the underlying file.
-
 The next 8 bytes are a long value of the array Version, a counter incremented on
 writes that is used for throwing an “Enumeration modified” error during
 enumeration.
 
-So the actual list values are an array starting at headerReserveBytes + 24 into
+So the actual list values are an array starting at headerReserveBytes + 16 into
 the file.
 
 Locking

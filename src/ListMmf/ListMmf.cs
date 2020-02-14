@@ -1,24 +1,36 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
+using System.Security.AccessControl;
 
 namespace BruSoftware.ListMmf
 {
     public unsafe class ListMmf<T> : IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
     {
-        private MemoryMappedFile _mmf;
+        internal const int DefaultSize = 0;
+        private readonly MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _view;
 
         /// <summary>
-        /// Null except when CreateFromFile(FileStream...)
+        /// Null means this class is memory-based, not-persisted
+        /// Not-null means this class is file-based, persisted, like CreateFromFile()
         /// </summary>
-        private FileStream _fs;
+        private FileStream _fileStream;
 
-        private string _path;
+        private bool _leaveOpen;
+
+        /// <summary>
+        /// Not-null means system-wide
+        /// </summary>
+        private string _mapName;
+
+        /// <summary>
+        /// The size of T
+        /// </summary>
+        private int _typeSize;
 
         /// <summary>
         /// This is the beginning of the View, before the headerReserveBytes and the 8-byte Length of this array.
@@ -32,10 +44,20 @@ namespace BruSoftware.ListMmf
         public long Count { get; }
 
         public long Size { get; set; }
-        public long Capacity { get; set; }
-        
-        // TODO This is size times sizeof(T)
-        public long CapacityBytes => 0;
+
+        /// <summary>
+        /// The capacity of this ListMmf (number of elements)
+        /// </summary>
+        public long Capacity
+        {
+            get => CapacityBytes / _typeSize;
+            set => throw new NotImplementedException(); // reset Mmf etc.
+        }
+
+        /// <summary>
+        /// The capacity in bytes. Note that for persisted MMFs, the ByteLength can exceed _fileStream.Length, so writes to that region may be going to never-never-land.
+        /// </summary>
+        public long CapacityBytes => _fileStream?.Length ?? (long)_view.SafeMemoryMappedViewHandle.ByteLength;
 
         public void Clear()
         {
@@ -58,6 +80,18 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
+        /// Ret/Reset the MMF file etc. 
+        /// </summary>
+        private void Initialize()
+        {
+            Dispose(true);
+
+            // TODO build/rebuild
+
+            ResetPointers();
+        }
+
+        /// <summary>
         /// This method is called whenever Mmf and View are changed.
         /// Inheritors should first call base.ResetPointers() and then reset their own pointers (if any) from BasePointerByte
         /// </summary>
@@ -70,7 +104,109 @@ namespace BruSoftware.ListMmf
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
-            return new ListMmf<T>(headerReserve);
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+            if (mapName != null && mapName.Length == 0) 
+            {
+                throw new ArgumentException("mapName can be null but cannot be an empty string");
+            }
+            if (capacity < 0) 
+            {
+                throw new ArgumentOutOfRangeException(nameof(capacity), "capacity can not be negative");
+            }
+            if (access < MemoryMappedFileAccess.ReadWrite || access > MemoryMappedFileAccess.ReadWriteExecute) 
+            {
+                throw new ArgumentOutOfRangeException(nameof(access));
+            }
+            if (mode == FileMode.Append) 
+            {
+                throw new ArgumentException("FileMode.Append is not allowed", nameof(mode));
+            }
+            if (access == MemoryMappedFileAccess.Write) 
+            {
+                throw new ArgumentException("MemoryMappedFileAccess.Write is not allowed", nameof(access));
+            }
+            bool existed = File.Exists(path);
+            FileStream fileStream = new FileStream(path, mode, GetFileAccess(access), FileShare.None, 0x1000, FileOptions.None);
+            if (capacity == 0 && fileStream.Length == 0) 
+            {
+                CleanupFile(fileStream, existed, path);
+                throw new ArgumentException($"File at {path} is empty.");
+            }
+            if (access == MemoryMappedFileAccess.Read && capacity > fileStream.Length) 
+            {
+                CleanupFile(fileStream, existed, path);
+                throw new ArgumentException($"Read access capacity {capacity} is greater than file length {fileStream.Length}");
+            }
+            if (capacity == DefaultSize) {
+                capacity = fileStream.Length;
+            }
+            // one can always create a small view if they do not want to map an entire file 
+            if (fileStream.Length > capacity) 
+            {
+                CleanupFile(fileStream, existed, path);
+                throw new ArgumentOutOfRangeException("capacity", $"capacity {capacity} must be greater than file length {fileStream.Length}");
+            }
+            return CreateFromFile(fileStream, mapName, capacity, access, leaveOpen: true, headerReserve, noLocking);
+        }
+
+        private static FileAccess GetFileAccess(MemoryMappedFileAccess access)
+        {
+            switch (access)
+            {
+                case MemoryMappedFileAccess.ReadWrite:
+                    return FileAccess.ReadWrite;
+                case MemoryMappedFileAccess.Read:
+                    return FileAccess.Read;
+                case MemoryMappedFileAccess.Write:
+                case MemoryMappedFileAccess.CopyOnWrite:
+                case MemoryMappedFileAccess.ReadExecute:
+                case MemoryMappedFileAccess.ReadWriteExecute:
+                    throw new NotSupportedException($"{access} is not supported.");
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(access), access, null);
+            }
+        }
+
+
+        // From ndp MemoryMappedFiles.cs
+        // This converts a MemoryMappedFileAccess to a FileSystemRights for use by FileStream 
+        private static FileSystemRights GetFileStreamFileSystemRights(MemoryMappedFileAccess access)
+        {
+            switch (access)
+            {
+                case MemoryMappedFileAccess.Read:
+                case MemoryMappedFileAccess.CopyOnWrite:
+                    return FileSystemRights.ReadData;
+
+                case MemoryMappedFileAccess.ReadWrite:
+                    return FileSystemRights.ReadData | FileSystemRights.WriteData;
+
+                case MemoryMappedFileAccess.Write:
+                    return FileSystemRights.WriteData;
+
+                case MemoryMappedFileAccess.ReadExecute:
+                    return FileSystemRights.ReadData | FileSystemRights.ExecuteFile;
+
+                case MemoryMappedFileAccess.ReadWriteExecute:
+                    return FileSystemRights.ReadData | FileSystemRights.WriteData | FileSystemRights.ExecuteFile;
+
+                default:
+                    // If we reached here, access was invalid.
+                    throw new ArgumentOutOfRangeException("access");
+            }
+        }
+
+        
+        // From ndp MemoryMappedFiles.cs
+        // clean up: close file handle and delete files we created
+        private static void CleanupFile(FileStream fileStream, bool existed, String path) {
+            fileStream.Close();
+            if (!existed) {
+                File.Delete(path);
+            }
         }
 
         public static ListMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacity = 0,
@@ -119,6 +255,9 @@ namespace BruSoftware.ListMmf
         {
             if (disposing)
             {
+                _view?.Dispose();
+                _mmf.Dispose();
+                if (!_leaveOpen) _fileStream.Dispose();
             }
         }
 
@@ -130,8 +269,8 @@ namespace BruSoftware.ListMmf
 
         object IList64.this[long index]
         {
-            get { throw new NotImplementedException(); }
-            set { throw new NotImplementedException(); }
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
         }
 
         public void Add(T item)
@@ -143,6 +282,7 @@ namespace BruSoftware.ListMmf
         {
             throw new NotImplementedException();
         }
+
         /// <summary>
         /// Adds the elements of the given collection to the end of this array.
         /// If required, the capacity of this array is increased before adding the new elements.
@@ -214,7 +354,7 @@ namespace BruSoftware.ListMmf
         {
             throw new NotImplementedException();
         }
-        
+
         public long IndexOf(T item)
         {
             throw new NotImplementedException();
@@ -276,13 +416,15 @@ namespace BruSoftware.ListMmf
         {
             throw new NotImplementedException();
         }
-        private static bool IsCompatibleObject(object value) {
+
+        private static bool IsCompatibleObject(object value)
+        {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
             return value is T;
         }
 
-         // Searches a section of the list for a given element using a binary search
+        // Searches a section of the list for a given element using a binary search
         // algorithm. Elements of the list are compared to the search value using
         // the given IComparer interface. If comparer is null, elements of
         // the list are compared to the search value using the IComparable
@@ -302,11 +444,11 @@ namespace BruSoftware.ListMmf
         // The method uses the Array.BinarySearch method to perform the
         // search.
         // 
-        public int BinarySearch(long index, long count, T item, IComparer<T> comparer) 
+        public int BinarySearch(long index, long count, T item, IComparer<T> comparer)
         {
             throw new NotImplementedException();
         }
-    
+
         public int BinarySearch(T item)
         {
             return BinarySearch(0, Count, item, null);
@@ -317,13 +459,15 @@ namespace BruSoftware.ListMmf
             return BinarySearch(0, Count, item, comparer);
         }
 
-         public bool Exists(Predicate<T> match) {
+        public bool Exists(Predicate<T> match)
+        {
             return FindIndex(match) != -1;
         }
 
-        public T Find(Predicate<T> match) 
+        public T Find(Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             //}
@@ -336,10 +480,11 @@ namespace BruSoftware.ListMmf
             //}
             //return default(T);
         }
-  
-        public List<T> FindAll(Predicate<T> match) 
-        { 
+
+        public List<T> FindAll(Predicate<T> match)
+        {
             throw new NotImplementedException();
+
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             //}
@@ -353,22 +498,25 @@ namespace BruSoftware.ListMmf
             //}
             //return list;
         }
-  
-        public int FindIndex(Predicate<T> match) 
+
+        public int FindIndex(Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //return FindIndex(0, _size, match);
         }
-  
-        public int FindIndex(int startIndex, Predicate<T> match) 
+
+        public int FindIndex(int startIndex, Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //return FindIndex(startIndex, _size - startIndex, match);
         }
- 
+
         public int FindIndex(int startIndex, int count, Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //if( (uint)startIndex > (uint)_size ) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);                
             //}
@@ -390,10 +538,11 @@ namespace BruSoftware.ListMmf
             //}
             //return -1;
         }
- 
-        public T FindLast(Predicate<T> match) 
+
+        public T FindLast(Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             //}
@@ -407,25 +556,28 @@ namespace BruSoftware.ListMmf
             //return default(T);
         }
 
-        public int FindLastIndex(Predicate<T> match) 
+        public int FindLastIndex(Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() < Count);
             //return FindLastIndex(_size - 1, _size, match);
         }
-   
-        public int FindLastIndex(int startIndex, Predicate<T> match) 
+
+        public int FindLastIndex(int startIndex, Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() <= startIndex);
             //return FindLastIndex(startIndex, startIndex + 1, match);
         }
 
-        public int FindLastIndex(int startIndex, int count, Predicate<T> match) 
+        public int FindLastIndex(int startIndex, int count, Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             //}
@@ -445,12 +597,12 @@ namespace BruSoftware.ListMmf
             //        ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
             //    }
             //}
-            
+
             //// 2nd have of this also catches when startIndex == MAXINT, so MAXINT - 0 + 1 == -1, which is < 0.
             //if (count < 0 || startIndex - count + 1 < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_Count);
             //}
-                        
+
             //int endIndex = startIndex - count;
             //for( int i = startIndex; i > endIndex; i--) {
             //    if( match(_items[i])) {
@@ -460,9 +612,10 @@ namespace BruSoftware.ListMmf
             //return -1;
         }
 
-        public void ForEach(Action<T> action) 
+        public void ForEach(Action<T> action)
         {
             throw new NotImplementedException();
+
             //if( action == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             //}
@@ -481,9 +634,10 @@ namespace BruSoftware.ListMmf
             //    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
         }
 
-        public List<T> GetRange(int index, int count) 
+        public List<T> GetRange(int index, int count)
         {
             throw new NotImplementedException();
+
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             //}
@@ -503,18 +657,20 @@ namespace BruSoftware.ListMmf
             //list._size = count;
             //return list;
         }
-            // Inserts the elements of the given collection at a given index. If
+
+        // Inserts the elements of the given collection at a given index. If
         // required, the capacity of the list is increased to twice the previous
         // capacity or the new size, whichever is larger.  Ranges may be added
         // to the end of the list by setting index to the List's size.
         //
-        public void InsertRange(int index, IEnumerable<T> collection) 
+        public void InsertRange(int index, IEnumerable<T> collection)
         {
             throw new NotImplementedException();
+
             //if (collection==null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
             //}
-            
+
             //if ((uint)index > (uint)_size) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
             //}
@@ -528,7 +684,7 @@ namespace BruSoftware.ListMmf
             //        if (index < _size) {
             //            Array.Copy(_items, index, _items, index + count, _size - index);
             //        }
-                    
+
             //        // If we're inserting a List into itself, we want to be able to deal with that.
             //        if (this == c) {
             //            // Copy first part of _items to insert location
@@ -553,7 +709,7 @@ namespace BruSoftware.ListMmf
             //}
             //_version++;            
         }
-    
+
         // Returns the index of the last occurrence of a given value in a range of
         // this list. The list is searched backwards, starting at the end 
         // and ending at the first element in the list. The elements of the list 
@@ -565,6 +721,7 @@ namespace BruSoftware.ListMmf
         public int LastIndexOf(T item)
         {
             throw new NotImplementedException();
+
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() < Count);
             //if (_size == 0) {  // Special case for empty list
@@ -587,6 +744,7 @@ namespace BruSoftware.ListMmf
         public int LastIndexOf(T item, int index)
         {
             throw new NotImplementedException();
+
             //if (index >= _size)
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
             //Contract.Ensures(Contract.Result<int>() >= -1);
@@ -604,9 +762,10 @@ namespace BruSoftware.ListMmf
         // This method uses the Array.LastIndexOf method to perform the
         // search.
         // 
-        public int LastIndexOf(T item, int index, int count) 
+        public int LastIndexOf(T item, int index, int count)
         {
             throw new NotImplementedException();
+
             //if ((Count != 0) && (index < 0)) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             //}
@@ -632,25 +791,26 @@ namespace BruSoftware.ListMmf
 
             //return Array.LastIndexOf(_items, item, index, count);
         }
-    
+
         // This method removes all items which matches the predicate.
         // The complexity is O(n).   
-        public int RemoveAll(Predicate<T> match) 
+        public int RemoveAll(Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             //}
             //Contract.Ensures(Contract.Result<int>() >= 0);
             //Contract.Ensures(Contract.Result<int>() <= Contract.OldValue(Count));
             //Contract.EndContractBlock();
-    
+
             //int freeIndex = 0;   // the first free slot in items array
 
             //// Find the first item which needs to be removed.
             //while( freeIndex < _size && !match(_items[freeIndex])) freeIndex++;            
             //if( freeIndex >= _size) return 0;
-            
+
             //int current = freeIndex + 1;
             //while( current < _size) {
             //    // Find the first item which needs to be kept.
@@ -661,7 +821,7 @@ namespace BruSoftware.ListMmf
             //        _items[freeIndex++] = _items[current++];
             //    }
             //}                       
-            
+
             //Array.Clear(_items, freeIndex, _size - freeIndex);
             //int result = _size - freeIndex;
             //_size = freeIndex;
@@ -671,9 +831,10 @@ namespace BruSoftware.ListMmf
 
         // Removes a range of elements from this list.
         // 
-        public void RemoveRange(int index, int count) 
+        public void RemoveRange(int index, int count)
         {
             throw new NotImplementedException();
+
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             //}
@@ -681,11 +842,11 @@ namespace BruSoftware.ListMmf
             //if (count < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             //}
-                
+
             //if (_size - index < count)
             //    ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             //Contract.EndContractBlock();
-    
+
             //if (count > 0) {
             //    int i = _size;
             //    _size -= count;
@@ -696,14 +857,15 @@ namespace BruSoftware.ListMmf
             //    _version++;
             //}
         }
-    
+
         // Reverses the elements in this list.
-        public void Reverse() 
+        public void Reverse()
         {
             throw new NotImplementedException();
+
             //Reverse(0, Count);
         }
-    
+
         // Reverses the elements in a range of this list. Following a call to this
         // method, an element in the range given by index and count
         // which was previously located at index i will now be located at
@@ -712,13 +874,14 @@ namespace BruSoftware.ListMmf
         // This method uses the Array.Reverse method to reverse the
         // elements.
         // 
-        public void Reverse(int index, int count) 
+        public void Reverse(int index, int count)
         {
             throw new NotImplementedException();
+
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             //}
-                
+
             //if (count < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             //}
@@ -729,7 +892,7 @@ namespace BruSoftware.ListMmf
             //Array.Reverse(_items, index, count);
             //_version++;
         }
-        
+
         // Sorts the elements in this list.  Uses the default comparer and 
         // Array.Sort.
         public void Sort()
@@ -752,17 +915,18 @@ namespace BruSoftware.ListMmf
         // 
         // This method uses the Array.Sort method to sort the elements.
         // 
-        public void Sort(long index, long count, IComparer<T> comparer) 
+        public void Sort(long index, long count, IComparer<T> comparer)
         {
             throw new NotImplementedException();
+
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             //}
-            
+
             //if (count < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             //}
-                
+
             //if (_size - index < count)
             //    ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             //Contract.EndContractBlock();
@@ -771,7 +935,7 @@ namespace BruSoftware.ListMmf
             //_version++;
         }
 
-        public void Sort(Comparison<T> comparison) 
+        public void Sort(Comparison<T> comparison)
         {
             //if( comparison == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -786,9 +950,10 @@ namespace BruSoftware.ListMmf
 
         // ToArray returns a new Object array containing the contents of the List.
         // This requires copying the List, which is an O(n) operation.
-        public T[] ToArray() 
+        public T[] ToArray()
         {
             throw new NotImplementedException();
+
             //Contract.Ensures(Contract.Result<T[]>() != null);
             //Contract.Ensures(Contract.Result<T[]>().Length == Count);
 
@@ -796,7 +961,7 @@ namespace BruSoftware.ListMmf
             //Array.Copy(_items, 0, array, 0, _size);
             //return array;
         }
-    
+
         // Sets the capacity of this list to the size of the list. This method can
         // be used to minimize a list's memory overhead once it is known that no
         // new elements will be added to the list. To completely clear a list and
@@ -806,18 +971,20 @@ namespace BruSoftware.ListMmf
         // list.Clear();
         // list.TrimExcess();
         // 
-        public void TrimExcess() 
+        public void TrimExcess()
         {
             throw new NotImplementedException();
+
             //int threshold = (int)(((double)_items.Length) * 0.9);             
             //if( _size < threshold ) {
             //    Capacity = _size;                
             //}
-        }    
+        }
 
-        public bool TrueForAll(Predicate<T> match) 
+        public bool TrueForAll(Predicate<T> match)
         {
             throw new NotImplementedException();
+
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             //}
@@ -829,8 +996,8 @@ namespace BruSoftware.ListMmf
             //    }
             //}
             //return true;
-        } 
-        
+        }
+
         public void Dispose()
         {
             Dispose(true);
