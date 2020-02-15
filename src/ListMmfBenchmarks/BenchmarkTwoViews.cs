@@ -28,7 +28,7 @@ namespace ListMmfBenchmarks
             const int numTests = 10000000;
             _fs = new FileStream(testFilePath, FileMode.Open);
             _br = new BinaryReader(_fs);
-            var count = (int)_fs.Length / 8;
+            var count = (int)(_fs.Length / 8);
 
             //_fs.Dispose();
             Console.WriteLine($"{count:N0} longs are in {testFilePath}");

@@ -22,7 +22,7 @@ namespace ListMmfBenchmarks
             const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 9.91 GB of longs
             const int numTests = 10000000;
             var fs = new FileStream(testFilePath, FileMode.Open);
-            var count = (int)fs.Length / 8;
+            var count = (int)(fs.Length / 8);
 
             //_fs.Dispose();
             Console.WriteLine($"{count:N0} longs are in {testFilePath}");

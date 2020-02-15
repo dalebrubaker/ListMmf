@@ -76,6 +76,14 @@ namespace BruSoftware.ListMmf
         {
             _mmf = null;
 
+            if (!Environment.Is64BitOperatingSystem)
+            {
+                throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
+            if (!Environment.Is64BitProcess)
+            {
+                throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
             //_mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
         }
 

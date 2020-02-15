@@ -13,6 +13,10 @@ namespace ListMmfTests
             Assert.True(true);
 
             //File.Delete("TestPath");
+            using(listMmf)
+            {
+
+            }
         }
     }
 }

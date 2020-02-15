@@ -1,4 +1,5 @@
 ﻿using System;
+using BenchmarkDotNet.Running;
 
 namespace ListMmfBenchmarks
 {
@@ -6,37 +7,71 @@ namespace ListMmfBenchmarks
     {
         private static void Main(string[] args)
         {
-            var tmp = new TestPointerHugeFile();
-            tmp.WriteRead();
+            //DebugTestPointerHugeFile();
 
             //TestArrayModified();
 
+            //BenchmarkRandomReads();
+            
+            //BenchmarkRandomWritest();
+
+            //var summary = BenchmarkRunner.Run<BenchmarkTwoViews>();
+
+            //DebugAppend();
+
+            Console.ReadLine();
+        }
+
+        private static void DebugAppend()
+        {
+            //For debugging
+            var test2 = new DebugAppend();
+            test2.GlobalSetup();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.Append();
+            test2.GlobalCleanup();
+
+            // Seems never to finish var summary = BenchmarkRunner.Run<DebugAppend>();
+            Console.WriteLine("Done with BenchmarkAppend");
+        }
+
+        private static void BenchmarkRandomWritest()
+        {
+            //var test = new BenchmarkRandomWrites();
+            //test.GlobalSetup();
+            //test.ReadWriteRandomMemoryMappedUnsafeGeneric();
+            //test.GlobalCleanup();
+            var summaryW = BenchmarkRunner.Run<BenchmarkRandomWrites>();
+        }
+
+        private static void BenchmarkRandomReads()
+        {
             // For debugging
             //var test = new BenchmarkRandomReads();
             //test.GlobalSetup();
             //test.ReadRandomMemoryMappedUnsafeGenericReAcquirePointer();
             //test.GlobalCleanup();
-            //var summary = BenchmarkRunner.Run<BenchmarkRandomReads>();
-            //var summary = BenchmarkRunner.Run<BenchmarkTwoViews>();
+            var summary = BenchmarkRunner.Run<BenchmarkRandomReads>();
+        }
 
-            //var test = new BenchmarkRandomWrites();
-            //test.GlobalSetup();
-            //test.ReadWriteRandomMemoryMappedUnsafeGeneric();
-            //test.GlobalCleanup();
-
-            //var summaryW = BenchmarkRunner.Run<BenchmarkRandomWrites>();
-
-            //var test2 = new BenchmarkAppend();
-            //test2.GlobalSetup();
-            //test2.Append();
-            //test2.GlobalCleanup();
-
-            Console.ReadLine();
+        private static void DebugTestPointerHugeFile()
+        {
+            var tmp = new TestPointerHugeFile();
+            tmp.WriteRead();
         }
 
         /// <summary>
         /// Prove that Array, unlike List and other collections,
-        /// does NOT throw if the collection is modifed during foreach()
+        /// does NOT throw if the collection is modified during foreach()
         /// </summary>
         private static void TestArrayModified()
         {
