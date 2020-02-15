@@ -9,14 +9,12 @@ namespace ListMmfTests
         [Fact]
         public void Test1()
         {
-            var listMmf = ListMmf<long>.CreateFromFile("TestPath", FileMode.OpenOrCreate, null, 10);
-            Assert.True(true);
-
-            //File.Delete("TestPath");
-            using(listMmf)
+            using (var listMmf = ListMmf<long>.CreateFromFile("TestPath", capacityElements:10))
             {
-
+                Assert.True(true);
+                //File.Delete("TestPath");
             }
-        }
+            }
+
     }
 }
