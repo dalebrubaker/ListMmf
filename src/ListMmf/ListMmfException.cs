@@ -4,23 +4,23 @@ using System.Runtime.Serialization;
 namespace BruSoftware.ListMmf
 {
     [Serializable]
-    public class MmfException : Exception
+    public class ListMmfException : Exception
     {
-        public MmfException()
+        public ListMmfException()
         {
         }
 
-        public MmfException(string message)
+        public ListMmfException(string message)
             : base(message)
         {
         }
 
-        public MmfException(string message, Exception inner)
+        public ListMmfException(string message, Exception inner)
             : base(message, inner)
         {
         }
 
-        protected MmfException(SerializationInfo serializationInfo, StreamingContext streamingContext)
+        protected ListMmfException(SerializationInfo serializationInfo, StreamingContext streamingContext)
         {
             throw new NotImplementedException();
         }

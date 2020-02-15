@@ -56,7 +56,15 @@ namespace BruSoftware.ListMmf
         public long Capacity
         {
             get => CapacityBytes / _sizeOfT;
-            set => throw new NotImplementedException(); // reset Mmf etc.
+            set
+            {
+                if (value == Count)
+
+                    // no change
+                    return;
+                if (value < Count) throw new ListMmfException($"{nameof(Capacity)} cannot be set to {value} because Count={Count}. Use Truncate() to reduce the size of this list.");
+                EnsureCapacity(value);
+            }
         }
 
         /// <summary>
@@ -82,9 +90,9 @@ namespace BruSoftware.ListMmf
         private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName, bool leaveOpen = false)
         {
             if (!Environment.Is64BitOperatingSystem)
-                throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (headerReserveBytes % 8 != 0) throw new Exception($"{nameof(headerReserveBytes)} is required to be a multiple of 8 bytes.");
+                throw new ListMmfException("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            if (!Environment.Is64BitProcess) throw new ListMmfException("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            if (headerReserveBytes % 8 != 0) throw new ListMmfException($"{nameof(headerReserveBytes)} is required to be a multiple of 8 bytes.");
             _headerReserveBytes = headerReserveBytes;
             _mmf = mmf;
             _access = access;
@@ -164,7 +172,7 @@ namespace BruSoftware.ListMmf
         /// If required, the capacity of this array is increased before adding the new elements.
         /// </summary>
         /// <param name="collection"></param>
-        /// <exception cref="MmfException">if list won't fit</exception>
+        /// <exception cref="ListMmfException">if list won't fit</exception>
         public void AddRange(IEnumerable<T> collection)
         {
             throw new NotImplementedException();
@@ -175,7 +183,7 @@ namespace BruSoftware.ListMmf
         /// If required, the capacity of this array is increased before adding the new elements.
         /// </summary>
         /// <param name="list"></param>
-        /// <exception cref="MmfException">if list won't fit</exception>
+        /// <exception cref="ListMmfException">if list won't fit</exception>
         public void AddRange(IReadOnlyList64<T> list)
         {
             throw new NotImplementedException();
@@ -870,6 +878,38 @@ namespace BruSoftware.ListMmf
             //    }
             //}
             //return true;
+        }
+
+        // Ensures that the capacity of this list is at least the given minimum
+        // value. If the correct capacity of the list is less than min, the
+        // capacity is increased to twice the current capacity or to min,
+        // whichever is larger.
+        private void EnsureCapacity(long minCapacityElements)
+        {
+            if (IsReadOnly || minCapacityElements <= Count)
+
+                // nothing to do
+                return;
+
+            _mmf?.Dispose();
+
+            // TODO Re-create _mmf baswed on _mapName and _fileStream
+
+            Reset();
+
+            var extraCapacity = Math.Min(Capacity, 128 * 1024 * 1024); // limit growth to 128 MB at a time
+            var newCapacity = Count == 0 ? 4096 / _sizeOfT : Count * 2;
+            var newCapacityElements = Math.Max(Capacity + extraCapacity, minCapacityElements);
+
+            // TODO
+            //if (_items.Length < min) {
+            //    int newCapacity = _items.Length == 0? _defaultCapacity : _items.Length * 2;
+            //    // Allow the list to grow to maximum possible capacity (~2G elements) before encountering overflow.
+            //    // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
+            //    if ((uint)newCapacity > Array.MaxArrayLength) newCapacity = Array.MaxArrayLength;
+            //    if (newCapacity < min) newCapacity = min;
+            //    Capacity = newCapacity;
+            //}
         }
 
         public void Dispose()

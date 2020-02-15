@@ -80,11 +80,11 @@ namespace BruSoftware.ListMmf
 
         private static FileStream CreateFileStreamFromPath(string path, MemoryMappedFileAccess access)
         {
-            if (string.IsNullOrEmpty(path)) throw new MmfException("A path is required.");
+            if (string.IsNullOrEmpty(path)) throw new ListMmfException("A path is required.");
             var fileMode = access == MemoryMappedFileAccess.ReadWrite ? FileMode.OpenOrCreate : FileMode.Open;
             var fileAccess = access == MemoryMappedFileAccess.ReadWrite ? FileAccess.ReadWrite : FileAccess.Read;
             var fileShare = access == MemoryMappedFileAccess.ReadWrite ? FileShare.Read : FileShare.ReadWrite;
-            if (access == MemoryMappedFileAccess.Read && !File.Exists(path)) throw new MmfException($"Attempt to read non-existing file: {path}");
+            if (access == MemoryMappedFileAccess.Read && !File.Exists(path)) throw new ListMmfException($"Attempt to read non-existing file: {path}");
             if (access == MemoryMappedFileAccess.ReadWrite)
             {
                 // Create the directory if needed

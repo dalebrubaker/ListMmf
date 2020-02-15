@@ -40,7 +40,7 @@ namespace BruSoftware.ListMmf.Interfaces
         /// If required, the capacity of this array is increased before adding the new elements.
         /// </summary>
         /// <param name="collection"></param>
-        /// <exception cref="MmfException">if list won't fit</exception>
+        /// <exception cref="ListMmfException">if list won't fit</exception>
         void AddRange(IEnumerable<T> collection);
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace BruSoftware.ListMmf.Interfaces
         /// If required, the capacity of this array is increased before adding the new elements.
         /// </summary>
         /// <param name="list"></param>
-        /// <exception cref="MmfException">if list won't fit</exception>
+        /// <exception cref="ListMmfException">if list won't fit</exception>
         void AddRange(IReadOnlyList64<T> list);
 
         /// <summary>
