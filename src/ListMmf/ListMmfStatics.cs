@@ -27,14 +27,7 @@ namespace BruSoftware.ListMmf
                 CleanupFile(fileStream, existed, path);
                 throw new ArgumentException($"Read access capacity {capacityElements} is greater than file length {fileStream.Length}");
             }
-            var sizeOfT = Unsafe.SizeOf<T>();
-            var capacity = capacityElements * sizeOfT;
-            if (fileStream.Length > capacity)
-            {
-                CleanupFile(fileStream, existed, path);
-                throw new ArgumentOutOfRangeException(nameof(capacityElements), $"capacity {capacityElements} must be greater than file length {fileStream.Length}");
-            }
-            return CreateFromFile(fileStream, mapName, capacityElements, access, true, headerReserve, noLocking);
+            return CreateFromFile(fileStream, mapName, capacityElements, access, false, headerReserve, noLocking);
         }
 
         public static ListMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacityElements = 0,
@@ -45,45 +38,44 @@ namespace BruSoftware.ListMmf
                 throw new ArgumentOutOfRangeException(nameof(access), "Only Read and ReadWrite access are allowed.");
             var sizeOfT = Unsafe.SizeOf<T>();
             var capacity = capacityElements * sizeOfT;
+            if (fileStream.Length > capacity)
+
+                // Don't allow a crash because the user requested fewer elements than the file alreaady supports
+                capacity = fileStream.Length;
             var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacity, access, HandleInheritability.None, leaveOpen);
-            return new ListMmf<T>(headerReserve, noLocking, mmf);
+            return new ListMmf<T>(headerReserve, noLocking, mmf, access, fileStream, mapName, leaveOpen);
         }
 
         public static ListMmf<T> CreateNew(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
             if (access != MemoryMappedFileAccess.ReadWrite && access != MemoryMappedFileAccess.Read)
-            {
                 throw new ArgumentOutOfRangeException(nameof(access), "Only Read and ReadWrite access are allowed.");
-            }
             var sizeOfT = Unsafe.SizeOf<T>();
             var capacity = capacityElements * sizeOfT;
             var mmf = MemoryMappedFile.CreateNew(mapName, capacity, access);
-            return new ListMmf<T>(headerReserve, noLocking, mmf);
+            return new ListMmf<T>(headerReserve, noLocking, mmf, access, null, mapName);
         }
 
         public static ListMmf<T> CreateOrOpen(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
             if (access != MemoryMappedFileAccess.ReadWrite && access != MemoryMappedFileAccess.Read)
-            {
                 throw new ArgumentOutOfRangeException(nameof(access), "Only Read and ReadWrite access are allowed.");
-            }
             var sizeOfT = Unsafe.SizeOf<T>();
             var capacity = capacityElements * sizeOfT;
             var mmf = MemoryMappedFile.CreateOrOpen(mapName, capacity, access);
-            return new ListMmf<T>(headerReserve, noLocking, mmf);
+            return new ListMmf<T>(headerReserve, noLocking, mmf, access, null, mapName);
         }
 
-        public static ListMmf<T> OpenExisting(string mapName, MemoryMappedFileRights desiredAccessRights = MemoryMappedFileRights.ReadWrite,
+        public static ListMmf<T> OpenExisting(string mapName, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
-            if (desiredAccessRights != MemoryMappedFileRights.ReadWrite && desiredAccessRights != MemoryMappedFileRights.Read)
-            {
-                throw new ArgumentOutOfRangeException(nameof(desiredAccessRights), "Only Read and ReadWrite are allowed.");
-            }
+            if (access != MemoryMappedFileAccess.ReadWrite && access != MemoryMappedFileAccess.Read)
+                throw new ArgumentOutOfRangeException(nameof(access), "Only Read and ReadWrite access are allowed.");
+            var desiredAccessRights = access == MemoryMappedFileAccess.Read ? MemoryMappedFileRights.Read : MemoryMappedFileRights.ReadWrite;
             var mmf = MemoryMappedFile.OpenExisting(mapName, desiredAccessRights);
-            return new ListMmf<T>(headerReserve, noLocking, mmf);
+            return new ListMmf<T>(headerReserve, noLocking, mmf, access, null, mapName);
         }
 
         private static FileStream CreateFileStreamFromPath(string path, MemoryMappedFileAccess access)

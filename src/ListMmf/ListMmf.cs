@@ -4,33 +4,36 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace BruSoftware.ListMmf
 {
     public unsafe partial class ListMmf<T> : IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
     {
         internal const int DefaultSize = 0;
+        private readonly long _headerReserveBytes;
         private readonly MemoryMappedFile _mmf;
+        private readonly MemoryMappedFileAccess _access;
         private MemoryMappedViewAccessor _view;
+
+        public object SyncRoot { get; }
 
         /// <summary>
         /// Null means this class is memory-based, not-persisted
         /// Not-null means this class is file-based, persisted, like CreateFromFile()
         /// </summary>
-        private FileStream _fileStream;
+        private readonly FileStream _fileStream;
 
-        private bool _leaveOpen;
+        private readonly bool _leaveOpen;
 
         /// <summary>
         /// Not-null means system-wide
         /// </summary>
-        private string _mapName;
+        private readonly string _mapName;
 
         /// <summary>
         /// The size of T
         /// </summary>
-        private int _sizeOfT;
+        private readonly int _sizeOfT;
 
         /// <summary>
         /// This is the beginning of the View, before the headerReserveBytes and the 8-byte Length of this array.
@@ -39,11 +42,13 @@ namespace BruSoftware.ListMmf
         /// </summary>
         protected byte* BasePointerByte;
 
-        public bool IsSynchronized => false;
-        public object SyncRoot { get; } = new object();
-        public long Count { get; }
+        private long* _ptrCount;
 
-        public long Size { get; set; }
+        public long Count
+        {
+            get => Unsafe.Read<long>(_ptrCount);
+            set => Unsafe.Write(_ptrCount, value);
+        }
 
         /// <summary>
         /// The capacity of this ListMmf (number of elements)
@@ -57,79 +62,79 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// The capacity in bytes. Note that for persisted MMFs, the ByteLength can exceed _fileStream.Length, so writes to that region may be going to never-never-land.
         /// </summary>
-        public long CapacityBytes => _fileStream?.Length ?? (long)_view.SafeMemoryMappedViewHandle.ByteLength;
-
-        public void Clear()
-        {
-            throw new NotImplementedException();
-        }
+        public long CapacityBytes => (long)_view.SafeMemoryMappedViewHandle.ByteLength;
 
         public bool IsReadOnly { get; }
         public bool IsFixedSize => false;
 
+        public bool IsSynchronized => false;
+
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="headerReserveBytes"></param>
+        /// <param name="headerReserveBytes">Bytes to reserve in header. Evenly divisible by 8 for alignment</param>
         /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
         /// <param name="mmf"></param>
-        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf)
+        /// <param name="access">Only Read and ReadWrite are allowed</param>
+        /// <param name="fileStream"><c>null</c> means Memory not File-backed</param>
+        /// <param name="mapName"><c>null</c> with non-null fileStream means created from file but not sharing</param>
+        /// <param name="leaveOpen"></param>
+        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName, bool leaveOpen = false)
         {
-            _mmf = mmf;
-
             if (!Environment.Is64BitOperatingSystem)
                 throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
             if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            if (headerReserveBytes % 8 != 0) throw new Exception($"{nameof(headerReserveBytes)} is required to be a multiple of 8 bytes.");
+            _headerReserveBytes = headerReserveBytes;
+            _mmf = mmf;
+            _access = access;
+            _fileStream = fileStream;
+            _mapName = mapName;
+            _leaveOpen = leaveOpen;
+            _sizeOfT = Unsafe.SizeOf<T>();
+            IsReadOnly = access == MemoryMappedFileAccess.Read;
+            SyncRoot = new object();
 
-            //_mmf = MemoryMappedFile.CreateFromFile("Test", FileMode.Append, "mapName", 1000);
+            // TODO set lockers based on noLocking parameter
+
+            Reset();
         }
 
         /// <summary>
         /// Initialize/Reset the MMF file etc. 
         /// </summary>
-        private void Initialize()
+        private void Reset()
         {
-            Dispose(true);
+            _view?.Dispose();
+            _view = _mmf.CreateViewAccessor();
+            if (_fileStream != null && _fileStream.Length != CapacityBytes)
 
-            // TODO build/rebuild
-
+                // Set the file length up to the view length so we don't write off the end
+                _fileStream.SetLength(CapacityBytes);
             ResetPointers();
+            var tmp = Count; // 0 if new file
         }
 
         /// <summary>
         /// This method is called whenever Mmf and View are changed.
         /// Inheritors should first call base.ResetPointers() and then reset their own pointers (if any) from BasePointerByte
         /// </summary>
-        public virtual void ResetPointers()
+        protected virtual void ResetPointers()
         {
-            BasePointerByte = GetPointer(null);
-        }
-
-        private byte* GetPointer(MemoryMappedViewAccessor mmva)
-        {
-            var safeBuffer = mmva.SafeMemoryMappedViewHandle;
+            // First set BasePointerByte
+            var safeBuffer = _view.SafeMemoryMappedViewHandle;
             RuntimeHelpers.PrepareConstrainedRegions();
-            byte* pointer = null;
+            BasePointerByte = null;
             try
             {
-                safeBuffer.AcquirePointer(ref pointer);
+                safeBuffer.AcquirePointer(ref BasePointerByte);
             }
             finally
             {
-                if (pointer != null) safeBuffer.ReleasePointer();
+                if (BasePointerByte != null) safeBuffer.ReleasePointer();
             }
-            pointer += mmva.PointerOffset;
-            return pointer;
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                _view?.Dispose();
-                _mmf?.Dispose();
-                if (!_leaveOpen) _fileStream?.Dispose();
-            }
+            BasePointerByte += _view.PointerOffset;
+            _ptrCount = (long*)(BasePointerByte + _headerReserveBytes);
         }
 
         public T this[long index]
@@ -172,6 +177,11 @@ namespace BruSoftware.ListMmf
         /// <param name="list"></param>
         /// <exception cref="MmfException">if list won't fit</exception>
         public void AddRange(IReadOnlyList64<T> list)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Clear()
         {
             throw new NotImplementedException();
         }
@@ -866,6 +876,16 @@ namespace BruSoftware.ListMmf
         {
             Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _view?.Dispose();
+                _mmf.Dispose();
+                if (!_leaveOpen) _fileStream?.Dispose();
+            }
         }
     }
 }

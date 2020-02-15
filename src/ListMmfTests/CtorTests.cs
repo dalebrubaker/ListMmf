@@ -1,5 +1,6 @@
 using System.IO;
 using BruSoftware.ListMmf;
+using FluentAssertions;
 using Xunit;
 
 namespace ListMmfTests
@@ -7,14 +8,28 @@ namespace ListMmfTests
     public class CtorTests
     {
         [Fact]
-        public void Test1()
+        public void CreateNew_SetsCapacity()
         {
-            using (var listMmf = ListMmf<long>.CreateFromFile("TestPath", capacityElements:10))
+            const string testMapName = "TestMapName";
+            const int capacityElements = 10;
+            using (var listMmf = ListMmf<long>.CreateNew(testMapName, capacityElements: capacityElements))
             {
-                Assert.True(true);
-                //File.Delete("TestPath");
+                listMmf.Capacity.Should().Be(512, "Capacity is rounded up to the 4096 page size used in a view");
             }
+        }
+
+        [Fact]
+        public void CreateFile_SetsCapacity()
+        {
+            const string testPath = "TestPath";
+            const int capacityElements = 10;
+            using (var listMmf = ListMmf<long>.CreateFromFile(testPath, capacityElements: capacityElements))
+            {
+                listMmf.Capacity.Should().Be(512, "Capacity is rounded up to the 4096 page size used in a view");
             }
+            File.Delete(testPath);
+        }
+
 
     }
 }
