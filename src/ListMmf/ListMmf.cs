@@ -264,8 +264,11 @@ namespace BruSoftware.ListMmf
             if (disposing)
             {
                 _view?.Dispose();
-                _mmf.Dispose();
-                if (!_leaveOpen) _fileStream.Dispose();
+                _mmf?.Dispose();
+                if (!_leaveOpen)
+                {
+                    _fileStream?.Dispose();
+                }
             }
         }
 
