@@ -23,12 +23,12 @@ matters).
 
 The next 8 bytes are a long value of the array Count.
 
-The next 8 bytes are a long value of the array Version, a counter incremented on
-writes that is used for throwing an “Enumeration modified” error during
-enumeration.
-
-So the actual list values are an array starting at headerReserveBytes + 16 into
+So the actual list values are an array starting at headerReserveBytes + 8 into
 the file.
+
+The List\<T\> Version field is NOT included. Slowing every write down seems a
+very poor trade-off for the very minimal benefit of throwing an “Enumeration
+modified” error during enumeration.
 
 Locking
 =======
