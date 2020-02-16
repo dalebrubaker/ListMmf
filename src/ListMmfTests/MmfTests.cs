@@ -37,7 +37,7 @@ namespace ListMmfTests
         [Fact]
         public void WriteToAllSafeBufferBytes_File()
         {
-            const string fileName = "TestFileName";
+            var fileName = $"{nameof(WriteToAllSafeBufferBytes_File)}";
             const int capacity = 1000;
             const int value = 2;
             using (var fs = new FileStream(fileName, FileMode.CreateNew))
