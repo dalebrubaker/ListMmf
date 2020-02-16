@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using BruSoftware.ListMmf;
 using FluentAssertions;
 using Xunit;
@@ -14,7 +14,7 @@ namespace ListMmfTests
             const int capacityElements = 10;
             using (var listMmf = ListMmf<long>.CreateNew(testMapName, capacityElements: capacityElements))
             {
-                listMmf.Capacity.Should().Be(512, "Capacity is rounded up to the 4096 page size used in a view");
+                listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
             }
         }
 
@@ -25,7 +25,7 @@ namespace ListMmfTests
             const int capacityElements = 10;
             using (var listMmf = ListMmf<long>.CreateFromFile(testPath, capacityElements: capacityElements))
             {
-                listMmf.Capacity.Should().Be(512, "Capacity is rounded up to the 4096 page size used in a view");
+                listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
             }
             File.Delete(testPath);
         }
