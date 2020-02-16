@@ -165,11 +165,9 @@ namespace BruSoftware.ListMmf
 
         /// <summary>
         /// Read-only property describing how many elements are in the List.
+        /// Same as _size in list.cs
         /// </summary>
-        public long Count // Same as _size in list.cs
-        {
-            get => Unsafe.Read<long>(_ptrCount);
-        }
+        public long Count => Unsafe.Read<long>(_ptrCount);
 
         /// <summary>
         /// The capacity of this ListMmf (number of elements)
@@ -252,8 +250,8 @@ namespace BruSoftware.ListMmf
             var size = Unsafe.Read<long>(_ptrCount);
             if ((ulong)size < (ulong)Capacity)
             {
-                Unsafe.Write(_ptrCount, size + 1);
                 Unsafe.Write(_ptrArray + size * _sizeOfT, item);
+                Unsafe.Write(_ptrCount, size + 1); // Write Count AFTER the value, so other processes will get correct 
             }
             else
             {
@@ -267,8 +265,8 @@ namespace BruSoftware.ListMmf
         {
             var size = Unsafe.Read<long>(_ptrCount);
             EnsureCapacity(size + 1);
-            Unsafe.Write(_ptrCount, size + 1);
             Unsafe.Write((void*)_basePointerView[size * _sizeOfT], item);
+            Unsafe.Write(_ptrCount, size + 1); // Write Count AFTER the value, so other processes will get correct 
         }
 
         long IList64.Add(object item)
