@@ -169,7 +169,6 @@ namespace BruSoftware.ListMmf
         public long Count // Same as _size in list.cs
         {
             get => Unsafe.Read<long>(_ptrCount);
-            set => Unsafe.Write(_ptrCount, value);
         }
 
         /// <summary>
@@ -214,18 +213,15 @@ namespace BruSoftware.ListMmf
         {
             get
             {
-                var ptr = GetVoidPointerFromIndex(index);
-                var result = Unsafe.Read<T>(ptr);
-                return result;
+                return Unsafe.Read<T>(_ptrArray + index * _sizeOfT);
             }
             set
             {
-                if ((ulong)index >= (uint)Count)
+                if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
                 {
                     throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
                 }
-                var ptr = GetVoidPointerFromIndex(index);
-                Unsafe.Write(ptr, value);
+                Unsafe.Write(_ptrArray + index * _sizeOfT, value);
             }
         }
 
@@ -253,12 +249,11 @@ namespace BruSoftware.ListMmf
         /// <param name="item"></param>
         public void Add(T item)
         {
-            var size = Count;
+            var size = Unsafe.Read<long>(_ptrCount);
             if ((ulong)size < (ulong)Capacity)
             {
-                Count = size + 1;
-                var ptr = GetVoidPointerFromIndex(size);
-                Unsafe.Write(ptr, item);
+                Unsafe.Write(_ptrCount, size + 1);
+                Unsafe.Write(_ptrArray + size * _sizeOfT, item);
             }
             else
             {
@@ -266,22 +261,14 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void* GetVoidPointerFromIndex(long index)
-        {
-            var ptr = (void*)(_ptrArray + index * _sizeOfT);
-            return ptr;
-        }
-
         // Non-inline from List.Add to improve its code quality as uncommon path
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void AddWithResize(T item)
         {
-            var size = Count;
+            var size = Unsafe.Read<long>(_ptrCount);
             EnsureCapacity(size + 1);
-            Count = size + 1;
-            var ptr = (void*)_basePointerView[size * _sizeOfT];
-            Unsafe.Write(ptr, item);
+            Unsafe.Write(_ptrCount, size + 1);
+            Unsafe.Write((void*)_basePointerView[size * _sizeOfT], item);
         }
 
         long IList64.Add(object item)
@@ -298,7 +285,7 @@ namespace BruSoftware.ListMmf
             {
                 throw new InvalidCastException($"Cannot cast {item.GetType()} to {typeof(T)}");
             }
-            return Count - 1;
+            return Unsafe.Read<long>(_ptrCount) - 1;
         }
 
         /// <summary>
@@ -1063,7 +1050,8 @@ namespace BruSoftware.ListMmf
         {
             var typeStr = IsReadOnly ? "Reader" : "Writer";
             var basedOnStr = _isFileBased ? "File" : "Memory";
-            var result = $"{typeStr} {basedOnStr} {Count:N0}/{Capacity:N0} {Name}";
+            var count = Unsafe.Read<long>(_ptrCount);
+            var result = $"{typeStr} {basedOnStr} {count:N0}/{Capacity:N0} {Name}";
 #if DEBUG
             result += $" #{_instanceId}";
 #endif
