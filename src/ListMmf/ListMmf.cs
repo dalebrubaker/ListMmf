@@ -18,7 +18,7 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// This is the field corresponding to Capacity (in Elements, not Bytes)
         /// </summary>
-        private long _size;
+        private long _capacity;
 
         public object SyncRoot { get; }
 
@@ -71,7 +71,10 @@ namespace BruSoftware.ListMmf
 
         public bool IsSynchronized => false;
 
-        public long Count
+        /// <summary>
+        /// Read-only property describing how many elements are in the List.
+        /// </summary>
+        public long Count // Same as _size in list.cs
         {
             get => Unsafe.Read<long>(_ptrCount);
             set => Unsafe.Write(_ptrCount, value);
@@ -82,7 +85,7 @@ namespace BruSoftware.ListMmf
         /// </summary>
         public long Capacity
         {
-            get => _size;
+            get => _capacity;
             set
             {
                 if (value == Count)
@@ -159,7 +162,7 @@ namespace BruSoftware.ListMmf
                 _fileStream.SetLength(CapacityBytes);
             }
             ResetPointers();
-            _size = CapacityBytesToElementsT(CapacityBytes, _headerReserveBytes);
+            _capacity = CapacityBytesToElementsT(CapacityBytes, _headerReserveBytes);
         }
 
         /// <summary>
@@ -178,7 +181,10 @@ namespace BruSoftware.ListMmf
             }
             finally
             {
-                if (_basePointerView != null) safeBuffer.ReleasePointer();
+                if (_basePointerView != null)
+                {
+                    safeBuffer.ReleasePointer();
+                }
             }
             _basePointerView += _view.PointerOffset;
             _ptrCount = (long*)(_basePointerView + _headerReserveBytes);
@@ -187,24 +193,93 @@ namespace BruSoftware.ListMmf
 
         public T this[long index]
         {
-            get => throw new NotImplementedException();
-            set => throw new NotImplementedException();
+            get
+            {
+                var ptr = GetVoidPointerFromIndex(index);
+                var result = Unsafe.Read<T>(ptr);
+                return result;
+            }
+            set
+            {
+                if ((ulong)index >= (uint)Count)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
+                }
+                var ptr = GetVoidPointerFromIndex(index);
+                Unsafe.Write(ptr, value);
+            }
         }
 
         object IList64.this[long index]
         {
-            get => throw new NotImplementedException();
-            set => throw new NotImplementedException();
+            get => this[index];
+            set
+            {
+                try
+                {
+                    this[index] = (T)value;
+                }
+                catch (InvalidCastException)
+                {
+                    throw new InvalidCastException($"Cannot cast {value.GetType()} to {typeof(T)}");
+                }
+            }
         }
 
+        /// <summary>
+        /// Adds the given object to the end of this list. The size of the list is
+        /// increased by one. If required, the capacity of the list is doubled
+        /// before adding the new element.
+        /// </summary>
+        /// <param name="item"></param>
         public void Add(T item)
         {
-            throw new NotImplementedException();
+            var size = Count;
+            if ((ulong)size < (ulong)Capacity)
+            {
+                Count = size + 1;
+                var ptr = GetVoidPointerFromIndex(size);
+                Unsafe.Write(ptr, item);
+            }
+            else
+            {
+                AddWithResize(item);
+            }
         }
 
-        public long Add(object value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void* GetVoidPointerFromIndex(long index)
         {
-            throw new NotImplementedException();
+            var ptr = (void*)(_ptrArray + index * _sizeOfT);
+            return ptr;
+        }
+
+        // Non-inline from List.Add to improve its code quality as uncommon path
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void AddWithResize(T item)
+        {
+            var size = Count;
+            EnsureCapacity(size + 1);
+            Count = size + 1;
+            var ptr = (void*)_basePointerView[size * _sizeOfT];
+            Unsafe.Write(ptr, item);
+        }
+
+        long IList64.Add(object item)
+        {
+            if (item == null)
+            {
+                throw new ArgumentNullException(nameof(item));
+            }
+            try
+            {
+                Add((T)item);
+            }
+            catch (InvalidCastException)
+            {
+                throw new InvalidCastException($"Cannot cast {item.GetType()} to {typeof(T)}");
+            }
+            return Count - 1;
         }
 
         /// <summary>
@@ -884,23 +959,24 @@ namespace BruSoftware.ListMmf
             //return array;
         }
 
-        // Sets the capacity of this list to the size of the list. This method can
-        // be used to minimize a list's memory overhead once it is known that no
-        // new elements will be added to the list. To completely clear a list and
-        // release all memory referenced by the list, execute the following
-        // statements:
-        // 
-        // list.Clear();
-        // list.TrimExcess();
-        // 
+        /// <summary>
+        /// Sets the capacity of this list to the size of the list. This method can
+        /// be used to minimize a list's memory overhead once it is known that no
+        /// new elements will be added to the list. To completely clear a list and
+        /// release all memory referenced by the list, execute the following
+        /// statements:
+        /// 
+        /// list.Clear();
+        /// list.TrimExcess();
+        /// 
+        /// </summary>
         public void TrimExcess()
         {
-            throw new NotImplementedException();
-
-            //int threshold = (int)(((double)_items.Length) * 0.9);             
-            //if( _size < threshold ) {
-            //    Capacity = _size;                
-            //}
+            var threshold = (long)(Count * 0.9);
+            if (_capacity < threshold)
+            {
+                Capacity = _capacity;
+            }
         }
 
         public bool TrueForAll(Predicate<T> match)
@@ -934,7 +1010,7 @@ namespace BruSoftware.ListMmf
 
             // Grow by the smaller of Capacity (doubling file size) or 1 GB (we don't want to double a 500 GB file)
             var extraCapacity = Math.Min(Capacity, 1024 * 1024 * 1024);
-            var newCapacityElements = Math.Max(_size + extraCapacity, minCapacityElements);
+            var newCapacityElements = Math.Max(_capacity + extraCapacity, minCapacityElements);
             Capacity = newCapacityElements;
         }
 
