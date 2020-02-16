@@ -9,10 +9,10 @@ namespace BruSoftware.ListMmf
 {
     public unsafe partial class ListMmf<T> : IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
     {
-        internal const int DefaultSize = 0;
         private readonly long _headerReserveBytes;
-        private readonly MemoryMappedFile _mmf;
         private readonly MemoryMappedFileAccess _access;
+
+        private MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _view;
 
         /// <summary>
@@ -99,14 +99,11 @@ namespace BruSoftware.ListMmf
                     throw new ListMmfException($"{nameof(Capacity)} cannot be set to {value} because Count={Count}. Use Truncate() to reduce the size of this list.");
                 }
                 _mmf?.Dispose();
-                if (_fileStream == null)
-                {
-                    //_mmf = CreateFromFile(_fileStream, _mapName, value, )
-                }
-
-                // TODO Re-create _mmf based on _mapName and _fileStream
-
-                Reset();
+                var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
+                _mmf = _fileStream == null
+                    ? MemoryMappedFile.CreateOrOpen(_mapName, capacityBytes, _access)
+                    : MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
+                ResetView();
             }
         }
 
@@ -146,13 +143,13 @@ namespace BruSoftware.ListMmf
 
             // TODO set lockers based on noLocking parameter
 
-            Reset();
+            ResetView();
         }
 
         /// <summary>
         /// Initialize/Reset the _mmf file etc. 
         /// </summary>
-        private void Reset()
+        private void ResetView()
         {
             _view?.Dispose();
             _view = _mmf.CreateViewAccessor();
@@ -163,7 +160,6 @@ namespace BruSoftware.ListMmf
             }
             ResetPointers();
             _size = CapacityBytesToElementsT(CapacityBytes, _headerReserveBytes);
-            var tmp = Count; // 0 if new file
         }
 
         /// <summary>
@@ -954,7 +950,10 @@ namespace BruSoftware.ListMmf
             {
                 _view?.Dispose();
                 _mmf.Dispose();
-                if (!_leaveOpen) _fileStream?.Dispose();
+                if (!_leaveOpen)
+                {
+                    _fileStream?.Dispose();
+                }
             }
         }
     }

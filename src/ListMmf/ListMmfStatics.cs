@@ -32,6 +32,8 @@ namespace BruSoftware.ListMmf
                 CleanupFile(fileStream, existed, path);
                 throw new ArgumentException($"Read access capacity {capacityElements} is greater than file length {fileStream.Length}");
             }
+
+            // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
             return CreateFromFile(fileStream, mapName, capacityElements, access, false, headerReserve, noLocking);
         }
 
@@ -49,7 +51,9 @@ namespace BruSoftware.ListMmf
                 // Don't allow a crash because the user requested fewer elements than the file already supports
                 capacityBytes = fileStream.Length;
             }
-            var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, leaveOpen);
+
+            // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
+            var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, true);
             return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, fileStream, mapName, leaveOpen);
         }
 
@@ -143,7 +147,12 @@ namespace BruSoftware.ListMmf
         private static long CapacityElementsToBytes (long capacityElements, long headerReserveBytes)
         {
             var result = capacityElements * Unsafe.SizeOf<T>() + headerReserveBytes + 8; // 8 for the Count field just before the beginning of the array
-            result += 4096 - result % 4096;
+            var intoPage = result % 4096;
+            if (intoPage > 0)
+            {
+                // Round up to the next page
+                result += 4096 - intoPage;
+            }
             return result;
         }
         
