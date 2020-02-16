@@ -10,7 +10,7 @@ namespace BruSoftware.ListMmf
     {
         public static ListMmf<T> CreateFromFile(string path, string mapName = null, long capacityElements = 0,
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
-            long headerReserve = 0, bool noLocking = false)
+            long headerReserveBytes = 0, bool noLocking = false)
         {
             if (path == null)
             {
@@ -34,7 +34,7 @@ namespace BruSoftware.ListMmf
             }
 
             // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
-            return CreateFromFile(fileStream, mapName, capacityElements, access, false, headerReserve, noLocking);
+            return CreateFromFile(fileStream, mapName, capacityElements, access, true, headerReserveBytes, noLocking);
         }
 
         public static ListMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacityElements = 0,
@@ -47,14 +47,14 @@ namespace BruSoftware.ListMmf
             }
             var capacityBytes = CapacityElementsToBytes(capacityElements, headerReserveBytes);
             if (fileStream.Length > capacityBytes)
-            { 
+            {
                 // Don't allow a crash because the user requested fewer elements than the file already supports
                 capacityBytes = fileStream.Length;
             }
 
             // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
             var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, true);
-            return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, fileStream, mapName, leaveOpen);
+            return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, fileStream, mapName);
         }
 
         public static ListMmf<T> CreateNew(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
@@ -144,7 +144,7 @@ namespace BruSoftware.ListMmf
         /// <param name="capacityElements"></param>
         /// <param name="headerReserveBytes"></param>
         /// <returns></returns>
-        private static long CapacityElementsToBytes (long capacityElements, long headerReserveBytes)
+        private static long CapacityElementsToBytes(long capacityElements, long headerReserveBytes)
         {
             var result = capacityElements * Unsafe.SizeOf<T>() + headerReserveBytes + 8; // 8 for the Count field just before the beginning of the array
             var intoPage = result % 4096;
@@ -155,14 +155,14 @@ namespace BruSoftware.ListMmf
             }
             return result;
         }
-        
+
         /// <summary>
         /// Return the capacity in elements that will fit within capacityBytes
         /// </summary>
         /// <param name="capacityBytes"></param>
         /// <param name="headerReserveBytes"></param>
         /// <returns></returns>
-        private static long CapacityBytesToElementsT(long capacityBytes, long headerReserveBytes)
+        private static long CapacityBytesToElements(long capacityBytes, long headerReserveBytes)
         {
             var result = (capacityBytes - headerReserveBytes - 8) / Unsafe.SizeOf<T>(); // 8 for the Count field just before the beginning of the array
             return result;

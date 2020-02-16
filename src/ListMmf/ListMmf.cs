@@ -26,7 +26,8 @@ namespace BruSoftware.ListMmf
         /// Null means this class is memory-based, not-persisted
         /// Not-null means this class is file-based, persisted, like CreateFromFile()
         /// </summary>
-        private readonly FileStream _fileStream;
+        private FileStream _fileStream;
+
 
         private readonly bool _leaveOpen;
 
@@ -70,45 +71,6 @@ namespace BruSoftware.ListMmf
         public bool IsFixedSize => false;
 
         public bool IsSynchronized => false;
-
-        /// <summary>
-        /// Read-only property describing how many elements are in the List.
-        /// </summary>
-        public long Count // Same as _size in list.cs
-        {
-            get => Unsafe.Read<long>(_ptrCount);
-            set => Unsafe.Write(_ptrCount, value);
-        }
-
-        /// <summary>
-        /// The capacity of this ListMmf (number of elements)
-        /// </summary>
-        public long Capacity
-        {
-            get => _capacity;
-            set
-            {
-                if (value == Count)
-                {
-                    // no change
-                    return;
-                }
-                if (IsReadOnly)
-                {
-                    throw new ListMmfException($"{nameof(Capacity)} cannot be set on this Read-Only list.");
-                }
-                if (value < Count)
-                {
-                    throw new ListMmfException($"{nameof(Capacity)} cannot be set to {value} because Count={Count}. Use Truncate() to reduce the size of this list.");
-                }
-                _mmf?.Dispose();
-                var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
-                _mmf = _fileStream == null
-                    ? MemoryMappedFile.CreateOrOpen(_mapName, capacityBytes, _access)
-                    : MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
-                ResetView();
-            }
-        }
 
         /// <summary>
         /// 
@@ -155,18 +117,18 @@ namespace BruSoftware.ListMmf
         private void ResetView()
         {
             _view?.Dispose();
-            _view = _mmf.CreateViewAccessor();
+            _view = _mmf.CreateViewAccessor(0, 0, _access);
             if (_fileStream != null && _fileStream.Length != CapacityBytes)
             {
                 // Set the file length up to the view length so we don't write off the end
                 _fileStream.SetLength(CapacityBytes);
             }
             ResetPointers();
-            _capacity = CapacityBytesToElementsT(CapacityBytes, _headerReserveBytes);
+            _capacity = CapacityBytesToElements(CapacityBytes, _headerReserveBytes);
         }
 
         /// <summary>
-        /// This method is called whenever Mmf and View are changed.
+        /// This method is called whenever _mmf and View are changed.
         /// Inheritors should first call base.ResetPointers() and then reset their own pointers (if any) from BasePointerByte
         /// </summary>
         protected virtual void ResetPointers()
@@ -189,6 +151,55 @@ namespace BruSoftware.ListMmf
             _basePointerView += _view.PointerOffset;
             _ptrCount = (long*)(_basePointerView + _headerReserveBytes);
             _ptrArray = _basePointerView + _headerReserveBytes + 8; // 8 for the Count position at _ptrCount
+        }
+
+        /// <summary>
+        /// Read-only property describing how many elements are in the List.
+        /// </summary>
+        public long Count // Same as _size in list.cs
+        {
+            get => Unsafe.Read<long>(_ptrCount);
+            set => Unsafe.Write(_ptrCount, value);
+        }
+
+        /// <summary>
+        /// The capacity of this ListMmf (number of elements)
+        /// </summary>
+        public long Capacity
+        {
+            get => _capacity;
+            set
+            {
+                if (value == _capacity)
+                {
+                    // no change
+                    return;
+                }
+                if (IsReadOnly)
+                {
+                    throw new ListMmfException($"{nameof(Capacity)} cannot be set on this Read-Only list.");
+                }
+                if (value < Count)
+                {
+                    throw new ListMmfException($"{nameof(Capacity)} cannot be set to {value} because Count={Count}. Use Truncate() to reduce the size of this list.");
+                }
+                _view?.Dispose();
+                _view = null;
+                _mmf?.Dispose();
+                _mmf = null;
+                var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
+                if (_fileStream == null)
+                {
+                    _mmf = MemoryMappedFile.CreateOrOpen(_mapName, capacityBytes, _access);
+                }
+                else
+                {
+                    //_fileStream.Dispose();
+                    //_fileStream = CreateFileStreamFromPath(_path, _access);
+                    _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
+                }
+                ResetView();
+            }
         }
 
         public T this[long index]
@@ -972,10 +983,10 @@ namespace BruSoftware.ListMmf
         /// </summary>
         public void TrimExcess()
         {
-            var threshold = (long)(Count * 0.9);
-            if (_capacity < threshold)
+            var threshold = (long)(Capacity * 0.9);
+            if (Count < threshold)
             {
-                Capacity = _capacity;
+                Capacity = Count;
             }
         }
 
@@ -1025,10 +1036,13 @@ namespace BruSoftware.ListMmf
             if (disposing)
             {
                 _view?.Dispose();
+                _view = null;
                 _mmf.Dispose();
+                _mmf = null;
                 if (!_leaveOpen)
                 {
                     _fileStream?.Dispose();
+                    _fileStream = null;
                 }
             }
         }

@@ -35,9 +35,9 @@ namespace ListMmfTests
         }
 
         [Fact]
-        public void CapacitySet_ShouldGrowCapacity()
+        public void CapacitySet_ShouldGrowCapacityMemory()
         {
-            var mapName = $"{nameof(CapacitySet_ShouldGrowCapacity)}";
+            var mapName = $"{nameof(CapacitySet_ShouldGrowCapacityMemory)}";
             const int capacityElements = 10;
             using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
             {
@@ -45,6 +45,25 @@ namespace ListMmfTests
                 listMmf.Capacity = 511 + 512; // add another page
                 listMmf.Capacity.Should().Be(511 + 512);
             }
+        }
+
+
+        [Fact]
+        public void CapacitySet_ShouldGrowCapacityFile()
+        {
+            var fileName = $"{nameof(CapacitySet_ShouldGrowCapacityFile)}";
+            if (File.Exists(fileName))
+            {
+                File.Delete(fileName);
+            }
+            const int capacityElements = 10;
+            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityElements: capacityElements))
+            {
+                listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
+                listMmf.Capacity = 511 + 512; // add another page
+                listMmf.Capacity.Should().Be(511 + 512);
+            }
+            File.Delete(fileName);
         }
 
         [Fact]
@@ -67,7 +86,7 @@ namespace ListMmfTests
         [Fact]
         public void This_Test()
         {
-            var mapName = $"{nameof(Add_ShouldGrowCount)}";
+            var mapName = $"{nameof(This_Test)}";
             const int capacityElements = 10;
             using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
             {
@@ -83,6 +102,59 @@ namespace ListMmfTests
                 listMmf[2].Should().Be(89);
             }
         }
+
+        [Fact(Skip = "WIP")]
+        public void TrimExcess_ShouldTrimFile()
+        {
+            var fileName = $"{nameof(TrimExcess_ShouldTrimFile)}";
+            if (File.Exists(fileName))
+            {
+                File.Delete(fileName);
+            }
+            const int capacityElements = 511 + 512;
+            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityElements: capacityElements))
+            {
+                listMmf.Capacity.Should().Be(511 + 512, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
+                listMmf.Count.Should().Be(0);
+                for (int i = 0; i < listMmf.Capacity; i++)
+                {
+                    listMmf.Add(i);
+                }
+                var capacity = listMmf.Capacity;
+                listMmf.Count.Should().Be(capacity);
+                listMmf.Capacity += 512;
+                listMmf.Count.Should().Be(capacity, "Increased capacity should not have changed Count");
+                listMmf.Capacity.Should().Be(capacity + 512);
+                listMmf.TrimExcess();
+                listMmf.Capacity.Should().Be(capacity, "Should have removed capacity beyond Count");
+            }
+            File.Delete(fileName);
+        }
+
+        
+        //[Fact]
+        //public void TrimExcess_ShouldTrimMemory()
+        //{
+        //    var mapName = $"{nameof(TrimExcess_ShouldTrimMemory)}";
+        //    const int capacityElements = 511 + 512;
+        //    using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
+        //    {
+        //        listMmf.Capacity.Should().Be(511 + 512, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
+        //        listMmf.Count.Should().Be(0);
+        //        for (int i = 0; i < listMmf.Capacity; i++)
+        //        {
+        //            listMmf.Add(i);
+        //        }
+        //        var capacity = listMmf.Capacity;
+        //        listMmf.Count.Should().Be(capacity);
+        //        listMmf.Capacity += 512;
+        //        listMmf.Count.Should().Be(capacity, "Increased capacity should not have changed Count");
+        //        listMmf.Capacity.Should().Be(capacity + 512);
+        //        listMmf.TrimExcess();
+        //        listMmf.Capacity.Should().Be(capacity, "Should have removed capacity beyond Count");
+        //    }
+        //}
+
 
 
     }
