@@ -15,6 +15,11 @@ namespace BruSoftware.ListMmf
         private readonly MemoryMappedFileAccess _access;
         private MemoryMappedViewAccessor _view;
 
+        /// <summary>
+        /// This is the field corresponding to Capacity (in Elements, not Bytes)
+        /// </summary>
+        private long _size;
+
         public object SyncRoot { get; }
 
         /// <summary>
@@ -40,9 +45,31 @@ namespace BruSoftware.ListMmf
         /// This is a "stale" pointer -- we don't get a new one on each read access, as Microsoft does in SafeBuffer.Read(T).
         ///     I don't know why they do that, and I don't seem to need it...
         /// </summary>
-        protected byte* BasePointerByte;
+        protected byte* _basePointerView;
 
+        /// <summary>
+        /// This is the beginning of the Array, after the headerReserveBytes and the 8-byte Length of this array.
+        /// This is a "stale" pointer -- we don't get a new one on each read access, as Microsoft does in SafeBuffer.Read(T).
+        ///     I don't know why they do that, and I don't seem to need it...
+        /// </summary>
+        protected byte* _ptrArray;
+
+        /// <summary>
+        /// The long* into the Count location in the view
+        /// This is a "stale" pointer -- we don't get a new one on each read access, as Microsoft does in SafeBuffer.Read(T).
+        ///     I don't know why they do that, and I don't seem to need it...
+        /// </summary>
         private long* _ptrCount;
+
+        /// <summary>
+        /// The capacity in bytes. Note that for persisted MMFs, the ByteLength can exceed _fileStream.Length, so writes to that region may be going to never-never-land.
+        /// </summary>
+        public long CapacityBytes => (long)_view.SafeMemoryMappedViewHandle.ByteLength;
+
+        public bool IsReadOnly { get; }
+        public bool IsFixedSize => false;
+
+        public bool IsSynchronized => false;
 
         public long Count
         {
@@ -55,27 +82,33 @@ namespace BruSoftware.ListMmf
         /// </summary>
         public long Capacity
         {
-            get => CapacityBytes / _sizeOfT;
+            get => _size;
             set
             {
                 if (value == Count)
-
+                {
                     // no change
                     return;
-                if (value < Count) throw new ListMmfException($"{nameof(Capacity)} cannot be set to {value} because Count={Count}. Use Truncate() to reduce the size of this list.");
-                EnsureCapacity(value);
+                }
+                if (IsReadOnly)
+                {
+                    throw new ListMmfException($"{nameof(Capacity)} cannot be set on this Read-Only list.");
+                }
+                if (value < Count)
+                {
+                    throw new ListMmfException($"{nameof(Capacity)} cannot be set to {value} because Count={Count}. Use Truncate() to reduce the size of this list.");
+                }
+                _mmf?.Dispose();
+                if (_fileStream == null)
+                {
+                    //_mmf = CreateFromFile(_fileStream, _mapName, value, )
+                }
+
+                // TODO Re-create _mmf based on _mapName and _fileStream
+
+                Reset();
             }
         }
-
-        /// <summary>
-        /// The capacity in bytes. Note that for persisted MMFs, the ByteLength can exceed _fileStream.Length, so writes to that region may be going to never-never-land.
-        /// </summary>
-        public long CapacityBytes => (long)_view.SafeMemoryMappedViewHandle.ByteLength;
-
-        public bool IsReadOnly { get; }
-        public bool IsFixedSize => false;
-
-        public bool IsSynchronized => false;
 
         /// <summary>
         /// 
@@ -90,9 +123,17 @@ namespace BruSoftware.ListMmf
         private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName, bool leaveOpen = false)
         {
             if (!Environment.Is64BitOperatingSystem)
+            {
                 throw new ListMmfException("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (!Environment.Is64BitProcess) throw new ListMmfException("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (headerReserveBytes % 8 != 0) throw new ListMmfException($"{nameof(headerReserveBytes)} is required to be a multiple of 8 bytes.");
+            }
+            if (!Environment.Is64BitProcess)
+            {
+                throw new ListMmfException("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
+            if (headerReserveBytes % 8 != 0)
+            {
+                throw new ListMmfException($"{nameof(headerReserveBytes)} is required to be a multiple of 8 bytes.");
+            }
             _headerReserveBytes = headerReserveBytes;
             _mmf = mmf;
             _access = access;
@@ -109,17 +150,19 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Initialize/Reset the MMF file etc. 
+        /// Initialize/Reset the _mmf file etc. 
         /// </summary>
         private void Reset()
         {
             _view?.Dispose();
             _view = _mmf.CreateViewAccessor();
             if (_fileStream != null && _fileStream.Length != CapacityBytes)
-
+            {
                 // Set the file length up to the view length so we don't write off the end
                 _fileStream.SetLength(CapacityBytes);
+            }
             ResetPointers();
+            _size = CapacityBytesToElementsT(CapacityBytes, _headerReserveBytes);
             var tmp = Count; // 0 if new file
         }
 
@@ -132,17 +175,18 @@ namespace BruSoftware.ListMmf
             // First set BasePointerByte
             var safeBuffer = _view.SafeMemoryMappedViewHandle;
             RuntimeHelpers.PrepareConstrainedRegions();
-            BasePointerByte = null;
+            _basePointerView = null;
             try
             {
-                safeBuffer.AcquirePointer(ref BasePointerByte);
+                safeBuffer.AcquirePointer(ref _basePointerView);
             }
             finally
             {
-                if (BasePointerByte != null) safeBuffer.ReleasePointer();
+                if (_basePointerView != null) safeBuffer.ReleasePointer();
             }
-            BasePointerByte += _view.PointerOffset;
-            _ptrCount = (long*)(BasePointerByte + _headerReserveBytes);
+            _basePointerView += _view.PointerOffset;
+            _ptrCount = (long*)(_basePointerView + _headerReserveBytes);
+            _ptrArray = _basePointerView + _headerReserveBytes + 8; // 8 for the Count position at _ptrCount
         }
 
         public T this[long index]
@@ -887,29 +931,15 @@ namespace BruSoftware.ListMmf
         private void EnsureCapacity(long minCapacityElements)
         {
             if (IsReadOnly || minCapacityElements <= Count)
-
+            {
                 // nothing to do
                 return;
+            }
 
-            _mmf?.Dispose();
-
-            // TODO Re-create _mmf baswed on _mapName and _fileStream
-
-            Reset();
-
-            var extraCapacity = Math.Min(Capacity, 128 * 1024 * 1024); // limit growth to 128 MB at a time
-            var newCapacity = Count == 0 ? 4096 / _sizeOfT : Count * 2;
-            var newCapacityElements = Math.Max(Capacity + extraCapacity, minCapacityElements);
-
-            // TODO
-            //if (_items.Length < min) {
-            //    int newCapacity = _items.Length == 0? _defaultCapacity : _items.Length * 2;
-            //    // Allow the list to grow to maximum possible capacity (~2G elements) before encountering overflow.
-            //    // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
-            //    if ((uint)newCapacity > Array.MaxArrayLength) newCapacity = Array.MaxArrayLength;
-            //    if (newCapacity < min) newCapacity = min;
-            //    Capacity = newCapacity;
-            //}
+            // Grow by the smaller of Capacity (doubling file size) or 1 GB (we don't want to double a 500 GB file)
+            var extraCapacity = Math.Min(Capacity, 1024 * 1024 * 1024);
+            var newCapacityElements = Math.Max(_size + extraCapacity, minCapacityElements);
+            Capacity = newCapacityElements;
         }
 
         public void Dispose()

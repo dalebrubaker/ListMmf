@@ -13,7 +13,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionFolder", "SolutionF
 		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ListMmfBenchmarks", "ListMmfBenchmarks\ListMmfBenchmarks.csproj", "{01364697-65E7-4654-B04C-00E50D9EC6C3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ListMmfBenchmarks", "ListMmfBenchmarks\ListMmfBenchmarks.csproj", "{01364697-65E7-4654-B04C-00E50D9EC6C3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{95DB084F-D6C0-4BAE-93F3-54EAD663C2C6}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
