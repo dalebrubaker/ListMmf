@@ -35,19 +35,6 @@ namespace ListMmfTests
         }
 
         [Fact]
-        public void CapacitySet_ShouldGrowCapacityMemory()
-        {
-            var mapName = $"{nameof(CapacitySet_ShouldGrowCapacityMemory)}";
-            const int capacityElements = 10;
-            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
-            {
-                listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
-                listMmf.Capacity = 511 + 512; // add another page
-                listMmf.Capacity.Should().Be(511 + 512);
-            }
-        }
-
-        [Fact]
         public void CapacitySet_ShouldGrowCapacityFile()
         {
             var fileName = $"{nameof(CapacitySet_ShouldGrowCapacityFile)}";
@@ -158,29 +145,6 @@ namespace ListMmfTests
             var fileInfo = new FileInfo(fileName);
             fileInfo.Length.Should().Be(capacityBytesBeforeAddingEmptyCapacity);
             File.Delete(fileName);
-        }
-
-        [Fact(Skip="WIP")]
-        public void TrimExcess_ShouldTrimMemory()
-        {
-            var mapName = $"{nameof(TrimExcess_ShouldTrimMemory)}";
-            const int capacityElements = 511 + 512;
-            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
-            {
-                listMmf.Capacity.Should().Be(511 + 512, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
-                listMmf.Count.Should().Be(0);
-                for (int i = 0; i < listMmf.Capacity; i++)
-                {
-                    listMmf.Add(i);
-                }
-                var capacity = listMmf.Capacity;
-                listMmf.Count.Should().Be(capacity);
-                listMmf.Capacity += 512;
-                listMmf.Count.Should().Be(capacity, "Increased capacity should not have changed Count");
-                listMmf.Capacity.Should().Be(capacity + 512);
-                listMmf.TrimExcess();
-                listMmf.Capacity.Should().Be(capacity, "Should have removed capacity beyond Count");
-            }
         }
     }
 }

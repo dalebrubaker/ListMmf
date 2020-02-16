@@ -9,6 +9,10 @@ namespace BruSoftware.ListMmf
 {
     public unsafe partial class ListMmf<T> : IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
     {
+        // ReSharper disable once StaticMemberInGenericType
+        private static int s_nextInstanceId;
+
+        private readonly int _instanceId;
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
 
@@ -28,6 +32,10 @@ namespace BruSoftware.ListMmf
         /// </summary>
         private FileStream _fileStream;
 
+        /// <summary>
+        /// <c>false</c> means this is Memory based (not persisted)
+        /// </summary>
+        private readonly bool _isFileBased;
 
         private readonly bool _leaveOpen;
 
@@ -96,10 +104,12 @@ namespace BruSoftware.ListMmf
             {
                 throw new ListMmfException($"{nameof(headerReserveBytes)} is required to be a multiple of 8 bytes.");
             }
+            _instanceId = s_nextInstanceId++;
             _headerReserveBytes = headerReserveBytes;
             _mmf = mmf;
             _access = access;
             _fileStream = fileStream;
+            _isFileBased = _fileStream != null;
             _mapName = mapName;
             _leaveOpen = leaveOpen;
             _sizeOfT = Unsafe.SizeOf<T>();
@@ -118,7 +128,7 @@ namespace BruSoftware.ListMmf
         {
             _view?.Dispose();
             _view = _mmf.CreateViewAccessor(0, 0, _access);
-            if (_fileStream != null && _fileStream.Length != CapacityBytes)
+            if (_isFileBased && _fileStream.Length != CapacityBytes)
             {
                 // Set the file length up to the view length so we don't write off the end
                 _fileStream.SetLength(CapacityBytes);
@@ -183,23 +193,22 @@ namespace BruSoftware.ListMmf
                 {
                     throw new ListMmfException($"{nameof(Capacity)} cannot be set to {value} because Count={Count}. Use Truncate() to reduce the size of this list.");
                 }
+                if (!_isFileBased)
+                {
+                    throw new ListMmfException("A memory (not-persisted) ListMmf can NOT be expanded.");
+                }
+                var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
                 _view?.Dispose();
                 _view = null;
                 _mmf?.Dispose();
                 _mmf = null;
-                var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
-                if (_fileStream == null)
-                {
-                    _mmf = MemoryMappedFile.CreateOrOpen(_mapName, capacityBytes, _access);
-                }
-                else
-                {
-                    _fileStream.SetLength(capacityBytes);
-                    _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
-                }
+                _fileStream.SetLength(capacityBytes);
+                _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
                 ResetView();
             }
         }
+
+        public string Name => _isFileBased ? _fileStream.Name : _mapName;
 
         public T this[long index]
         {
@@ -1034,7 +1043,10 @@ namespace BruSoftware.ListMmf
         {
             if (disposing)
             {
-                TrimExcess();
+                if (_isFileBased)
+                {
+                    TrimExcess();
+                }
                 _view?.Dispose();
                 _view = null;
                 _mmf.Dispose();
@@ -1045,6 +1057,17 @@ namespace BruSoftware.ListMmf
                     _fileStream = null;
                 }
             }
+        }
+
+        public override string ToString()
+        {
+            var typeStr = IsReadOnly ? "Reader" : "Writer";
+            var basedOnStr = _isFileBased ? "File" : "Memory";
+            var result = $"{typeStr} {basedOnStr} {Count:N0}/{Capacity:N0} {Name}";
+#if DEBUG
+            result += $" #{_instanceId}";
+#endif
+            return result;
         }
     }
 }

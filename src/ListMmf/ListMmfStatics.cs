@@ -57,6 +57,15 @@ namespace BruSoftware.ListMmf
             return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, fileStream, mapName);
         }
 
+        /// <summary>
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// </summary>
+        /// <param name="mapName"></param>
+        /// <param name="capacityElements"></param>
+        /// <param name="access"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <returns></returns>
         public static ListMmf<T> CreateNew(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserveBytes = 0, bool noLocking = false)
         {
@@ -69,6 +78,15 @@ namespace BruSoftware.ListMmf
             return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, null, mapName);
         }
 
+        /// <summary>
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// </summary>
+        /// <param name="mapName"></param>
+        /// <param name="capacityElements"></param>
+        /// <param name="access"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <returns></returns>
         public static ListMmf<T> CreateOrOpen(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserveBytes = 0, bool noLocking = false)
         {
@@ -80,7 +98,15 @@ namespace BruSoftware.ListMmf
             var mmf = MemoryMappedFile.CreateOrOpen(mapName, capacityBytes, access);
             return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, null, mapName);
         }
-
+        
+        /// <summary>
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// </summary>
+        /// <param name="mapName"></param>
+        /// <param name="access"></param>
+        /// <param name="headerReserve"></param>
+        /// <param name="noLocking"></param>
+        /// <returns></returns>
         public static ListMmf<T> OpenExisting(string mapName, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserve = 0, bool noLocking = false)
         {
