@@ -194,8 +194,7 @@ namespace BruSoftware.ListMmf
                 }
                 else
                 {
-                    //_fileStream.Dispose();
-                    //_fileStream = CreateFileStreamFromPath(_path, _access);
+                    _fileStream.SetLength(capacityBytes);
                     _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
                 }
                 ResetView();
@@ -1035,6 +1034,7 @@ namespace BruSoftware.ListMmf
         {
             if (disposing)
             {
+                TrimExcess();
                 _view?.Dispose();
                 _view = null;
                 _mmf.Dispose();
