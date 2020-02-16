@@ -22,6 +22,10 @@ namespace ListMmfTests
         public void CreateFile_SetsCapacity()
         {
             const string testPath = "TestPath";
+            if (File.Exists(testPath))
+            {
+                File.Delete(testPath);
+            }
             const int capacityElements = 10;
             using (var listMmf = ListMmf<long>.CreateFromFile(testPath, capacityElements: capacityElements))
             {
@@ -31,7 +35,7 @@ namespace ListMmfTests
         }
 
         [Fact]
-        public void CapacitySet_ShouldGrowCount()
+        public void CapacitySet_ShouldGrowCapacity()
         {
             const string testMapName = "TestMapName";
             const int capacityElements = 10;
