@@ -192,8 +192,10 @@ namespace BruSoftware.ListMmf
                 }
                 if (!_isFileBased)
                 {
-                    throw new ListMmfException("A memory (not-persisted) ListMmf can NOT be expanded.");
+                    throw new ListMmfException("A memory (not-persisted) ListMmf can NOT be expanded or truncated.");
                 }
+
+                // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
                 var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
                 _view?.Dispose();
                 _view = null;
