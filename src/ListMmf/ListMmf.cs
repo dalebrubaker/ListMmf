@@ -7,12 +7,8 @@ using System.Runtime.CompilerServices;
 
 namespace BruSoftware.ListMmf
 {
-    public unsafe partial class ListMmf<T> : IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
+    public unsafe partial class ListMmf<T> : ListMmfBase, IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
     {
-        // ReSharper disable once StaticMemberInGenericType
-        private static int s_nextInstanceId;
-
-        private readonly int _instanceId;
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
 
@@ -90,7 +86,8 @@ namespace BruSoftware.ListMmf
         /// <param name="fileStream"><c>null</c> means Memory not File-backed</param>
         /// <param name="mapName"><c>null</c> with non-null fileStream means created from file but not sharing</param>
         /// <param name="leaveOpen"></param>
-        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName, bool leaveOpen = false)
+        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName, bool leaveOpen = false) 
+        : base(fileStream == null ? mapName : fileStream.Name)
         {
             if (!Environment.Is64BitOperatingSystem)
             {
@@ -104,7 +101,6 @@ namespace BruSoftware.ListMmf
             {
                 throw new ListMmfException($"{nameof(headerReserveBytes)} is required to be a multiple of 8 bytes.");
             }
-            _instanceId = s_nextInstanceId++;
             _headerReserveBytes = headerReserveBytes;
             _mmf = mmf;
             _access = access;
@@ -206,8 +202,6 @@ namespace BruSoftware.ListMmf
                 ResetView();
             }
         }
-
-        public string Name => _isFileBased ? _fileStream.Name : _mapName;
 
         public T this[long index]
         {
@@ -1020,13 +1014,7 @@ namespace BruSoftware.ListMmf
             Capacity = newCapacityElements;
         }
 
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
@@ -1044,6 +1032,7 @@ namespace BruSoftware.ListMmf
                     _fileStream = null;
                 }
             }
+            base.Dispose(disposing);
         }
 
         public override string ToString()
@@ -1053,7 +1042,7 @@ namespace BruSoftware.ListMmf
             var count = Unsafe.Read<long>(_ptrCount);
             var result = $"{typeStr} {basedOnStr} {count:N0}/{Capacity:N0} {Name}";
 #if DEBUG
-            result += $" #{_instanceId}";
+            result += base.ToString();
 #endif
             return result;
         }
