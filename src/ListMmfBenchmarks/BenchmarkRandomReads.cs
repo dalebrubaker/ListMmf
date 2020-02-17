@@ -148,20 +148,18 @@ namespace ListMmfBenchmarks
         /// 154.9 ms for 10 million vs 157.1 for unsafe pointer
         /// </summary>
         [Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGeneric()
+        public long ReadRandomMemoryMappedUnsafeGeneric()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
                 //var value0 = _mmva.ReadInt64(index * 8);
                 //var value1 = *(_basePointerInt64 + index);
-                var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                if (value < 1)
-
-                    // To avoid optimizing away the read
-                    break;
+                value = Unsafe.Read<long>(_basePointerInt64 + index);
             }
+            return value;
         }
 
         /// <summary>

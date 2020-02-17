@@ -19,9 +19,10 @@ namespace ListMmfBenchmarks
         private Locker _lockerNoLock;
         private readonly object _lock = new object();
         private Locker _lockerLock;
-        private readonly Mutex _mutex = new Mutex(false, "Test");
+        private Mutex _mutex;
         private Locker _lockerMutex;
         private Locker _lockerSemaphore;
+        private Semaphore _semaphore;
 
         [GlobalSetup]
         public void GlobalSetup()
@@ -31,10 +32,18 @@ namespace ListMmfBenchmarks
             if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
             _lockerNoLock = new Locker();
             _lockerLock = new Locker(_lock);
-            _lockerMutex = new Locker(() => _mutex.WaitOne(), () => _mutex.ReleaseMutex());
-            _lockerSemaphore = new Locker("TestSystemWideSemaphoreName");
+            //_mutex = new Mutex(false, "Test");
+            //_lockerMutex = new Locker(() => _mutex.WaitOne(), () => _mutex.ReleaseMutex());
+            //var systemWideSemaphoreName = "TestSystemWideSemaphoreName";
+            //_semaphore = new Semaphore(1, 1, systemWideSemaphoreName, out var createdNew);
+            //if (!createdNew)
+            //{
+            //    _semaphore.Release();
+            //    throw new ArgumentException($"{systemWideSemaphoreName} semaphore already exists", nameof(systemWideSemaphoreName));
+            //}
+            //_lockerSemaphore = new Locker(_semaphore, systemWideSemaphoreName);
             const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 11.0 GB of longs
-            const int numTests = 10000000;
+            const int numTests = 1000000;
             _fs = new FileStream(testFilePath, FileMode.Open);
             _br = new BinaryReader(_fs);
             var count = (int)(_fs.Length / 8);
@@ -48,7 +57,7 @@ namespace ListMmfBenchmarks
                 var index = random.Next(0, count);
                 _testIndexes[i] = index;
             }
-            _mmf = MemoryMappedFile.CreateFromFile(_fs, null, _fs.Length, MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, true);
+            _mmf = MemoryMappedFile.CreateFromFile(_fs, null, _fs.Length, MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, false);
 
             //_mmf = MemoryMappedFile.CreateFromFile(testFilePath, FileMode.Open,null, 0, MemoryMappedFileAccess.Read);
             //_mmva = _mmf.CreateViewAccessor(0, count * 8, MemoryMappedFileAccess.Read);
@@ -65,12 +74,12 @@ namespace ListMmfBenchmarks
             basePointerByte += _mmva.PointerOffset; // adjust for the extraMemNeeded
             _basePointerInt64 = (long*)basePointerByte;
 
-            var fileLength = _fs.Length;
-            var viewLength = (long)safeBuffer.ByteLength;
-            var viewLonger = viewLength - fileLength;
-            var capacity = _mmva.Capacity; // same as viewLength
-            var isClosed = safeBuffer.IsClosed;
-            var isInvalid = safeBuffer.IsInvalid;
+            //var fileLength = _fs.Length;
+            //var viewLength = (long)safeBuffer.ByteLength;
+            //var viewLonger = viewLength - fileLength;
+            //var capacity = _mmva.Capacity; // same as viewLength
+            //var isClosed = safeBuffer.IsClosed;
+            //var isInvalid = safeBuffer.IsInvalid;
         }
 
         [GlobalCleanup]
@@ -85,10 +94,13 @@ namespace ListMmfBenchmarks
             var viewLonger = viewLength - fileLength;
             var isClosed = safeBuffer.IsClosed;
             var isInvalid = safeBuffer.IsInvalid;
+            _mutex?.Dispose();
+            _semaphore?.Dispose();
         }
 
         /// <summary>
-        /// 373 ms for 10 million 
+        /// 373 ms for 10 million
+        /// Another day, 3.5 ms for 100,000, 37 ms for 1 million,
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGeneric()

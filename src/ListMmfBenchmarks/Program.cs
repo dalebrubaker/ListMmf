@@ -24,46 +24,46 @@ namespace ListMmfBenchmarks
             Console.ReadLine();
         }
 
-        private static void DebugAppend()
-        {
-            //For debugging
-            var test2 = new DebugAppend();
-            test2.GlobalSetup();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.Append();
-            test2.GlobalCleanup();
+        //private static void DebugAppend()
+        //{
+        //    //For debugging
+        //    var test2 = new DebugAppend();
+        //    test2.GlobalSetup();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.Append();
+        //    test2.GlobalCleanup();
 
-            // Seems never to finish var summary = BenchmarkRunner.Run<DebugAppend>();
-            Console.WriteLine("Done with BenchmarkAppend");
-        }
+        //    // Seems never to finish var summary = BenchmarkRunner.Run<DebugAppend>();
+        //    Console.WriteLine("Done with BenchmarkAppend");
+        //}
 
-        private static void BenchmarkRandomWritest()
-        {
-            //var test = new BenchmarkRandomWrites();
-            //test.GlobalSetup();
-            //test.ReadWriteRandomMemoryMappedUnsafeGeneric();
-            //test.GlobalCleanup();
-            var summaryW = BenchmarkRunner.Run<BenchmarkRandomWrites>();
-        }
+        //private static void BenchmarkRandomWritest()
+        //{
+        //    //var test = new BenchmarkRandomWrites();
+        //    //test.GlobalSetup();
+        //    //test.ReadWriteRandomMemoryMappedUnsafeGeneric();
+        //    //test.GlobalCleanup();
+        //    var summaryW = BenchmarkRunner.Run<BenchmarkRandomWrites>();
+        //}
 
-        private static void BenchmarkRandomReads()
-        {
-            // For debugging
-            //var test = new BenchmarkRandomReads();
-            //test.GlobalSetup();
-            //test.ReadRandomMemoryMappedUnsafeGeneric();
-            //test.GlobalCleanup();
-            var summary = BenchmarkRunner.Run<BenchmarkRandomReads>();
-        }
+        //private static void BenchmarkRandomReads()
+        //{
+        //    // For debugging
+        //    //var test = new BenchmarkRandomReads();
+        //    //test.GlobalSetup();
+        //    //test.ReadRandomMemoryMappedUnsafeGeneric();
+        //    //test.GlobalCleanup();
+        //    var summary = BenchmarkRunner.Run<BenchmarkRandomReads>();
+        //}
 
         private static void BenchmarkLocks()
         {
@@ -76,23 +76,23 @@ namespace ListMmfBenchmarks
         }
 
         
-        private static void BenchmarkLocker()
-        {
-            //// For debugging
-            //var test = new BenchmarkLocker();
-            //test.GlobalSetup();
-            //test.ReadRandomMemoryMappedUnsafeGeneric();
-            ////test.ReadRandomMemoryMappedUnsafeGenericLockerSemaphore();
-            //test.GlobalCleanup();
+        //private static void BenchmarkLocker()
+        //{
+        //    //// For debugging
+        //    //var test = new BenchmarkLocker();
+        //    //test.GlobalSetup();
+        //    //test.ReadRandomMemoryMappedUnsafeGeneric();
+        //    ////test.ReadRandomMemoryMappedUnsafeGenericLockerSemaphore();
+        //    //test.GlobalCleanup();
 
-            var summary = BenchmarkRunner.Run<BenchmarkLocker>();
-        }
+        //    var summary = BenchmarkRunner.Run<BenchmarkLocker>();
+        //}
 
-        private static void DebugTestPointerHugeFile()
-        {
-            var tmp = new TestPointerHugeFile();
-            tmp.WriteRead();
-        }
+        //private static void DebugTestPointerHugeFile()
+        //{
+        //    var tmp = new TestPointerHugeFile();
+        //    tmp.WriteRead();
+        //}
 
         /// <summary>
         /// Prove that Array, unlike List and other collections,

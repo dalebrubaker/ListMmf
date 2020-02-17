@@ -4,9 +4,11 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Engines;
 
 namespace ListMmfBenchmarks
 {
+    //[SimpleJob(RunStrategy.ColdStart, targetCount: 5)]
     public unsafe class BenchmarkLocks
     {
         private FileStream _fs;
@@ -233,8 +235,20 @@ namespace ListMmfBenchmarks
         }
 
         /*
+      Warm Start
+      |         100 million                             Method |     Mean |    Error |   StdDev |
+      |------------------------------------------------------ |---------:|---------:|---------:|
+|                   ReadRandomMemoryMappedUnsafeGeneric | 3.613 s | 0.0695 s | 0.0800 s |
+|           ReadRandomMemoryMappedUnsafeGenericWithLock | 5.393 s | 0.1055 s | 0.1129 s |
+|        ReadRandomMemoryMappedUnsafeGenericWithMonitor | 5.308 s | 0.1049 s | 0.1030 s |
+| ReadRandomMemoryMappedUnsafeGenericWithMonitorActions | 5.670 s | 0.0787 s | 0.0697 s |
+|    ReadRandomMemoryMappedUnsafeGenericWithNullActions | 3.474 s | 0.0678 s | 0.0726 s |
+|    ReadRandomMemoryMappedUnsafeGenericWithNoOpActions | 3.689 s | 0.0240 s | 0.0200 s |
+      */
 
-        |                                                Method |     Mean |    Error |   StdDev |
+        /*
+        Warm Start
+        |         10 million                             Method |     Mean |    Error |   StdDev |
         |------------------------------------------------------ |---------:|---------:|---------:|
         |                   ReadRandomMemoryMappedUnsafeGeneric | 358.1 ms |  6.76 ms |  6.64 ms |
         |           ReadRandomMemoryMappedUnsafeGenericWithLock | 540.6 ms | 10.26 ms | 10.07 ms |
@@ -243,6 +257,17 @@ namespace ListMmfBenchmarks
         |    ReadRandomMemoryMappedUnsafeGenericWithNullActions | 353.8 ms |  4.36 ms |  4.08 ms |
         |    ReadRandomMemoryMappedUnsafeGenericWithNoOpActions | 372.2 ms |  6.86 ms |  6.41 ms |
 
+        */
+        /*
+        Cold Start
+        |         10 million                             Method |     Mean |    Error |   StdDev |
+        |------------------------------------------------------ |---------:|---------:|---------:|
+|                   ReadRandomMemoryMappedUnsafeGeneric | 4.727 s | 37.315 s | 9.691 s | 0.3830 s |
+|           ReadRandomMemoryMappedUnsafeGenericWithLock | 1.749 s | 10.401 s | 2.701 s | 0.5376 s |
+|        ReadRandomMemoryMappedUnsafeGenericWithMonitor | 1.663 s |  9.694 s | 2.518 s | 0.5404 s |
+| ReadRandomMemoryMappedUnsafeGenericWithMonitorActions | 1.768 s | 10.367 s | 2.692 s | 0.5759 s |
+|    ReadRandomMemoryMappedUnsafeGenericWithNullActions | 1.645 s | 11.079 s | 2.877 s | 0.3579 s |
+|    ReadRandomMemoryMappedUnsafeGenericWithNoOpActions | 1.728 s | 11.541 s | 2.997 s | 0.3893 s |
         */
     }
 }
