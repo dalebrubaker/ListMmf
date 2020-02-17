@@ -14,8 +14,8 @@ namespace BruSoftware.ListMmf
         public const string SemaphoreUniquePrefix = "LM";
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
-        private string _semaphoreUniqueName;
-        private Semaphore _semaphoreUnique; // Semaphore created for _semapahoreUniqueName
+        private readonly string _semaphoreUniqueName;
+        private readonly Semaphore _semaphoreUnique; // Semaphore created for _semapahoreUniqueName
 
         private MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _view;
@@ -72,6 +72,7 @@ namespace BruSoftware.ListMmf
         private long* _ptrCount;
 
         private Locker _locker;
+        private bool _isDisposed;
 
         /// <summary>
         /// The capacity in bytes. Note that for persisted MMFs, the ByteLength can exceed _fileStream.Length, so writes to that region may be going to never-never-land.
@@ -103,7 +104,8 @@ namespace BruSoftware.ListMmf
         /// <param name="fileStream"><c>null</c> means Memory not File-backed</param>
         /// <param name="mapName"><c>null</c> with non-null fileStream means created from file but not sharing</param>
         /// <param name="leaveOpen"></param>
-        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName, bool leaveOpen = false)
+        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName,
+            bool leaveOpen = false)
             : base(fileStream == null ? mapName : fileStream.Name)
         {
             if (!Environment.Is64BitOperatingSystem)
@@ -130,7 +132,8 @@ namespace BruSoftware.ListMmf
             SyncRoot = new object();
             Name = fileStream == null ? mapName : fileStream.Name;
             AccessName = IsReadOnly ? "Reader " : "Writer " + Name;
-            SetSemaphoreUniqueName();
+            _semaphoreUniqueName = GetSemaphoreUniqueName(Name, IsReadOnly);
+            _semaphoreUnique = new Semaphore(0, int.MaxValue, _semaphoreUniqueName);
             SetLocking(noLocking);
             ResetView();
         }
@@ -1016,19 +1019,6 @@ namespace BruSoftware.ListMmf
             Capacity = newCapacityElements;
         }
 
-        private void SetSemaphoreUniqueName()
-        {
-            var cleanName = Name.RemoveCharFromString(Path.DirectorySeparatorChar);
-            cleanName = cleanName.RemoveCharFromString(',');
-            cleanName = cleanName.RemoveCharFromString(' ');
-            var prefix = IsReadOnly ? "R-" : "W-";
-            _semaphoreUniqueName = $"Global\\{prefix}{cleanName}";
-            if (_semaphoreUniqueName.Length > 260)
-            {
-                throw new ListMmfException($"Too long semaphore name, exceeds 260: {_semaphoreUniqueName}");
-            }
-        }
-
         private void SetLocking(bool noLocking)
         {
             if (noLocking || IsReadOnly && _sizeOfT <= 8)
@@ -1069,6 +1059,7 @@ namespace BruSoftware.ListMmf
         {
             if (disposing)
             {
+                _isDisposed = true;
                 if (_isFileBased)
                 {
                     TrimExcess();
@@ -1082,15 +1073,34 @@ namespace BruSoftware.ListMmf
                     _fileStream?.Dispose();
                     _fileStream = null;
                 }
+                DisposeSemaphore();
             }
             base.Dispose(disposing);
+        }
+
+        private void DisposeSemaphore()
+        {
+            try
+            {
+                // _semaphoreUnique must be owned by the thread in order to block for Open methods
+                // But sometimes another thread will dispose
+                var count = _semaphoreUnique?.Release(1);
+            }
+            catch (SemaphoreFullException)
+            {
+                // ??? ignore this, always happen when we aren't opening exclusive
+            }
+            finally
+            {
+                _semaphoreUnique?.Dispose();
+            }
         }
 
         public override string ToString()
         {
             var basedOnStr = _isFileBased ? "File" : "Memory";
-            var count = Unsafe.Read<long>(_ptrCount);
-            var result = $"{basedOnStr} {count:N0}/{Capacity:N0} {AccessName}";
+            var count = _isDisposed ? 0 : Unsafe.Read<long>(_ptrCount);
+            var result = $"{basedOnStr} {count:N0}/{_capacity:N0} {AccessName}";
 #if DEBUG
             result += base.ToString();
 #endif

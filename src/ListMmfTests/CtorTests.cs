@@ -147,5 +147,28 @@ namespace ListMmfTests
             fileInfo.Length.Should().Be(capacityBytesBeforeAddingEmptyCapacity);
             File.Delete(fileName);
         }
+
+        [Fact]
+        public void IsAnyoneReadingWriting_Tests()
+        {
+            var mapName = $"{nameof(IsAnyoneReadingWriting_Tests)}";
+            var isAnyoneReading = ListMmfBase.IsAnyoneReading(mapName);
+            isAnyoneReading.Should().BeFalse("No reader yet.");
+            var isAnyoneWriting = ListMmfBase.IsAnyoneWriting(mapName);
+            isAnyoneWriting.Should().BeFalse("No writer yet.");
+
+            const int capacityElements = 10;
+            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
+            {
+                isAnyoneReading = ListMmfBase.IsAnyoneReading(mapName);
+                isAnyoneReading.Should().BeFalse("This is a writer, not a reader");
+                isAnyoneWriting = ListMmfBase.IsAnyoneWriting(mapName);
+                isAnyoneWriting.Should().BeTrue("This is a writer.");
+            }
+            isAnyoneReading = ListMmfBase.IsAnyoneReading(mapName);
+            isAnyoneReading.Should().BeFalse("No reader yet.");
+            isAnyoneWriting = ListMmfBase.IsAnyoneWriting(mapName);
+            isAnyoneWriting.Should().BeFalse("Writer finished.");
+        }
     }
 }

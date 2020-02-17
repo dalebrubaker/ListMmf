@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace BruSoftware.ListMmf
 {
@@ -96,6 +97,45 @@ namespace BruSoftware.ListMmf
             }
         }
 #endif
+
+        public static bool IsAnyoneReading(string pathOrMapName)
+        {
+            var semaphoreUniqueName = GetSemaphoreUniqueName(pathOrMapName, true);
+            var exists = SemaphoreNameExists(semaphoreUniqueName);
+            return exists;
+        }
+
+        public static bool IsAnyoneWriting(string pathOrMapName)
+        {
+            var semaphoreUniqueName = GetSemaphoreUniqueName(pathOrMapName, false);
+            var exists = SemaphoreNameExists(semaphoreUniqueName);
+            return exists;
+        } 
+        
+        public static bool SemaphoreNameExists(string semapahoreName)
+        {
+            var exists = Semaphore.TryOpenExisting(semapahoreName, out var semaphore);
+            if (exists)
+            {
+                // We didn't really want to open one.
+                semaphore.Dispose();
+            }
+            return exists;
+        }
+
+        protected static string GetSemaphoreUniqueName(string pathOrMapName, bool isReadOnly)
+        {
+            var cleanName = pathOrMapName.RemoveCharFromString(Path.DirectorySeparatorChar);
+            cleanName = cleanName.RemoveCharFromString(',');
+            cleanName = cleanName.RemoveCharFromString(' ');
+            var prefix = isReadOnly ? "R-" : "W-";
+            var result = $"Global\\{prefix}{cleanName}";
+            if (result.Length > 260)
+            {
+                throw new ListMmfException($"Too long semaphore name, exceeds 260: {result}");
+            }
+            return result;
+        }
 
         protected virtual void Dispose(bool disposing)
         {
