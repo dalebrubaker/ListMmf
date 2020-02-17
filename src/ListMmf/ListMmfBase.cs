@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace BruSoftware.ListMmf
 {
@@ -11,25 +10,27 @@ namespace BruSoftware.ListMmf
     /// </summary>
     public class ListMmfBase : IDisposable
     {
-        public string Name { get; }
+#if DEBUG
         public static int s_nextInstanceId;
-        private static readonly object s_lock = new object();
         private static readonly Dictionary<string, List<ListMmfIdentifier>> s_openListByName = new Dictionary<string, List<ListMmfIdentifier>>();
         private static readonly object s_dictLock = new object();
 
         protected readonly int _instanceId;
 
         public ListMmfIdentifier ListMmfIdentifier { get; }
+#endif
 
         public ListMmfBase(string name)
         {
-            Name = name;
+#if DEBUG
             _instanceId = s_nextInstanceId++;
-            ListMmfIdentifier = new ListMmfIdentifier(Name, _instanceId);
-            AddMmfCreationToDictionary(ListMmfIdentifier);
+            ListMmfIdentifier = new ListMmfIdentifier(name, _instanceId);
+            AddListMmfCreationToDictionary(ListMmfIdentifier);
+#endif
         }
 
-        private static void AddMmfCreationToDictionary(ListMmfIdentifier listMmfIdentifier)
+#if DEBUG
+        private static void AddListMmfCreationToDictionary(ListMmfIdentifier listMmfIdentifier)
         {
             lock (s_dictLock)
             {
@@ -39,15 +40,10 @@ namespace BruSoftware.ListMmf
                     s_openListByName.Add(listMmfIdentifier.Name, identifiers);
                 }
                 identifiers.Add(listMmfIdentifier);
-
-                //if (key.Contains("Timestamps.btdHdr"))
-                //{
-                //    s_logger.Debug($"Added {key} to dictionary, count={identifiers.Count}");
-                //}
-                //s_logger.Debug($"Added {mmfContainer.Identifier} to s_openListBySemaphoreUniqueName");
             }
         }
-        private static void RemoveMmfCreationFromDictionary(ListMmfIdentifier listMmfIdentifier)
+
+        private static void RemoveListMmfCreationFromDictionary(ListMmfIdentifier listMmfIdentifier)
         {
             lock (s_dictLock)
             {
@@ -58,7 +54,7 @@ namespace BruSoftware.ListMmf
                 var index = identifiers.FindIndex(x => x.Name == listMmfIdentifier.Name && x.InstanceId == listMmfIdentifier.InstanceId);
                 if (index < 0)
                 {
-                    throw new ListMmfException($"Failed to find {listMmfIdentifier} in s_openListByName");
+                    throw new ListMmfException($"Failed to find {listMmfIdentifier} in dictionary");
                 }
                 identifiers.RemoveAt(index);
                 if (identifiers.Count == 0)
@@ -68,7 +64,7 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        public static int GetOpenMmfContainersCount(FileStream fileStream = null, string mapName = null)
+        public static int GetOpenInstancesCount(FileStream fileStream = null, string mapName = null)
         {
             lock (s_dictLock)
             {
@@ -82,16 +78,16 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        public static int GetOpenMmfContainersCountAll()
+        public static int GetOpenInstancesCountAll()
         {
             lock (s_dictLock)
             {
-                var allValues = GetOpenMmfContainers();
+                var allValues = GetOpenInstances();
                 return allValues.Count;
             }
         }
 
-        public static List<ListMmfIdentifier> GetOpenMmfContainers()
+        public static List<ListMmfIdentifier> GetOpenInstances()
         {
             lock (s_dictLock)
             {
@@ -99,11 +95,15 @@ namespace BruSoftware.ListMmf
                 return all;
             }
         }
+#endif
+
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
-                RemoveMmfCreationFromDictionary(ListMmfIdentifier);
+#if DEBUG
+                RemoveListMmfCreationFromDictionary(ListMmfIdentifier);
+#endif
             }
         }
 
@@ -115,7 +115,11 @@ namespace BruSoftware.ListMmf
 
         public override string ToString()
         {
+#if DEBUG
             return $" #{_instanceId}";
+#else
+            return "";
+#endif
         }
     }
 }

@@ -2,6 +2,7 @@
 {
     public class ListMmfIdentifier
     {
+#if DEBUG
         public string Name { get; }
         public int InstanceId { get; }
 
@@ -15,5 +16,6 @@
         {
             return $"#{InstanceId} {Name}";
         }
+#endif
     }
 }

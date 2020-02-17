@@ -72,8 +72,18 @@ namespace BruSoftware.ListMmf
         public long CapacityBytes => (long)_view.SafeMemoryMappedViewHandle.ByteLength;
 
         public bool IsReadOnly { get; }
-        public bool IsFixedSize => false;
 
+        /// <summary>
+        /// The given mapName or path or _fileStream.Name
+        /// </summary>
+        public string Name { get; set; }
+
+        /// <summary>
+        /// Reader {Name} or Writer {Name}
+        /// </summary>
+        public string AccessName { get; set; }
+
+        public bool IsFixedSize => false;
         public bool IsSynchronized => false;
 
         /// <summary>
@@ -86,8 +96,8 @@ namespace BruSoftware.ListMmf
         /// <param name="fileStream"><c>null</c> means Memory not File-backed</param>
         /// <param name="mapName"><c>null</c> with non-null fileStream means created from file but not sharing</param>
         /// <param name="leaveOpen"></param>
-        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName, bool leaveOpen = false) 
-        : base(fileStream == null ? mapName : fileStream.Name)
+        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName, bool leaveOpen = false)
+            : base(fileStream == null ? mapName : fileStream.Name)
         {
             if (!Environment.Is64BitOperatingSystem)
             {
@@ -111,6 +121,8 @@ namespace BruSoftware.ListMmf
             _sizeOfT = Unsafe.SizeOf<T>();
             IsReadOnly = access == MemoryMappedFileAccess.Read;
             SyncRoot = new object();
+            Name = fileStream == null ? mapName : fileStream.Name;
+            AccessName = IsReadOnly ? "Reader " : "Writer " + Name;
 
             // TODO set lockers based on noLocking parameter
 
@@ -1037,10 +1049,9 @@ namespace BruSoftware.ListMmf
 
         public override string ToString()
         {
-            var typeStr = IsReadOnly ? "Reader" : "Writer";
             var basedOnStr = _isFileBased ? "File" : "Memory";
             var count = Unsafe.Read<long>(_ptrCount);
-            var result = $"{typeStr} {basedOnStr} {count:N0}/{Capacity:N0} {Name}";
+            var result = $"{basedOnStr} {count:N0}/{Capacity:N0} {AccessName}";
 #if DEBUG
             result += base.ToString();
 #endif
