@@ -78,10 +78,10 @@ namespace ListMmfBenchmarks
         
         private static void BenchmarkLocker()
         {
-            // For debugging
+            //// For debugging
             //var test = new BenchmarkLocker();
             //test.GlobalSetup();
-            //test.ReadRandomMemoryMappedUnsafeGenericLockerLock();
+            //test.ReadRandomMemoryMappedUnsafeGenericLockerSemaphore();
             //test.GlobalCleanup();
 
             var summary = BenchmarkRunner.Run<BenchmarkLocker>();

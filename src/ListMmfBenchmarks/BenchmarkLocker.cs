@@ -16,11 +16,12 @@ namespace ListMmfBenchmarks
         private MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _mmva;
         private long* _basePointerInt64;
-        private Locker _lockerNull;
+        private Locker _lockerNoLock;
         private readonly object _lock = new object();
         private Locker _lockerLock;
         private readonly Mutex _mutex = new Mutex(false, "Test");
         private Locker _lockerMutex;
+        private Locker _lockerSemaphore;
 
         [GlobalSetup]
         public void GlobalSetup()
@@ -28,9 +29,10 @@ namespace ListMmfBenchmarks
             if (!Environment.Is64BitOperatingSystem)
                 throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
             if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            _lockerNull = new Locker(null, null);
-            _lockerLock = new Locker(() => Monitor.Enter(_lock), () => Monitor.Exit(_lock));
+            _lockerNoLock = new Locker();
+            _lockerLock = new Locker(_lock);
             _lockerMutex = new Locker(() => _mutex.WaitOne(), () => _mutex.ReleaseMutex());
+            _lockerSemaphore = new Locker("TestSystemWideSemaphoreName");
             const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 11.0 GB of longs
             const int numTests = 10000000;
             _fs = new FileStream(testFilePath, FileMode.Open);
@@ -103,7 +105,7 @@ namespace ListMmfBenchmarks
             return value;
         }
 
-        [Benchmark]
+        //[Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericLockerNull()
         {
             var value = 0L;
@@ -111,7 +113,7 @@ namespace ListMmfBenchmarks
             {
                 var index = _testIndexes[i];
 
-                using (_lockerNull.Lock())
+                using (_lockerNoLock.Lock())
                 {
                     //var value0 = _mmva.ReadInt64(index * 8);
                     //var value1 = *(_basePointerInt64 + index);
@@ -121,7 +123,7 @@ namespace ListMmfBenchmarks
             return value;
         }
 
-        [Benchmark]
+        //[Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericLockerLock()
         {
             var value = 0L;
@@ -147,7 +149,7 @@ namespace ListMmfBenchmarks
         |  ReadRandomMemoryMappedUnsafeGenericLockerLock |   780.9 ms | 14.03 ms | 13.12 ms |
         | ReadRandomMemoryMappedUnsafeGenericLockerMutex | 8,275.5 ms | 27.88 ms | 24.71 ms |           
         */
-        [Benchmark]
+        //[Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericLockerMutex()
         {
             var value = 0L;
@@ -156,6 +158,24 @@ namespace ListMmfBenchmarks
                 var index = _testIndexes[i];
 
                 using (_lockerMutex.Lock())
+                {
+                    //var value0 = _mmva.ReadInt64(index * 8);
+                    //var value1 = *(_basePointerInt64 + index);
+                    value = Unsafe.Read<long>(_basePointerInt64 + index);
+                }
+            }
+            return value;
+        }
+
+        //[Benchmark]
+        public long ReadRandomMemoryMappedUnsafeGenericLockerSemaphore()
+        {
+            var value = 0L;
+            for (int i = 0; i < _testIndexes.Length; i++)
+            {
+                var index = _testIndexes[i];
+
+                using (_lockerSemaphore.Lock())
                 {
                     //var value0 = _mmva.ReadInt64(index * 8);
                     //var value1 = *(_basePointerInt64 + index);

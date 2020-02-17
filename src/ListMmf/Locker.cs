@@ -14,10 +14,10 @@ namespace BruSoftware.ListMmf
     /// </summary>
     public class Locker : IDisposable
     {
-        private readonly CancellationToken _cancellationToken;
         private readonly object _lock;
         private readonly Action _actionEnter;
         private readonly Action _actionExit;
+        private readonly Semaphore _semaphore;
 
         public Locker(Action actionEnter, Action actionExit)
         {
@@ -34,7 +34,6 @@ namespace BruSoftware.ListMmf
             _actionExit = null;
         }
 
-        
         /// <summary>
         /// Use this ctor for a locker that locks on lockObject (Monitor.Enter/Exit)
         /// </summary>
@@ -50,16 +49,74 @@ namespace BruSoftware.ListMmf
         /// Use this ctor for a locker that uses a Semaphore to lock on a system-wide semaphore name.
         /// For example, this can be a Path or MapName to lock MemoryMappedFiles system-wide.
         /// </summary>
-        /// <param name="systemWideSymaphoreName"><c>null</c> or empty to make this local and not system-wide. Maximum length is 260 characters.</param>
+        /// <param name="systemWideSemaphoreName"><c>null</c> or empty to make this local and not system-wide. Maximum length is 260 characters.</param>
         /// <param name="cancellationToken"></param>
         /// <param name="timeout"></param>
-        public Locker(string systemWideSymaphoreName, CancellationToken cancellationToken = default, int timeout = -1)
+        public Locker(string systemWideSemaphoreName, CancellationToken cancellationToken = default, int timeout = -1)
         {
-            _cancellationToken = cancellationToken;
+            _semaphore = new Semaphore(1, 1, systemWideSemaphoreName, out var createdNew);
+            if (!createdNew)
+            {
+                _semaphore.Release();
+                throw new ArgumentException($"{systemWideSemaphoreName} semaphore already exists", nameof(systemWideSemaphoreName));
+            }
 
-            // TODO
-            //_actionEnter = () => Monitor.Enter(_lock);
-            //_actionExit = () => Monitor.Exit(_lock);
+            //_actionEnter = () => BlockUntilAvailableCancelledOrTimeout(cancellationToken, systemWideSemaphoreName, _semaphore, timeout);
+            _actionEnter = () => _semaphore.WaitOne();
+            _actionExit = () => _semaphore?.Release(1);
+        }
+
+        /// <summary>
+        /// BlockUntilAvailableCancelledOrTimeout on semaphoreUnique until it is signaled (another user of this semaphore disposed/released), timed out or cancelled
+        /// Thanks to https://docs.microsoft.com/en-us/dotnet/standard/threading/how-to-listen-for-cancellation-requests-that-have-wait-handles
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <param name="systemWideSemaphoreName"></param>
+        /// <param name="name"></param>
+        /// <param name="semaphoreUnique"></param>
+        /// <param name="timeout">-1 means infinite</param>
+        /// <returns><c>true</c> if cancelled or timed out</returns>
+        /// <exception cref="OperationCanceledException">if cancelled</exception>
+        /// <exception cref="TimeoutException">if timeout</exception>
+        public static void BlockUntilAvailableCancelledOrTimeout(CancellationToken cancellationToken, string systemWideSemaphoreName, Semaphore semaphoreUnique,
+            int timeout = -1)
+        {
+            int eventThatSignaledIndex = WaitHandle.WaitAny(new[]
+            {
+                semaphoreUnique,
+                cancellationToken.WaitHandle
+            }, timeout);
+            if (eventThatSignaledIndex == 1)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            if (cancellationToken.IsCancellationRequested)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            if (eventThatSignaledIndex == WaitHandle.WaitTimeout)
+            {
+                var msg = $"Timed out: {systemWideSemaphoreName}";
+                throw new TimeoutException(msg);
+            }
+        }
+
+        private void DisposeSemaphore()
+        {
+            try
+            {
+                // _semaphoreUnique must be owned by the thread in order to block for Open methods
+                // But sometimes another thread will dispose
+                var count = _semaphore?.Release(1);
+            }
+            catch (SemaphoreFullException)
+            {
+                // ??? ignore this, always happen when we aren't opening exclusive
+            }
+            finally
+            {
+                _semaphore?.Dispose();
+            }
         }
 
         public Locker Lock()
@@ -67,7 +124,6 @@ namespace BruSoftware.ListMmf
             _actionEnter?.Invoke();
             return this;
         }
-
 
         public void Dispose()
         {
