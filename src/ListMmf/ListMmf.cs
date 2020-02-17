@@ -1,16 +1,21 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace BruSoftware.ListMmf
 {
     public unsafe partial class ListMmf<T> : ListMmfBase, IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
     {
+        public const string SemaphoreUniquePrefix = "LM";
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
+        private string _semaphoreUniqueName;
+        private Semaphore _semaphoreUnique; // Semaphore created for _semapahoreUniqueName
 
         private MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _view;
@@ -65,6 +70,8 @@ namespace BruSoftware.ListMmf
         ///     I don't know why they do that, and I don't seem to need it...
         /// </summary>
         private long* _ptrCount;
+
+        private Locker _locker;
 
         /// <summary>
         /// The capacity in bytes. Note that for persisted MMFs, the ByteLength can exceed _fileStream.Length, so writes to that region may be going to never-never-land.
@@ -123,26 +130,9 @@ namespace BruSoftware.ListMmf
             SyncRoot = new object();
             Name = fileStream == null ? mapName : fileStream.Name;
             AccessName = IsReadOnly ? "Reader " : "Writer " + Name;
-
-            // TODO set lockers based on noLocking parameter
-
+            SetSemaphoreUniqueName();
+            SetLocking(noLocking);
             ResetView();
-        }
-
-        /// <summary>
-        /// Initialize/Reset the _mmf file etc. 
-        /// </summary>
-        private void ResetView()
-        {
-            _view?.Dispose();
-            _view = _mmf.CreateViewAccessor(0, 0, _access);
-            if (_isFileBased && _fileStream.Length != CapacityBytes)
-            {
-                // Set the file length up to the view length so we don't write off the end
-                _fileStream.SetLength(CapacityBytes);
-            }
-            ResetPointers();
-            _capacity = CapacityBytesToElements(CapacityBytes, _headerReserveBytes);
         }
 
         /// <summary>
@@ -1024,6 +1014,55 @@ namespace BruSoftware.ListMmf
             var extraCapacity = Math.Min(Capacity, 1024 * 1024 * 1024);
             var newCapacityElements = Math.Max(_capacity + extraCapacity, minCapacityElements);
             Capacity = newCapacityElements;
+        }
+
+        private void SetSemaphoreUniqueName()
+        {
+            var cleanName = Name.RemoveCharFromString(Path.DirectorySeparatorChar);
+            cleanName = cleanName.RemoveCharFromString(',');
+            cleanName = cleanName.RemoveCharFromString(' ');
+            var prefix = IsReadOnly ? "R-" : "W-";
+            _semaphoreUniqueName = $"Global\\{prefix}{cleanName}";
+            if (_semaphoreUniqueName.Length > 260)
+            {
+                throw new ListMmfException($"Too long semaphore name, exceeds 260: {_semaphoreUniqueName}");
+            }
+        }
+
+        private void SetLocking(bool noLocking)
+        {
+            if (noLocking || IsReadOnly && _sizeOfT <= 8)
+            {
+                // no locking
+                _locker = new Locker();
+            }
+            else if (_sizeOfT > 8)
+            {
+                // Full SLOW locking
+                _locker = new Locker(_semaphoreUniqueName);
+            }
+            else
+            {
+                // Monitor Enter/Exit so this Writer can handle recreating _mmf and _view
+                Debug.Assert(!IsReadOnly && _sizeOfT <= 8);
+                _locker = new Locker(SyncRoot);
+            }
+        }
+
+        /// <summary>
+        /// Initialize/Reset the _mmf file etc. 
+        /// </summary>
+        private void ResetView()
+        {
+            _view?.Dispose();
+            _view = _mmf.CreateViewAccessor(0, 0, _access);
+            if (_isFileBased && _fileStream.Length != CapacityBytes)
+            {
+                // Set the file length up to the view length so we don't write off the end
+                _fileStream.SetLength(CapacityBytes);
+            }
+            ResetPointers();
+            _capacity = CapacityBytesToElements(CapacityBytes, _headerReserveBytes);
         }
 
         protected override void Dispose(bool disposing)

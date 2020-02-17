@@ -2,6 +2,7 @@
 using BruSoftware.ListMmf;
 using FluentAssertions;
 using Xunit;
+// ReSharper disable ConvertToUsingDeclaration
 
 namespace ListMmfTests
 {

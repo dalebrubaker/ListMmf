@@ -4,6 +4,7 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using BenchmarkDotNet.Attributes;
+using BruSoftware.ListMmf;
 
 namespace ListMmfBenchmarks
 {
