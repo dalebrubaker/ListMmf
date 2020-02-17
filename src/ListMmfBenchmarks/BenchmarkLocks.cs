@@ -81,20 +81,18 @@ namespace ListMmfBenchmarks
         /// 154.9 ms for 10 million vs 157.1 for unsafe pointer
         /// </summary>
         [Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGeneric()
+        public long ReadRandomMemoryMappedUnsafeGeneric()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
                 //var value0 = _mmva.ReadInt64(index * 8);
                 //var value1 = *(_basePointerInt64 + index);
-                var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                if (value < 1)
-
-                    // To avoid optimizing away the read
-                    break;
+                value = Unsafe.Read<long>(_basePointerInt64 + index);
             }
+            return value;
         }
 
         
@@ -102,8 +100,9 @@ namespace ListMmfBenchmarks
         /// 565 ms for 10 million 
         /// </summary>
         [Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGenericWithLock()
+        public long ReadRandomMemoryMappedUnsafeGenericWithLock()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
@@ -112,22 +111,19 @@ namespace ListMmfBenchmarks
                 //var value1 = *(_basePointerInt64 + index);
                 lock (_lock)
                 {
-                    var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                    if (value < 1)
-
-                        // To avoid optimizing away the read
-                        break;
-
+                    value = Unsafe.Read<long>(_basePointerInt64 + index);
                 }
             }
+            return value;
         }
 
         /// <summary>
         /// 406 ms for 10 million 
         /// </summary>
         [Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGenericWithMonitor()
+        public long ReadRandomMemoryMappedUnsafeGenericWithMonitor()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
@@ -135,23 +131,19 @@ namespace ListMmfBenchmarks
                 //var value0 = _mmva.ReadInt64(index * 8);
                 //var value1 = *(_basePointerInt64 + index);
                 Monitor.Enter(_lock);
-                var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                if (value < 1)
-                {
-
-                    // To avoid optimizing away the read
-                    break;
-                }
+                value = Unsafe.Read<long>(_basePointerInt64 + index);
                 Monitor.Exit(_lock);
             }
+            return value;
         }
 
         /// <summary>
         /// 416 ms for 10 million 
         /// </summary>
         [Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGenericWithMonitorActions()
+        public long ReadRandomMemoryMappedUnsafeGenericWithMonitorActions()
         {
+            var value = 0L;
             var actionEnter = new Action(() => Monitor.Enter(_lock));
             var actionExit = new Action(() => Monitor.Exit(_lock));
             for (int i = 0; i < _testIndexes.Length; i++)
@@ -161,23 +153,19 @@ namespace ListMmfBenchmarks
                 //var value0 = _mmva.ReadInt64(index * 8);
                 //var value1 = *(_basePointerInt64 + index);
                 actionEnter?.Invoke();
-                var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                if (value < 1)
-                {
-
-                    // To avoid optimizing away the read
-                    break;
-                }
+                value = Unsafe.Read<long>(_basePointerInt64 + index);
                 actionExit?.Invoke();
             }
+            return value;
         }
 
         /// <summary>
         /// 174 ms for 10 million 
         /// </summary>
         [Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGenericWithNullActions()
+        public long ReadRandomMemoryMappedUnsafeGenericWithNullActions()
         {
+            var value = 0L;
             Action actionEnter = null;
             Action actionExit = null;
             for (int i = 0; i < _testIndexes.Length; i++)
@@ -187,15 +175,10 @@ namespace ListMmfBenchmarks
                 //var value0 = _mmva.ReadInt64(index * 8);
                 //var value1 = *(_basePointerInt64 + index);
                 actionEnter?.Invoke();
-                var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                if (value < 1)
-                {
-
-                    // To avoid optimizing away the read
-                    break;
-                }
+                value = Unsafe.Read<long>(_basePointerInt64 + index);
                 actionExit?.Invoke();
             }
+            return value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // this attribute doesn't seem to make any difference
@@ -209,8 +192,9 @@ namespace ListMmfBenchmarks
         /// Adding AggressiveInlining did not help.
         /// </summary>
         [Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGenericWithNoOpActions()
+        public long ReadRandomMemoryMappedUnsafeGenericWithNoOpActions()
         {
+            var value = 0L;
             Action actionEnter = new Action(NoOp);
             Action actionExit = new Action(NoOp);
             for (int i = 0; i < _testIndexes.Length; i++)
@@ -220,23 +204,19 @@ namespace ListMmfBenchmarks
                 //var value0 = _mmva.ReadInt64(index * 8);
                 //var value1 = *(_basePointerInt64 + index);
                 actionEnter();
-                var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                if (value < 1)
-                {
-
-                    // To avoid optimizing away the read
-                    break;
-                }
+                value = Unsafe.Read<long>(_basePointerInt64 + index);
                 actionExit();
             }
+            return value;
         }
 
         /// <summary>
         /// 8795 ms for 10 million 
         /// </summary>
         //[Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGenericWithNamedMutex()
+        public long ReadRandomMemoryMappedUnsafeGenericWithNamedMutex()
         {
+            var value = 0L;
             using (var mut = new Mutex(false, "Test"))
             {
                 for (int i = 0; i < _testIndexes.Length; i++)
@@ -245,27 +225,24 @@ namespace ListMmfBenchmarks
                     mut.WaitOne();
                     //var value0 = _mmva.ReadInt64(index * 8);
                     //var value1 = *(_basePointerInt64 + index);
-                    var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                    if (value < 1)
-
-                        // To avoid optimizing away the read
-                        break;
+                    value = Unsafe.Read<long>(_basePointerInt64 + index);
                     mut.ReleaseMutex();
                 }
             }
+            return value;
         }
 
         /*
 
-        |                                                Method |         Mean |      Error |     StdDev |
-        |------------------------------------------------------ |-------------:|-----------:|-----------:|
-        |                   ReadRandomMemoryMappedUnsafeGeneric |     6.356 ns |  0.0512 ns |  0.0454 ns |
-        |           ReadRandomMemoryMappedUnsafeGenericWithLock |   108.659 ns |  2.1385 ns |  2.7807 ns |
-        |        ReadRandomMemoryMappedUnsafeGenericWithMonitor |    61.280 ns |  0.1394 ns |  0.1164 ns |
-        | ReadRandomMemoryMappedUnsafeGenericWithMonitorActions |    98.273 ns |  1.9988 ns |  3.8985 ns |
-        |    ReadRandomMemoryMappedUnsafeGenericWithNullActions |     8.473 ns |  0.0252 ns |  0.0235 ns |
-        |    ReadRandomMemoryMappedUnsafeGenericWithNoOpActions |    46.969 ns |  0.3339 ns |  0.2960 ns |
-        |     ReadRandomMemoryMappedUnsafeGenericWithNamedMutex | 9,665.964 ns | 26.8542 ns | 22.4245 ns |
+        |                                                Method |     Mean |    Error |   StdDev |
+        |------------------------------------------------------ |---------:|---------:|---------:|
+        |                   ReadRandomMemoryMappedUnsafeGeneric | 358.1 ms |  6.76 ms |  6.64 ms |
+        |           ReadRandomMemoryMappedUnsafeGenericWithLock | 540.6 ms | 10.26 ms | 10.07 ms |
+        |        ReadRandomMemoryMappedUnsafeGenericWithMonitor | 538.6 ms | 10.31 ms |  9.64 ms |
+        | ReadRandomMemoryMappedUnsafeGenericWithMonitorActions | 553.9 ms | 10.29 ms |  9.63 ms |
+        |    ReadRandomMemoryMappedUnsafeGenericWithNullActions | 353.8 ms |  4.36 ms |  4.08 ms |
+        |    ReadRandomMemoryMappedUnsafeGenericWithNoOpActions | 372.2 ms |  6.86 ms |  6.41 ms |
+
         */
     }
 }

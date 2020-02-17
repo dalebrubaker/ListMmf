@@ -12,8 +12,8 @@ namespace ListMmfBenchmarks
             //TestArrayModified();
 
             //BenchmarkRandomReads();
-            //BenchmarkLocks();
-            BenchmarkLocker();
+            BenchmarkLocks();
+            //BenchmarkLocker();
             
             //BenchmarkRandomWritest();
 
@@ -60,7 +60,7 @@ namespace ListMmfBenchmarks
             // For debugging
             //var test = new BenchmarkRandomReads();
             //test.GlobalSetup();
-            //test.ReadRandomMemoryMappedUnsafeGenericReAcquirePointer();
+            //test.ReadRandomMemoryMappedUnsafeGeneric();
             //test.GlobalCleanup();
             var summary = BenchmarkRunner.Run<BenchmarkRandomReads>();
         }
@@ -81,7 +81,8 @@ namespace ListMmfBenchmarks
             //// For debugging
             //var test = new BenchmarkLocker();
             //test.GlobalSetup();
-            //test.ReadRandomMemoryMappedUnsafeGenericLockerSemaphore();
+            //test.ReadRandomMemoryMappedUnsafeGeneric();
+            ////test.ReadRandomMemoryMappedUnsafeGenericLockerSemaphore();
             //test.GlobalCleanup();
 
             var summary = BenchmarkRunner.Run<BenchmarkLocker>();

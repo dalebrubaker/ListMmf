@@ -14,10 +14,8 @@ namespace BruSoftware.ListMmf
     /// </summary>
     public class Locker : IDisposable
     {
-        private readonly object _lock;
         private readonly Action _actionEnter;
         private readonly Action _actionExit;
-        private readonly Semaphore _semaphore;
 
         public Locker(Action actionEnter, Action actionExit)
         {
@@ -40,9 +38,8 @@ namespace BruSoftware.ListMmf
         /// <param name="lockObject"></param>
         public Locker(object lockObject)
         {
-            _lock = lockObject;
-            _actionEnter = () => Monitor.Enter(_lock);
-            _actionExit = () => Monitor.Exit(_lock);
+            _actionEnter = () => Monitor.Enter(lockObject);
+            _actionExit = () => Monitor.Exit(lockObject);
         }
 
         /// <summary>
@@ -52,18 +49,12 @@ namespace BruSoftware.ListMmf
         /// <param name="systemWideSemaphoreName"><c>null</c> or empty to make this local and not system-wide. Maximum length is 260 characters.</param>
         /// <param name="cancellationToken"></param>
         /// <param name="timeout"></param>
-        public Locker(string systemWideSemaphoreName, CancellationToken cancellationToken = default, int timeout = -1)
+        public Locker(Semaphore semaphore, string systemWideSemaphoreName, CancellationToken cancellationToken = default, int timeout = -1)
         {
-            _semaphore = new Semaphore(1, 1, systemWideSemaphoreName, out var createdNew);
-            if (!createdNew)
-            {
-                _semaphore.Release();
-                throw new ArgumentException($"{systemWideSemaphoreName} semaphore already exists", nameof(systemWideSemaphoreName));
-            }
 
             //_actionEnter = () => BlockUntilAvailableCancelledOrTimeout(cancellationToken, systemWideSemaphoreName, _semaphore, timeout);
-            _actionEnter = () => _semaphore.WaitOne();
-            _actionExit = () => _semaphore?.Release(1);
+            _actionEnter = () => semaphore.WaitOne();
+            _actionExit = () => semaphore?.Release(1);
         }
 
         /// <summary>
@@ -101,23 +92,23 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        private void DisposeSemaphore()
-        {
-            try
-            {
-                // _semaphoreUnique must be owned by the thread in order to block for Open methods
-                // But sometimes another thread will dispose
-                var count = _semaphore?.Release(1);
-            }
-            catch (SemaphoreFullException)
-            {
-                // ??? ignore this, always happen when we aren't opening exclusive
-            }
-            finally
-            {
-                _semaphore?.Dispose();
-            }
-        }
+        //private void DisposeSemaphore()
+        //{
+        //    try
+        //    {
+        //        // _semaphoreUnique must be owned by the thread in order to block for Open methods
+        //        // But sometimes another thread will dispose
+        //        var count = _semaphore?.Release(1);
+        //    }
+        //    catch (SemaphoreFullException)
+        //    {
+        //        // ??? ignore this, always happen when we aren't opening exclusive
+        //    }
+        //    finally
+        //    {
+        //        _semaphore?.Dispose();
+        //    }
+        //}
 
         public Locker Lock()
         {
