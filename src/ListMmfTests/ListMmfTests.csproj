@@ -7,6 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="TestUtilities\AdminHelpers.cs" />
+    <Compile Remove="TestUtilities\PlatformDetection.cs" />
+    <Compile Remove="TestUtilities\PlatformDetection.Unix.cs" />
+    <Compile Remove="TestUtilities\PlatformDetection.Windows.cs" />
+    <Compile Remove="TestUtilities\RetryHelper.cs" />
+    <Compile Remove="TestUtilities\TestEnvironment.cs" />
+    <Compile Remove="TestUtilities\ThreadCultureChange.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FluentAssertions" Version="5.10.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0" />
     <PackageReference Include="xunit" Version="2.4.1" />
