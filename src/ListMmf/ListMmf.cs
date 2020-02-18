@@ -224,6 +224,11 @@ namespace BruSoftware.ListMmf
         {
             get
             {
+                // Following trick can reduce the range check by one
+                if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
+                }
                 using (_locker.Lock())
                 {
                     return Unsafe.Read<T>(_ptrArray + index * _sizeOfT);
@@ -231,12 +236,12 @@ namespace BruSoftware.ListMmf
             }
             set
             {
+                if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
+                }
                 using (_locker.Lock())
                 {
-                    if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
-                    }
                     Unsafe.Write(_ptrArray + index * _sizeOfT, value);
                 }
             }
@@ -497,21 +502,10 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
-        }
+        IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
 
-        public IEnumerator<T> GetEnumerator()
-        {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
-        }
+        public IEnumerator<T> GetEnumerator() => new Enumerator(this);
+
 
         // Searches a section of the list for a given element using a binary search
         // algorithm. Elements of the list are compared to the search value using
@@ -1290,6 +1284,64 @@ namespace BruSoftware.ListMmf
             result += base.ToString();
 #endif
             return result;
+        }
+
+        public struct Enumerator : IEnumerator<T>, IEnumerator
+        {
+            private readonly ListMmf<T> _list;
+            private long _index;
+            private T _current;
+
+            internal Enumerator(ListMmf<T> list)
+            {
+                _list = list;
+                _index = 0;
+                _current = default;
+            }
+
+            public void Dispose()
+            {
+            }
+
+            public bool MoveNext()
+            {
+                var localList = _list;
+
+                if (((ulong)_index < (ulong)localList.Count))
+                {
+                    _current = localList[_index];
+                    _index++;
+                    return true;
+                }
+                return MoveNextRare();
+            }
+
+            private bool MoveNextRare()
+            {
+                _index = _list.Count + 1;
+                _current = default;
+                return false;
+            }
+
+            public T Current => _current;
+
+            object IEnumerator.Current
+            {
+                get
+                {
+                    if (_index == 0 || _index == _list.Count + 1)
+                    {
+                        throw new InvalidOperationException("Can't happen!");
+                    }
+                    return Current;
+                }
+            }
+
+            void IEnumerator.Reset()
+            {
+                _index = 0;
+                _current = default;
+            }
         }
     }
 }
