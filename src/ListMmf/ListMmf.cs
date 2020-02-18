@@ -224,24 +224,24 @@ namespace BruSoftware.ListMmf
         {
             get
             {
-                // Following trick can reduce the range check by one
-                if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
-                {
-                    throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
-                }
                 using (_locker.Lock())
                 {
+                    // Following trick can reduce the range check by one
+                    if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
+                    }
                     return Unsafe.Read<T>(_ptrArray + index * _sizeOfT);
                 }
             }
             set
             {
-                if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
-                {
-                    throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
-                }
                 using (_locker.Lock())
                 {
+                    if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
+                    }
                     Unsafe.Write(_ptrArray + index * _sizeOfT, value);
                 }
             }
