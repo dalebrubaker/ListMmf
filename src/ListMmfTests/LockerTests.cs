@@ -200,5 +200,88 @@ namespace ListMmfTests
             elapseWithLock.Should().BeGreaterThan(90, "With locks they happen serially");
             elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
         }
+
+        [Fact]
+        public async Task SemaphoreLocker_Cancels()
+        {
+            // Give the semaphore initial count of 0 so it will block until cancelled
+            var semaphore = new Semaphore(0, 1, $"{nameof(SemaphoreLocker_Cancels)}");
+            using (var cts = new CancellationTokenSource())
+            {
+                var lockerWithLocks = new Locker(semaphore, cts.Token);
+                var isBlocking = false;
+                var isCancelled = false;
+                var isTimedOut = false;
+
+                void AddValueWithLock()
+                {
+                    isBlocking = true;
+                    try
+                    {
+                        using (lockerWithLocks.Lock())
+                        {
+                            isBlocking = false;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        isCancelled = true;
+                    }
+                    catch (TimeoutException e)
+                    {
+                        isTimedOut = true;
+                    }
+                }
+
+                Task.Run(AddValueWithLock);
+                await Task.Delay(10);
+                isBlocking.Should().BeTrue("Locker is blocked waiting for cancellation or timeout.");
+                cts.Cancel();
+                await Task.Delay(10);
+                isCancelled.Should().BeTrue("Cancellation Exception was thrown.");
+                isBlocking.Should().BeTrue("Locker.Lock() didn't return because of the exception.");
+            }
+        }
+
+        [Fact]
+        public async Task SemaphoreLocker_TimesOut()
+        {
+            // Give the semaphore initial count of 0 so it will block until it times out
+            var semaphore = new Semaphore(0, 1, $"{nameof(SemaphoreLocker_TimesOut)}");
+            using (var cts = new CancellationTokenSource())
+            {
+                var lockerWithLocks = new Locker(semaphore, cts.Token, 10);
+                var isBlocking = false;
+                var isCancelled = false;
+                var isTimedOut = false;
+
+                void AddValueWithLock()
+                {
+                    isBlocking = true;
+                    try
+                    {
+                        using (lockerWithLocks.Lock())
+                        {
+                            isBlocking = false;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        isCancelled = true;
+                    }
+                    catch (TimeoutException e)
+                    {
+                        isTimedOut = true;
+                    }
+                }
+
+                Task.Run(AddValueWithLock);
+                await Task.Delay(10);
+                isBlocking.Should().BeTrue("Locker is blocked waiting for cancellation or timeout.");
+                await Task.Delay(20);
+                isTimedOut.Should().BeTrue("TimeOutException was thrown.");
+                isBlocking.Should().BeTrue("Locker.Lock() didn't return because of the exception.");
+            }
+        }
     }
 }
