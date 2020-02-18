@@ -79,7 +79,6 @@ namespace ListMmfBenchmarks
         /// <summary>
         /// 10.93 ms
         /// </summary>
-
         //Benchmark]
         public void Sleep10()
         {
@@ -89,58 +88,51 @@ namespace ListMmfBenchmarks
         /// <summary>
         /// 687 ms for 100000 random accesses, 6.87 for 1 million
         /// </summary>
-
-        //[Benchmark]
-        public void ReadRandomFileStream()
+        [Benchmark]
+        public long ReadRandomFileStream()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
                 _fs.Seek(index * 8, SeekOrigin.Begin);
-                var value = _br.ReadInt64();
-                if (value < 1)
-
-                    // To avoid optimizing away the read
-                    break;
+                value = _br.ReadInt64();
             }
+            return value;
         }
 
         /// <summary>
         /// 14.64 ms for 100000 random accesses, 149 ms for 1 million
         /// </summary>
 
-        //[Benchmark]
-        public void ReadRandomMemoryMapped()
+        [Benchmark]
+        public long ReadRandomMemoryMapped()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
-                var value = _mmva.ReadInt64(index * 8);
-                if (value < 1)
-
-                    // To avoid optimizing away the read
-                    break;
+                value = _mmva.ReadInt64(index * 8);
             }
+            return value;
         }
 
         /// <summary>
         /// 16 ms for 1 million, 157.1  ms for 10 million
         /// </summary>
 
-        //[Benchmark]
-        public void ReadRandomMemoryMappedUnsafePointer()
+        [Benchmark]
+        public long ReadRandomMemoryMappedUnsafePointer()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
                 //var value0 = _mmva.ReadInt64(index * 8);
-                var value = *(_basePointerInt64 + index);
-                if (value < 1)
-
-                    // To avoid optimizing away the read
-                    break;
+                value = *(_basePointerInt64 + index);
             }
+            return value;
         }
 
         /// <summary>
@@ -167,9 +159,10 @@ namespace ListMmfBenchmarks
         /// 1554 ms for 10 million vs 162 for ReadRandomMemoryMappedUnsafeGeneric
         /// </summary>
 
-        //[Benchmark]
-        public void ReadRandomMemoryMappedUnsafeGenericReAcquirePointer()
+        [Benchmark]
+        public long ReadRandomMemoryMappedUnsafeGenericReAcquirePointer()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
@@ -190,12 +183,20 @@ namespace ListMmfBenchmarks
 
                 //var value0 = _mmva.ReadInt64(index * 8);
                 //var value1 = *(_basePointerInt64 + index);
-                var value = Unsafe.Read<long>(_basePointerInt64 + index);
-                if (value < 1)
-
-                    // To avoid optimizing away the read
-                    break;
+                value = Unsafe.Read<long>(_basePointerInt64 + index);
             }
+            return value;
         }
-    }
+
+        /*
+        |                                              Method |     Mean |   Error |  StdDev |
+        |---------------------------------------------------- |---------:|--------:|--------:|
+        |                                ReadRandomFileStream |       NA |      NA |      NA |
+        |                              ReadRandomMemoryMapped |       NA |      NA |      NA |
+        |                 ReadRandomMemoryMappedUnsafePointer | 367.7 ms | 7.22 ms | 7.41 ms |
+        |                 ReadRandomMemoryMappedUnsafeGeneric | 371.5 ms | 6.43 ms | 6.01 ms |
+        | ReadRandomMemoryMappedUnsafeGenericReAcquirePointer | 786.2 ms | 9.84 ms | 8.72 ms |
+         */
+
+   }
 }

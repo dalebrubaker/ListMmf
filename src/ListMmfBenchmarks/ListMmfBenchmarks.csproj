@@ -16,15 +16,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="BenchmarkLocker.cs" />
-    <Compile Remove="BenchmarkRandomReads.cs" />
-    <Compile Remove="BenchmarkRandomWrites.cs" />
-    <Compile Remove="BenchmarkTwoViews.cs" />
-    <Compile Remove="DebugAppend.cs" />
-    <Compile Remove="TestPointerHugeFile.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.12.0" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.7.0" />
   </ItemGroup>
