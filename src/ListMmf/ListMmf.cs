@@ -9,7 +9,7 @@ using System.Threading;
 
 namespace BruSoftware.ListMmf
 {
-    public unsafe partial class ListMmf<T> : ListMmfBase, IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
+    public unsafe partial class ListMmf<T> : ListMmfBase, IListMmf<T>, IList64, IReadOnlyList64<T> where T : struct
     {
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
