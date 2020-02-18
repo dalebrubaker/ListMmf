@@ -32,16 +32,18 @@ namespace ListMmfBenchmarks
             if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
             _lockerNoLock = new Locker();
             _lockerLock = new Locker(_lock);
-            //_mutex = new Mutex(false, "Test");
-            //_lockerMutex = new Locker(() => _mutex.WaitOne(), () => _mutex.ReleaseMutex());
-            //var systemWideSemaphoreName = "TestSystemWideSemaphoreName";
-            //_semaphore = new Semaphore(1, 1, systemWideSemaphoreName, out var createdNew);
-            //if (!createdNew)
-            //{
-            //    _semaphore.Release();
-            //    throw new ArgumentException($"{systemWideSemaphoreName} semaphore already exists", nameof(systemWideSemaphoreName));
-            //}
-            //_lockerSemaphore = new Locker(_semaphore, systemWideSemaphoreName);
+            _mutex = new Mutex(false, "Test");
+            _lockerMutex = new Locker(() => _mutex.WaitOne(), () => _mutex.ReleaseMutex());
+            var systemWideSemaphoreName = "TestSystemWideSemaphoreName";
+            _semaphore = new Semaphore(1, 1, systemWideSemaphoreName, out var createdNew);
+            //_semaphore.WaitOne(1000);
+            //var countSemaphore = _semaphore.Release(1);
+            if (!createdNew)
+            {
+                _semaphore.Release();
+                throw new ArgumentException($"{systemWideSemaphoreName} semaphore already exists", nameof(systemWideSemaphoreName));
+            }
+            _lockerSemaphore = new Locker(_semaphore, systemWideSemaphoreName);
             const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 11.0 GB of longs
             const int numTests = 1000000;
             _fs = new FileStream(testFilePath, FileMode.Open);
@@ -117,7 +119,7 @@ namespace ListMmfBenchmarks
             return value;
         }
 
-        //[Benchmark]
+        [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericLockerNull()
         {
             var value = 0L;
@@ -135,7 +137,7 @@ namespace ListMmfBenchmarks
             return value;
         }
 
-        //[Benchmark]
+        [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericLockerLock()
         {
             var value = 0L;
@@ -161,7 +163,7 @@ namespace ListMmfBenchmarks
         |  ReadRandomMemoryMappedUnsafeGenericLockerLock |   780.9 ms | 14.03 ms | 13.12 ms |
         | ReadRandomMemoryMappedUnsafeGenericLockerMutex | 8,275.5 ms | 27.88 ms | 24.71 ms |           
         */
-        //[Benchmark]
+        [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericLockerMutex()
         {
             var value = 0L;
@@ -179,7 +181,7 @@ namespace ListMmfBenchmarks
             return value;
         }
 
-        //[Benchmark]
+        [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericLockerSemaphore()
         {
             var value = 0L;
@@ -196,5 +198,15 @@ namespace ListMmfBenchmarks
             }
             return value;
         }
+
+        /*
+        |                                             Method |      Mean |    Error |   StdDev |
+        |--------------------------------------------------- |----------:|---------:|---------:|
+        |                ReadRandomMemoryMappedUnsafeGeneric |  37.48 ms | 0.742 ms | 1.597 ms |
+        |      ReadRandomMemoryMappedUnsafeGenericLockerNull |  48.43 ms | 0.963 ms | 1.762 ms |
+        |      ReadRandomMemoryMappedUnsafeGenericLockerLock |  78.80 ms | 1.558 ms | 2.645 ms |
+        |     ReadRandomMemoryMappedUnsafeGenericLockerMutex | 838.21 ms | 4.931 ms | 4.371 ms |
+        | ReadRandomMemoryMappedUnsafeGenericLockerSemaphore | 823.62 ms | 6.288 ms | 5.251 ms |
+         */
     }
 }
