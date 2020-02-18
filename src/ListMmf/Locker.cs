@@ -43,8 +43,21 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
+        /// Use this for a locker that uses a Mutex to lock on a system-wide semaphore name.
+        /// For example, this can be a Path or MapName to lock MemoryMappedFiles system-wide.
+        /// Instantiate it with false (not owned)
+        /// </summary>
+        /// <param name="mutex"></param>
+        public Locker(Mutex mutex)
+        {
+            _actionEnter = () => mutex.WaitOne();
+            _actionExit = () => mutex.ReleaseMutex();
+        }
+
+        /// <summary>
         /// Use this ctor for a locker that uses a Semaphore to lock on a system-wide semaphore name.
         /// For example, this can be a Path or MapName to lock MemoryMappedFiles system-wide.
+        /// Instantiate it with initial count 1 and maximum count 1
         /// </summary>
         /// <param name="systemWideSemaphoreName"><c>null</c> or empty to make this local and not system-wide. Maximum length is 260 characters.</param>
         /// <param name="cancellationToken"></param>

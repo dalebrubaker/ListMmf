@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BruSoftware.ListMmf;
@@ -25,6 +23,7 @@ namespace ListMmfTests
         {
             var lockObject = new object();
             var valuesWithLock = new List<DateTime>(10);
+
             void AddValueWithLock()
             {
                 lock (lockObject)
@@ -33,6 +32,7 @@ namespace ListMmfTests
                     valuesWithLock.Add(DateTime.UtcNow);
                 }
             }
+
             var tasks = new Task[10];
             for (int i = 0; i < tasks.Length; i++)
             {
@@ -42,11 +42,13 @@ namespace ListMmfTests
             var elapseWithLock = (valuesWithLock[valuesWithLock.Count - 1] - valuesWithLock[0]).TotalMilliseconds;
 
             var valuesNoLock = new List<DateTime>(10);
+
             void AddValueNoLock()
             {
                 Thread.Sleep(10);
                 valuesNoLock.Add(DateTime.UtcNow);
             }
+
             tasks = new Task[10];
             for (int i = 0; i < tasks.Length; i++)
             {
@@ -62,9 +64,10 @@ namespace ListMmfTests
         public void Monitor_Locks()
         {
             var lockObject = new object();
-            var lockerNoLocks= new Locker();
+            var lockerNoLocks = new Locker();
             var lockerWithLocks = new Locker(lockObject);
             var valuesWithLock = new List<DateTime>(10);
+
             void AddValueWithLock()
             {
                 using (lockerWithLocks.Lock())
@@ -73,6 +76,7 @@ namespace ListMmfTests
                     valuesWithLock.Add(DateTime.UtcNow);
                 }
             }
+
             var tasks = new Task[10];
             for (int i = 0; i < tasks.Length; i++)
             {
@@ -82,6 +86,7 @@ namespace ListMmfTests
             var elapseWithLock = (valuesWithLock[valuesWithLock.Count - 1] - valuesWithLock[0]).TotalMilliseconds;
 
             var valuesNoLock = new List<DateTime>(10);
+
             void AddValueNoLock()
             {
                 using (lockerNoLocks.Lock())
@@ -90,6 +95,7 @@ namespace ListMmfTests
                     valuesNoLock.Add(DateTime.UtcNow);
                 }
             }
+
             tasks = new Task[10];
             for (int i = 0; i < tasks.Length; i++)
             {
@@ -101,6 +107,98 @@ namespace ListMmfTests
             elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
         }
 
-       
+        [Fact]
+        public void Mutex_Locks()
+        {
+            var mutex = new Mutex(false, $"{nameof(Mutex_Locks)}");
+            var lockerNoLocks = new Locker();
+            var lockerWithLocks = new Locker(mutex);
+            var valuesWithLock = new List<DateTime>(10);
+
+            void AddValueWithLock()
+            {
+                using (lockerWithLocks.Lock())
+                {
+                    Thread.Sleep(10);
+                    valuesWithLock.Add(DateTime.UtcNow);
+                }
+            }
+
+            var tasks = new Task[10];
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                tasks[i] = Task.Run(AddValueWithLock);
+            }
+            Task.WaitAll(tasks);
+            var elapseWithLock = (valuesWithLock[valuesWithLock.Count - 1] - valuesWithLock[0]).TotalMilliseconds;
+
+            var valuesNoLock = new List<DateTime>(10);
+
+            void AddValueNoLock()
+            {
+                using (lockerNoLocks.Lock())
+                {
+                    Thread.Sleep(10);
+                    valuesNoLock.Add(DateTime.UtcNow);
+                }
+            }
+
+            tasks = new Task[10];
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                tasks[i] = Task.Run(AddValueNoLock);
+            }
+            Task.WaitAll(tasks);
+            var elapseNoLock = (valuesNoLock[valuesNoLock.Count - 1] - valuesNoLock[0]).TotalMilliseconds;
+            elapseWithLock.Should().BeGreaterThan(90, "With locks they happen serially");
+            elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
+        }
+
+        [Fact]
+        public void Semaphore_Locks()
+        {
+            var semaphore = new Semaphore(1, 1, $"{nameof(Semaphore_Locks)}");
+            var lockerNoLocks = new Locker();
+            var lockerWithLocks = new Locker(semaphore);
+            var valuesWithLock = new List<DateTime>(10);
+
+            void AddValueWithLock()
+            {
+                using (lockerWithLocks.Lock())
+                {
+                    Thread.Sleep(10);
+                    valuesWithLock.Add(DateTime.UtcNow);
+                }
+            }
+
+            var tasks = new Task[10];
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                tasks[i] = Task.Run(AddValueWithLock);
+            }
+            Task.WaitAll(tasks);
+            var elapseWithLock = (valuesWithLock[valuesWithLock.Count - 1] - valuesWithLock[0]).TotalMilliseconds;
+
+            var valuesNoLock = new List<DateTime>(10);
+
+            void AddValueNoLock()
+            {
+                using (lockerNoLocks.Lock())
+                {
+                    Thread.Sleep(10);
+                    valuesNoLock.Add(DateTime.UtcNow);
+                }
+            }
+
+            tasks = new Task[10];
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                tasks[i] = Task.Run(AddValueNoLock);
+            }
+            Task.WaitAll(tasks);
+            var elapseNoLock = (valuesNoLock[valuesNoLock.Count - 1] - valuesNoLock[0]).TotalMilliseconds;
+            elapseWithLock.Should().BeGreaterThan(90, "With locks they happen serially");
+            elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
+        }
     }
 }
