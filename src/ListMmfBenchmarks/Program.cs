@@ -84,11 +84,11 @@ namespace ListMmfBenchmarks
         private static void BenchmarkLocker()
         {
             // For debugging
-            var test = new BenchmarkLocker();
-            test.GlobalSetup();
-            //test.ReadRandomMemoryMappedUnsafeGeneric();
-            test.ReadRandomMemoryMappedUnsafeGenericLockerSemaphore();
-            test.GlobalCleanup();
+            //var test = new BenchmarkLocker();
+            //test.GlobalSetup();
+            ////test.ReadRandomMemoryMappedUnsafeGeneric();
+            //test.ReadRandomMemoryMappedUnsafeGenericLockerNull();
+            //test.GlobalCleanup();
 
             var summary = BenchmarkRunner.Run<BenchmarkLocker>();
         }

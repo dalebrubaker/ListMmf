@@ -43,7 +43,7 @@ namespace ListMmfBenchmarks
                 _semaphore.Release();
                 throw new ArgumentException($"{systemWideSemaphoreName} semaphore already exists", nameof(systemWideSemaphoreName));
             }
-            _lockerSemaphore = new Locker(_semaphore, systemWideSemaphoreName);
+            _lockerSemaphore = new Locker(_semaphore);
             const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 11.0 GB of longs
             const int numTests = 1000000;
             _fs = new FileStream(testFilePath, FileMode.Open);
@@ -155,14 +155,6 @@ namespace ListMmfBenchmarks
             return value;
         }
 
-        /* 10 million
-        |                                         Method |       Mean |    Error |   StdDev |
-        |----------------------------------------------- |-----------:|---------:|---------:|
-        |            ReadRandomMemoryMappedUnsafeGeneric |   368.2 ms |  6.85 ms |  7.03 ms |
-        |  ReadRandomMemoryMappedUnsafeGenericLockerNull |   483.5 ms |  9.59 ms |  8.97 ms |
-        |  ReadRandomMemoryMappedUnsafeGenericLockerLock |   780.9 ms | 14.03 ms | 13.12 ms |
-        | ReadRandomMemoryMappedUnsafeGenericLockerMutex | 8,275.5 ms | 27.88 ms | 24.71 ms |           
-        */
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericLockerMutex()
         {
