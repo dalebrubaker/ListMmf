@@ -11,11 +11,12 @@ namespace BruSoftware.ListMmf
 {
     public unsafe partial class ListMmf<T> : ListMmfBase, IList64<T>, IList64, IReadOnlyList64<T>, IDisposable, IEnumerable where T : struct
     {
-        public const string SemaphoreUniquePrefix = "LM";
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
         private readonly string _semaphoreUniqueName;
-        private readonly Semaphore _semaphoreUnique; // Semaphore created for _semapahoreUniqueName
+        private readonly Semaphore _semaphoreUnique; // Semaphore created for _semaphoreUniqueName
+        private string _mutexUniqueName;
+        private Mutex _mutex; // for locking when T > 8
 
         private MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _view;
@@ -168,7 +169,16 @@ namespace BruSoftware.ListMmf
         /// Read-only property describing how many elements are in the List.
         /// Same as _size in list.cs
         /// </summary>
-        public long Count => Unsafe.Read<long>(_ptrCount);
+        public long Count
+        {
+            get
+            {
+                using (_locker.Lock())
+                {
+                    return Unsafe.Read<long>(_ptrCount);
+                }
+            }
+        }
 
         /// <summary>
         /// The capacity of this ListMmf (number of elements)
@@ -195,16 +205,18 @@ namespace BruSoftware.ListMmf
                 {
                     throw new ListMmfException("A memory (not-persisted) ListMmf can NOT be expanded or truncated.");
                 }
-
-                // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
-                var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
-                _view?.Dispose();
-                _view = null;
-                _mmf?.Dispose();
-                _mmf = null;
-                _fileStream.SetLength(capacityBytes);
-                _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
-                ResetView();
+                using (_locker.Lock())
+                {
+                    // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
+                    var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
+                    _view?.Dispose();
+                    _view = null;
+                    _mmf?.Dispose();
+                    _mmf = null;
+                    _fileStream.SetLength(capacityBytes);
+                    _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
+                    ResetView();
+                }
             }
         }
 
@@ -212,15 +224,21 @@ namespace BruSoftware.ListMmf
         {
             get
             {
-                return Unsafe.Read<T>(_ptrArray + index * _sizeOfT);
+                using (_locker.Lock())
+                {
+                    return Unsafe.Read<T>(_ptrArray + index * _sizeOfT);
+                }
             }
             set
             {
-                if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
+                using (_locker.Lock())
                 {
-                    throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
+                    if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
+                    }
+                    Unsafe.Write(_ptrArray + index * _sizeOfT, value);
                 }
-                Unsafe.Write(_ptrArray + index * _sizeOfT, value);
             }
         }
 
@@ -248,15 +266,18 @@ namespace BruSoftware.ListMmf
         /// <param name="item"></param>
         public void Add(T item)
         {
-            var size = Unsafe.Read<long>(_ptrCount);
-            if ((ulong)size < (ulong)Capacity)
+            using (_locker.Lock())
             {
-                Unsafe.Write(_ptrArray + size * _sizeOfT, item);
-                Unsafe.Write(_ptrCount, size + 1); // Write Count AFTER the value, so other processes will get correct 
-            }
-            else
-            {
-                AddWithResize(item);
+                var size = Unsafe.Read<long>(_ptrCount);
+                if ((ulong)size < (ulong)Capacity)
+                {
+                    Unsafe.Write(_ptrArray + size * _sizeOfT, item);
+                    Unsafe.Write(_ptrCount, size + 1); // Write Count AFTER the value, so other processes will get correct 
+                }
+                else
+                {
+                    AddWithResize(item);
+                }
             }
         }
 
@@ -284,7 +305,10 @@ namespace BruSoftware.ListMmf
             {
                 throw new InvalidCastException($"Cannot cast {item.GetType()} to {typeof(T)}");
             }
-            return Unsafe.Read<long>(_ptrCount) - 1;
+            using (_locker.Lock())
+            {
+                return Unsafe.Read<long>(_ptrCount) - 1;
+            }
         }
 
         /// <summary>
@@ -295,7 +319,10 @@ namespace BruSoftware.ListMmf
         /// <exception cref="ListMmfException">if list won't fit</exception>
         public void AddRange(IEnumerable<T> collection)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         /// <summary>
@@ -306,37 +333,58 @@ namespace BruSoftware.ListMmf
         /// <exception cref="ListMmfException">if list won't fit</exception>
         public void AddRange(IReadOnlyList64<T> list)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public void Clear()
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         void ICollection64<T>.Clear()
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public bool Contains(T item)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public bool Contains(object value)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public void CopyTo(T[] array, int arrayIndex)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public void CopyTo(Array array, int index)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         /// <summary>
@@ -348,7 +396,10 @@ namespace BruSoftware.ListMmf
         /// <param name="count"></param>
         public void CopyTo(int index, T[] array, int arrayIndex, long count)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         /// <summary>
@@ -361,47 +412,74 @@ namespace BruSoftware.ListMmf
         /// <returns></returns>
         public IReadOnlyList64<T> GetReadOnlyList64(long lowerBound, long count = long.MaxValue)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public long IndexOf(T item)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public long IndexOf(object value)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public void Insert(long index, T item)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public void Insert(long index, object value)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public bool Remove(T item)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public void Remove(object value)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         void IList64<T>.RemoveAt(long index)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         void IList64.RemoveAt(long index)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         /// <summary>
@@ -413,17 +491,26 @@ namespace BruSoftware.ListMmf
         /// <exception cref="NotSupportedException">The array is read-only.</exception>
         public void Truncate(long newLength)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public IEnumerator<T> GetEnumerator()
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         // Searches a section of the list for a given element using a binary search
@@ -448,27 +535,42 @@ namespace BruSoftware.ListMmf
         // 
         public int BinarySearch(long index, long count, T item, IComparer<T> comparer)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public int BinarySearch(T item)
         {
-            return BinarySearch(0, Count, item, null);
+            using (_locker.Lock())
+            {
+                return BinarySearch(0, Count, item, null);
+            }
         }
 
         public int BinarySearch(T item, IComparer<T> comparer)
         {
-            return BinarySearch(0, Count, item, comparer);
+            using (_locker.Lock())
+            {
+                return BinarySearch(0, Count, item, comparer);
+            }
         }
 
         public bool Exists(Predicate<T> match)
         {
-            return FindIndex(match) != -1;
+            using (_locker.Lock())
+            {
+                return FindIndex(match) != -1;
+            }
         }
 
         public T Find(Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -485,7 +587,10 @@ namespace BruSoftware.ListMmf
 
         public List<T> FindAll(Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -503,21 +608,30 @@ namespace BruSoftware.ListMmf
 
         public int FindIndex(Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //return FindIndex(0, _size, match);
         }
 
         public int FindIndex(int startIndex, Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //return FindIndex(startIndex, _size - startIndex, match);
         }
 
         public int FindIndex(int startIndex, int count, Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if( (uint)startIndex > (uint)_size ) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);                
@@ -543,7 +657,10 @@ namespace BruSoftware.ListMmf
 
         public T FindLast(Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -560,7 +677,10 @@ namespace BruSoftware.ListMmf
 
         public int FindLastIndex(Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() < Count);
@@ -569,7 +689,10 @@ namespace BruSoftware.ListMmf
 
         public int FindLastIndex(int startIndex, Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() <= startIndex);
@@ -578,7 +701,10 @@ namespace BruSoftware.ListMmf
 
         public int FindLastIndex(int startIndex, int count, Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -616,7 +742,10 @@ namespace BruSoftware.ListMmf
 
         public void ForEach(Action<T> action)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if( action == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -638,7 +767,10 @@ namespace BruSoftware.ListMmf
 
         public List<T> GetRange(int index, int count)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -667,7 +799,10 @@ namespace BruSoftware.ListMmf
         //
         public void InsertRange(int index, IEnumerable<T> collection)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if (collection==null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
@@ -722,7 +857,10 @@ namespace BruSoftware.ListMmf
         // 
         public int LastIndexOf(T item)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() < Count);
@@ -745,7 +883,10 @@ namespace BruSoftware.ListMmf
         // 
         public int LastIndexOf(T item, int index)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if (index >= _size)
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
@@ -766,7 +907,10 @@ namespace BruSoftware.ListMmf
         // 
         public int LastIndexOf(T item, int index, int count)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if ((Count != 0) && (index < 0)) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -798,7 +942,10 @@ namespace BruSoftware.ListMmf
         // The complexity is O(n).   
         public int RemoveAll(Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -835,7 +982,10 @@ namespace BruSoftware.ListMmf
         // 
         public void RemoveRange(int index, int count)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -863,7 +1013,10 @@ namespace BruSoftware.ListMmf
         // Reverses the elements in this list.
         public void Reverse()
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //Reverse(0, Count);
         }
@@ -878,7 +1031,10 @@ namespace BruSoftware.ListMmf
         // 
         public void Reverse(int index, int count)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -899,14 +1055,20 @@ namespace BruSoftware.ListMmf
         // Array.Sort.
         public void Sort()
         {
-            Sort(0, Count, null);
+            using (_locker.Lock())
+            {
+                Sort(0, Count, null);
+            }
         }
 
         // Sorts the elements in this list.  Uses Array.Sort with the
         // provided comparer.
         public void Sort(IComparer<T> comparer)
         {
-            Sort(0, Count, comparer);
+            using (_locker.Lock())
+            {
+                Sort(0, Count, comparer);
+            }
         }
 
         // Sorts the elements in a section of this list. The sort compares the
@@ -919,7 +1081,10 @@ namespace BruSoftware.ListMmf
         // 
         public void Sort(long index, long count, IComparer<T> comparer)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -939,6 +1104,11 @@ namespace BruSoftware.ListMmf
 
         public void Sort(Comparison<T> comparison)
         {
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
+
             //if( comparison == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             //}
@@ -954,7 +1124,10 @@ namespace BruSoftware.ListMmf
         // This requires copying the List, which is an O(n) operation.
         public T[] ToArray()
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //Contract.Ensures(Contract.Result<T[]>() != null);
             //Contract.Ensures(Contract.Result<T[]>().Length == Count);
@@ -986,7 +1159,10 @@ namespace BruSoftware.ListMmf
 
         public bool TrueForAll(Predicate<T> match)
         {
-            throw new NotImplementedException();
+            using (_locker.Lock())
+            {
+                throw new NotImplementedException();
+            }
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -1029,7 +1205,9 @@ namespace BruSoftware.ListMmf
             else if (_sizeOfT > 8)
             {
                 // Full SLOW locking
-                _locker = new Locker(_semaphoreUniqueName);
+                _mutexUniqueName = "M_" + _semaphoreUniqueName;
+                _mutex = new Mutex(false, _mutexUniqueName);
+                _locker = new Locker(_mutex);
             }
             else
             {
@@ -1044,36 +1222,43 @@ namespace BruSoftware.ListMmf
         /// </summary>
         private void ResetView()
         {
-            _view?.Dispose();
-            _view = _mmf.CreateViewAccessor(0, 0, _access);
-            if (_isFileBased && _fileStream.Length != CapacityBytes)
+            using (_locker.Lock())
             {
-                // Set the file length up to the view length so we don't write off the end
-                _fileStream.SetLength(CapacityBytes);
+                _view?.Dispose();
+                _view = _mmf.CreateViewAccessor(0, 0, _access);
+                if (_isFileBased && _fileStream.Length != CapacityBytes)
+                {
+                    // Set the file length up to the view length so we don't write off the end
+                    _fileStream.SetLength(CapacityBytes);
+                }
+                ResetPointers();
+                _capacity = CapacityBytesToElements(CapacityBytes, _headerReserveBytes);
             }
-            ResetPointers();
-            _capacity = CapacityBytesToElements(CapacityBytes, _headerReserveBytes);
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                _isDisposed = true;
-                if (_isFileBased)
+                using (_locker.Lock())
                 {
-                    TrimExcess();
+                    _isDisposed = true;
+                    if (_isFileBased)
+                    {
+                        TrimExcess();
+                    }
+                    _view?.Dispose();
+                    _view = null;
+                    _mmf.Dispose();
+                    _mmf = null;
+                    if (!_leaveOpen)
+                    {
+                        _fileStream?.Dispose();
+                        _fileStream = null;
+                    }
+                    _mutex?.Dispose();
+                    DisposeSemaphore();
                 }
-                _view?.Dispose();
-                _view = null;
-                _mmf.Dispose();
-                _mmf = null;
-                if (!_leaveOpen)
-                {
-                    _fileStream?.Dispose();
-                    _fileStream = null;
-                }
-                DisposeSemaphore();
             }
             base.Dispose(disposing);
         }
