@@ -9,7 +9,7 @@ namespace BruSoftware.ListMmf
     /// <summary>
     /// This base class is primarily (entirely) for DEBUG
     /// </summary>
-    public class ListMmfBase : IDisposable
+    public class ListMmf : IDisposable
     {
 #if DEBUG
         public static int s_nextInstanceId;
@@ -21,7 +21,7 @@ namespace BruSoftware.ListMmf
         public ListMmfIdentifier ListMmfIdentifier { get; }
 #endif
 
-        public ListMmfBase(string name)
+        public ListMmf(string name)
         {
 #if DEBUG
             _instanceId = s_nextInstanceId++;
