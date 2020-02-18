@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using BruSoftware.ListMmf;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -11,10 +12,18 @@ namespace System.Collections.Tests
     /// <summary>
     /// Contains tests that ensure the correctness of the List class.
     /// </summary>
-    public abstract partial class List_Generic_Tests<T> : IList_Generic_Tests<T>
+    public abstract partial class List_Generic_Tests<T> where T : struct
     {
 
         #region IList<T> Helper Methods
+
+        private const string TestMapName = "TestMapName";
+        private const int TestCapacityMmfMemory = 1000;
+
+        protected override IListMmf<T> GenericIListMmfFactory()
+        {
+            return GenericListMmfFactory();
+        }
 
         protected override IList<T> GenericIListFactory()
         {
@@ -29,6 +38,11 @@ namespace System.Collections.Tests
         #endregion
 
         #region List<T> Helper Methods
+
+        protected virtual ListMmf<T> GenericListMmfFactory()
+        {
+            return ListMmf<T>.CreateNew(TestMapName, TestCapacityMmfMemory);
+        }
 
         protected virtual List<T> GenericListFactory()
         {
@@ -49,7 +63,7 @@ namespace System.Collections.Tests
             //do not have to verify consistency with any other method.
             for (int i = 0; i < list.Count; ++i)
             {
-                Assert.True(list[i] == null ? expectedItems[i] == null : list[i].Equals(expectedItems[i]));
+                Assert.True(list[i].Equals(expectedItems[i]));
             }
         }
 

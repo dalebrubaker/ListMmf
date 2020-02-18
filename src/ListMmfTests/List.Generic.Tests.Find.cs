@@ -13,7 +13,7 @@ namespace System.Collections.Tests
     /// </summary>
     public abstract partial class List_Generic_Tests<T> : IList_Generic_Tests<T>
     {
-        private readonly Predicate<T> _equalsDefaultDelegate = (T item) => { return default(T) == null ? item == null : default(T).Equals(item); };
+        private readonly Predicate<T> _equalsDefaultDelegate = (T item) => { return default(T).Equals(item); };
         private readonly Predicate<T> _alwaysTrueDelegate = (T item) => true;
         private readonly Predicate<T> _alwaysFalseDelegate = (T item) => false;
 
@@ -226,7 +226,7 @@ namespace System.Collections.Tests
             List<T> beforeList = list.ToList();
             T expectedItem = default(T);
             T foundItem;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             //[] Verify Find returns the correct index
             for (int i = 0; i < count; ++i)
@@ -247,7 +247,7 @@ namespace System.Collections.Tests
 
             //[] Verify with default(T)
             list.Add(default(T));
-            foundItem = list.Find((T item) => { return item == null ? default(T) == null : item.Equals(default(T)); });
+            foundItem = list.Find((T item) => { return item.Equals(default(T)); });
             Assert.Equal(default(T), foundItem); //"Err_541848ajodi Verify with default(T) FAILED\n"
             list.RemoveAt(list.Count - 1);
         }
@@ -260,7 +260,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             T foundItem;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             if (0 < count)
             {
@@ -300,7 +300,7 @@ namespace System.Collections.Tests
             List<T> beforeList = list.ToList();
             T expectedItem = default(T);
             T foundItem;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             for (int i = 0; i < count; ++i)
                 list.Add(beforeList[i]);
@@ -325,7 +325,7 @@ namespace System.Collections.Tests
 
             //[] Verify with default(T)
             list.Add(default(T));
-            foundItem = list.FindLast((T item) => { return item == null ? default(T) == null : item.Equals(default(T)); });
+            foundItem = list.FindLast((T item) => { return item.Equals(default(T)); });
             Assert.Equal(default(T), foundItem); //"Err_541848ajodi Verify with default(T) FAILED\n"
             list.RemoveAt(list.Count - 1);
         }
@@ -338,7 +338,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             T foundItem;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             if (0 < count)
             {
@@ -360,7 +360,7 @@ namespace System.Collections.Tests
                 Assert.Equal(beforeList[1], foundItem); //"Err_4588ajdia Verify second item is duplicated FAILED\n"
 
                 //[] Verify with match that matches more then one item
-                foundItem = list.FindLast((T item) => { return item != null && (item.Equals(beforeList[0]) || item.Equals(beforeList[1])); });
+                foundItem = list.FindLast((T item) => { return item.Equals(beforeList[0]) || item.Equals(beforeList[1]); });
                 Assert.Equal(beforeList[1], foundItem); //"Err_4489ajodoi Verify with match that matches more then one item FAILED\n"
             }
         }
@@ -377,7 +377,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDefaultDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDefaultDelegate = (T item) => { return expectedItem.Equals(item); };
 
             for (int i = 0; i < count; ++i)
                 list.Add(beforeList[i]);
@@ -408,7 +408,7 @@ namespace System.Collections.Tests
             List<T> beforeList = list.ToList();
             T expectedItem = default(T);
             int index;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             if (0 < count)
             {
@@ -443,7 +443,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem.Equals(item); };
 
             //[] Verify FinIndex returns the correct index
             for (int i = 0; i < count; ++i)
@@ -496,7 +496,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem.Equals(item); };
 
             if (0 < count)
             {
@@ -541,13 +541,13 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem.Equals(item); };
 
             //[] Verify FinIndex returns the correct index
             for (int i = 0; i < count; ++i)
             {
                 expectedItem = beforeList[i];
-                index = list.FindIndex(0, count, delegate (T item) { return expectedItem == null ? item == null : expectedItem.Equals(item); });
+                index = list.FindIndex(0, count, delegate (T item) { return expectedItem.Equals(item); });
                 Assert.Equal(i, index); //"Err_282308ahid Expected FindIndex to return the same."
             }
 
@@ -619,7 +619,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem.Equals(item); };
 
             if (0 < count)
             {
@@ -664,7 +664,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem.Equals(item); };
 
 
             //[] Verify FinIndex returns the correct index
@@ -693,7 +693,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = delegate (T item) { return expectedItem.Equals(item); };
 
             if (0 < count)
             {
@@ -728,7 +728,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             //[] Verify FinIndex returns the correct index
             for (int i = 0; i < count; ++i)
@@ -780,7 +780,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             if (0 < count)
             {
@@ -825,7 +825,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             for (int i = 0; i < count; ++i)
                 list.Add(beforeList[i]);
@@ -906,7 +906,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             int index;
-            Predicate<T> EqualsDelegate = (T item) => { return expectedItem == null ? item == null : expectedItem.Equals(item); };
+            Predicate<T> EqualsDelegate = (T item) => { return expectedItem.Equals(item); };
 
             if (0 < count)
             {
@@ -940,7 +940,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
             T expectedItem = default(T);
-            Predicate<T> EqualsDelegate = (value) => expectedItem == null ? value == null : expectedItem.Equals(value);
+            Predicate<T> EqualsDelegate = (value) => expectedItem.Equals(value);
 
             //[] Verify FindAll returns the correct List with one item
             for (int i = 0; i < count; ++i)
@@ -966,7 +966,7 @@ namespace System.Collections.Tests
                 list.Add(list[i]);
             List<T> beforeList = list.ToList();
             T expectedItem = default(T);
-            Predicate<T> EqualsDelegate = (value) => expectedItem == null ? value == null : expectedItem.Equals(value);
+            Predicate<T> EqualsDelegate = (value) => expectedItem.Equals(value);
             //[] Verify FindAll returns the correct List with one item
             for (int i = 0; i < count; ++i)
             {

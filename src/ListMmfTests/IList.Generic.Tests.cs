@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using BruSoftware.ListMmf;
 using Xunit;
 
 namespace System.Collections.Tests
@@ -12,7 +13,7 @@ namespace System.Collections.Tests
     /// Contains tests that ensure the correctness of any class that implements the generic
     /// IList interface
     /// </summary>
-    public abstract class IList_Generic_Tests<T> : ICollection_Generic_Tests<T>
+    public abstract class IList_Generic_Tests<T> : ICollection_Generic_Tests<T> where T : struct
     {
         #region IList<T> Helper Methods
 
@@ -21,6 +22,24 @@ namespace System.Collections.Tests
         /// </summary>
         /// <returns>An instance of an IList{T} that can be used for testing.</returns>
         protected abstract IList<T> GenericIListFactory();
+
+        /// <summary>
+        /// Creates an instance of an IList{T} that can be used for testing.
+        /// </summary>
+        /// <returns>An instance of an IList{T} that can be used for testing.</returns>
+        protected abstract IListMmf<T> GenericIListMmfFactory();
+
+        /// <summary>
+        /// Creates an instance of an IList64{T} that can be used for testing.
+        /// </summary>
+        /// <param name="count">The number of unique items that the returned IList64{T} contains.</param>
+        /// <returns>An instance of an IList64{T} that can be used for testing.</returns>
+        protected virtual IListMmf<T> GenericIListMmfFactory(int count)
+        {
+            var collection = GenericIListMmfFactory();
+            AddToCollection(collection, count);
+            return collection;
+        }
 
         /// <summary>
         /// Creates an instance of an IList{T} that can be used for testing.
@@ -88,11 +107,13 @@ namespace System.Collections.Tests
 
         [Theory]
         [MemberData(nameof(ValidCollectionSizes))]
-        public void IList_Generic_ItemGet_NegativeIndex_ThrowsException(int count)
+        public void IList64_Generic_ItemGet_NegativeIndex_ThrowsException(int count)
         {
-            IList<T> list = GenericIListFactory(count);
-            Assert.Throws(IList_Generic_Item_InvalidIndex_ThrowType, () => list[-1]);
-            Assert.Throws(IList_Generic_Item_InvalidIndex_ThrowType, () => list[int.MinValue]);
+            using (var list = GenericIListMmfFactory(count))
+            {
+                Assert.Throws(IList_Generic_Item_InvalidIndex_ThrowType, () => list[-1]);
+                Assert.Throws(IList_Generic_Item_InvalidIndex_ThrowType, () => list[int.MinValue]);
+            }
         }
 
         [Theory]

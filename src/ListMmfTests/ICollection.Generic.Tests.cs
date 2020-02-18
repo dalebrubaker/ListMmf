@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using BruSoftware.ListMmf;
 using Xunit;
 
 namespace System.Collections.Tests
@@ -12,7 +13,7 @@ namespace System.Collections.Tests
     /// Contains tests that ensure the correctness of any class that implements the generic
     /// ICollection interface
     /// </summary>
-    public abstract class ICollection_Generic_Tests<T> : IEnumerable_Generic_Tests<T>
+    public abstract class ICollection_Generic_Tests<T> : IEnumerable_Generic_Tests<T> where T : struct
     {
         #region ICollection<T> Helper Methods
 
@@ -46,6 +47,19 @@ namespace System.Collections.Tests
         {
             int seed = 9600;
             IEqualityComparer<T> comparer = GetIEqualityComparer();
+            while (collection.Count < numberOfItemsToAdd)
+            {
+                T toAdd = CreateT(seed++);
+                while (collection.Contains(toAdd, comparer) || InvalidValues.Contains(toAdd, comparer))
+                    toAdd = CreateT(seed++);
+                collection.Add(toAdd);
+            }
+        }
+
+        protected virtual void AddToCollection(ICollection64<T> collection, int numberOfItemsToAdd)
+        {
+            int seed = 9600;
+            var comparer = GetIEqualityComparer();
             while (collection.Count < numberOfItemsToAdd)
             {
                 T toAdd = CreateT(seed++);

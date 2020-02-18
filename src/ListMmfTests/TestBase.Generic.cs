@@ -12,7 +12,7 @@ namespace System.Collections.Tests
     /// <summary>
     /// Provides a base set of generic operations that are used by all other generic testing interfaces.
     /// </summary>
-    public abstract class TestBase<T> : TestBase
+    public abstract class TestBase<T> : TestBase where T : struct
     {
         #region Helper Methods
 
