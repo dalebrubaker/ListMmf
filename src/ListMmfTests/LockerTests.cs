@@ -213,7 +213,7 @@ namespace ListMmfTests
                 var isCancelled = false;
                 var isTimedOut = false;
 
-                void AddValueWithLock()
+                void DoLock()
                 {
                     isBlocking = true;
                     try
@@ -233,7 +233,7 @@ namespace ListMmfTests
                     }
                 }
 
-                Task.Run(AddValueWithLock);
+                Task.Run(DoLock);
                 await Task.Delay(10);
                 isBlocking.Should().BeTrue("Locker is blocked waiting for cancellation or timeout.");
                 cts.Cancel();
@@ -255,7 +255,7 @@ namespace ListMmfTests
                 var isCancelled = false;
                 var isTimedOut = false;
 
-                void AddValueWithLock()
+                void DoLock()
                 {
                     isBlocking = true;
                     try
@@ -275,12 +275,190 @@ namespace ListMmfTests
                     }
                 }
 
-                Task.Run(AddValueWithLock);
+                Task.Run(DoLock);
                 await Task.Delay(10);
                 isBlocking.Should().BeTrue("Locker is blocked waiting for cancellation or timeout.");
                 await Task.Delay(20);
                 isTimedOut.Should().BeTrue("TimeOutException was thrown.");
                 isBlocking.Should().BeTrue("Locker.Lock() didn't return because of the exception.");
+            }
+        }
+
+        [Fact]
+        public async Task Semaphore_LockInLockCheck()
+        {
+            // Here semaphore starts with initialCount 1 to go through the first Lock()
+            var semaphore = new Semaphore(1, 1, $"{nameof(SemaphoreLocker_TimesOut)}");
+            using (var cts = new CancellationTokenSource())
+            {
+                var lockerWithLocks = new Locker(semaphore, cts.Token, 100);
+                var isBlocking = false;
+                var isCancelled = false;
+                var isTimedOut = false;
+
+                void DoLock1()
+                {
+                    isBlocking = true;
+                    try
+                    {
+                        using (lockerWithLocks.Lock())
+                        {
+                            isBlocking = false;
+                            DoLock2();
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        isCancelled = true;
+                    }
+                    catch (TimeoutException e)
+                    {
+                        isTimedOut = true;
+                    }
+                }
+
+                void DoLock2()
+                {
+                    isBlocking = true;
+                    try
+                    {
+                        using (lockerWithLocks.Lock())
+                        {
+                            isBlocking = false;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        isCancelled = true;
+                    }
+                    catch (TimeoutException e)
+                    {
+                        isTimedOut = true;
+                    }
+                }
+
+                Task.Run(DoLock1);
+                await Task.Delay(10);
+                isBlocking.Should().BeTrue("Locker is blocked waiting for cancellation or timeout.");
+                await Task.Delay(200);
+                isTimedOut.Should().BeTrue("TimeOutException was thrown.");
+                isBlocking.Should().BeTrue("Locker.Lock() didn't return because of the exception.");
+            }
+        }
+
+        [Fact]
+        public async Task Monitor_LockInLockCheck()
+        {
+            var lockObject = new object();
+            using (var cts = new CancellationTokenSource())
+            {
+                var lockerWithLocks = new Locker(lockObject);
+                var isBlocking = false;
+                var isCancelled = false;
+                var isTimedOut = false;
+
+                void DoLock1()
+                {
+                    isBlocking = true;
+                    try
+                    {
+                        using (lockerWithLocks.Lock())
+                        {
+                            isBlocking = false;
+                            DoLock2();
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        isCancelled = true;
+                    }
+                    catch (TimeoutException e)
+                    {
+                        isTimedOut = true;
+                    }
+                }
+
+                void DoLock2()
+                {
+                    isBlocking = true;
+                    try
+                    {
+                        using (lockerWithLocks.Lock())
+                        {
+                            isBlocking = false;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        isCancelled = true;
+                    }
+                    catch (TimeoutException e)
+                    {
+                        isTimedOut = true;
+                    }
+                }
+
+                Task.Run(DoLock1);
+                await Task.Delay(10);
+                isBlocking.Should().BeFalse("Locker.Lock() made it through both locks because it is the same thread.");
+            }
+        }
+
+        [Fact]
+        public async Task Mutex_LockInLockCheck()
+        {
+            var mutex = new Mutex(false, nameof(Mutex_LockInLockCheck));
+            using (var cts = new CancellationTokenSource())
+            {
+                var lockerWithLocks = new Locker(mutex);
+                var isBlocking = false;
+                var isCancelled = false;
+                var isTimedOut = false;
+
+                void DoLock1()
+                {
+                    isBlocking = true;
+                    try
+                    {
+                        using (lockerWithLocks.Lock())
+                        {
+                            isBlocking = false;
+                            DoLock2();
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        isCancelled = true;
+                    }
+                    catch (TimeoutException e)
+                    {
+                        isTimedOut = true;
+                    }
+                }
+
+                void DoLock2()
+                {
+                    isBlocking = true;
+                    try
+                    {
+                        using (lockerWithLocks.Lock())
+                        {
+                            isBlocking = false;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        isCancelled = true;
+                    }
+                    catch (TimeoutException e)
+                    {
+                        isTimedOut = true;
+                    }
+                }
+
+                Task.Run(DoLock1);
+                await Task.Delay(10);
+                isBlocking.Should().BeFalse("Locker.Lock() made it through both locks because it is the same thread.");
             }
         }
     }

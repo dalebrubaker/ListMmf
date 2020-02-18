@@ -57,7 +57,8 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// Use this ctor for a locker that uses a Semaphore to lock on a system-wide semaphore name.
         /// For example, this can be a Path or MapName to lock MemoryMappedFiles system-wide.
-        /// Instantiate it with initial count 1 and maximum count 1
+        /// Instantiate it with initial count 1 and maximum count 1 if you want to block for 1 semaphore entry.
+        /// Remember that the same thread entering a lock within a lock reduces the count both times, UNLIKE Monitor and Mutex
         /// </summary>
         /// <param name="semaphore"><c>null</c> or empty to make this local and not system-wide. Maximum length is 260 characters.</param>
         public Locker(Semaphore semaphore)
@@ -70,7 +71,8 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// Use this ctor for a locker that uses a Semaphore to lock on a system-wide semaphore name.
         /// For example, this can be a Path or MapName to lock MemoryMappedFiles system-wide.
-        /// Instantiate it with initial count 1 and maximum count 1
+        /// Instantiate it with initial count 1 and maximum count 1 if you want to block for 1 semaphore entry.
+        /// Remember that the same thread entering a lock within a lock reduces the count both times, UNLIKE Monitor and Mutex
         /// </summary>
         /// <param name="semaphore"></param>
         /// <param name="cancellationToken"></param>
