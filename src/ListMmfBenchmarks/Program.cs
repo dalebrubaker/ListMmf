@@ -16,14 +16,13 @@ namespace ListMmfBenchmarks
             //DebugTestPointerHugeFile();
             //TestArrayModified();
 
-            BenchmarkRandomReads();
+            //BenchmarkRandomReads();
             //BenchmarkLocks();
 
             //BenchmarkLocker();
             
             //BenchmarkRandomWritest();
-
-            //var summary = BenchmarkRunner.Run<BenchmarkTwoViews>();
+            var summary = BenchmarkRunner.Run<BenchmarkTwoViews>();
 
             //DebugAppend();
 

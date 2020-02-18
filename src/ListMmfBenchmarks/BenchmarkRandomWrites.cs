@@ -56,29 +56,29 @@ namespace ListMmfBenchmarks
             _mmf.Dispose();
         }
 
-
-
-
         /// <summary>
         /// Read: 154.9 ms for 10 million
         /// Read then Write: 187.9 ms for 10 million
         /// </summary>
         [Benchmark]
-        public void ReadWriteRandomMemoryMappedUnsafeGeneric()
+        public long ReadWriteRandomMemoryMappedUnsafeGeneric()
         {
+            var value = 0L;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
-                var value = Unsafe.Read<long>(_basePointerInt64 + index);
+                value = Unsafe.Read<long>(_basePointerInt64 + index);
                 Unsafe.Write(_basePointerInt64 + index, value);
-                //var valueCheck = Unsafe.Read<long>(_basePointerInt64 + index);
-                if (value < 1)
 
-                    // To avoid optimizing away the read
-                    break;
+                //var valueCheck = Unsafe.Read<long>(_basePointerInt64 + index);
             }
+            return value;
         }
 
-
+        /*
+        |                                   Method |     Mean |   Error |  StdDev |
+        |----------------------------------------- |---------:|--------:|--------:|
+        | ReadWriteRandomMemoryMappedUnsafeGeneric | 394.3 ms | 5.35 ms | 5.00 ms |
+         */
     }
 }

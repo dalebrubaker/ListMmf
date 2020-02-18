@@ -98,6 +98,11 @@ namespace ListMmfBenchmarks
             }
             return (value, length);
         }
-        
+        /*
+        |                                      Method |     Mean |   Error |  StdDev |
+        |-------------------------------------------- |---------:|--------:|--------:|
+        |  ReadRandomMemoryMappedUnsafeGenericOneView | 360.9 ms | 3.99 ms | 3.73 ms |
+        | ReadRandomMemoryMappedUnsafeGenericTwoViews | 362.0 ms | 3.44 ms | 3.22 ms |
+         */
     }
 }
