@@ -3,8 +3,9 @@ ListMmf
 
 List\<T\> using Memory Mapped Files (MMFs).
 
-Support IList64\<T\>, similar to IList\<T\> but using Int64 values where
-appropriate.
+Support IList64\<T\>, similar to IList\<T\> but using Int64 values wherever
+possible. (For example, copying into an array uses Int32 because the maximum
+array length is Int32.MaxValue.)
 
 This class can only be run in a 64-bit process.
 
@@ -33,6 +34,9 @@ modified” error during enumeration.
 Locking
 =======
 
+Thread safety is optional and acts like the SynchronizedCollection\<T\> class in
+.Net Framework (not included in .Net Core).
+
 Locking can be slow, and it is can be turned of with the noLocking constructor
 parameter. This is useful when your design ensures that no writing and reading
 can be done simultaneously in the same part of a file. For example, only one
@@ -47,7 +51,8 @@ Unless you set noLocking, the following happens:
 
 -   Sizeof(T) \<= 8
 
-    -   IsReadOnly – no locking
+    -   IsReadOnly – no locking. It is not clear to me whether this is okay for
+        a size of T that doesn’t naturally align, e.g. 3, 5 or 7.
 
     -   Not IsReadOnly – lock (Monitor) to avoid in-process attempts to read
         while Add() is extending (closing and reopening) the MMF
