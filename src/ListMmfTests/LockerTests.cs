@@ -372,7 +372,7 @@ namespace ListMmfTests
                     {
                         isCancelled = true;
                     }
-                    catch (TimeoutException e)
+                    catch (TimeoutException)
                     {
                         isTimedOut = true;
                     }
@@ -392,7 +392,7 @@ namespace ListMmfTests
                     {
                         isCancelled = true;
                     }
-                    catch (TimeoutException e)
+                    catch (TimeoutException)
                     {
                         isTimedOut = true;
                     }
@@ -430,7 +430,7 @@ namespace ListMmfTests
                     {
                         isCancelled = true;
                     }
-                    catch (TimeoutException e)
+                    catch (TimeoutException)
                     {
                         isTimedOut = true;
                     }
@@ -450,7 +450,7 @@ namespace ListMmfTests
                     {
                         isCancelled = true;
                     }
-                    catch (TimeoutException e)
+                    catch (TimeoutException)
                     {
                         isTimedOut = true;
                     }

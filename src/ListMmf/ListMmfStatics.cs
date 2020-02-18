@@ -4,10 +4,22 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
+// ReSharper disable ConvertToUsingDeclaration
+
 namespace BruSoftware.ListMmf
 {
     public partial class ListMmf<T>
     {
+        /// <summary>
+        /// Create a file-backed ListMmf class.
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="mapName"></param>
+        /// <param name="capacityElements"></param>
+        /// <param name="access"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <returns></returns>
         public static ListMmf<T> CreateFromFile(string path, string mapName = null, long capacityElements = 0,
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserveBytes = 0, bool noLocking = false)
@@ -37,6 +49,55 @@ namespace BruSoftware.ListMmf
             return CreateFromFile(fileStream, mapName, capacityElements, access, true, headerReserveBytes, noLocking);
         }
 
+        /// <summary>
+        /// Create a file-backed ListMmf class but block until any current files with the same path and access have been disposed
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="mapName"></param>
+        /// <param name="capacityElements"></param>
+        /// <param name="access"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="timeout"></param>
+        /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
+        public static ListMmf<T> CreateFromFileBlocking(string path, string mapName = null, long capacityElements = 0,
+            MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
+            long headerReserveBytes = 0, bool noLocking = false, CancellationToken cancellationToken = default, int timeout = -1)
+        {
+            try
+            {
+                var semaphoreName = GetBlockingSemaphoreUniqueName(path, access == MemoryMappedFileAccess.Read);
+                using (var semaphore = new Semaphore(1, 1, semaphoreName))
+                {
+                    var locker = new Locker(semaphore, cancellationToken, timeout);
+                    using (locker.Lock())
+                    {
+                        return CreateFromFile(path, mapName, capacityElements, access, headerReserveBytes, noLocking);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (TimeoutException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Create a file-backed ListMmf class using fileStream instead of path
+        /// </summary>
+        /// <param name="fileStream"></param>
+        /// <param name="mapName"></param>
+        /// <param name="capacityElements"></param>
+        /// <param name="access"></param>
+        /// <param name="leaveOpen"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <returns></returns>
         public static ListMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacityElements = 0,
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite, bool leaveOpen = false,
             long headerReserveBytes = 0, bool noLocking = false)
@@ -53,11 +114,51 @@ namespace BruSoftware.ListMmf
             }
 
             // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
-            var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, true);
+            var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, leaveOpen);
             return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, fileStream, mapName);
         }
 
         /// <summary>
+        /// Create a file-backed ListMmf class but block until any current files with the same path and access have been disposed.
+        /// </summary>
+        /// <param name="fileStream"></param>
+        /// <param name="mapName"></param>
+        /// <param name="capacityElements"></param>
+        /// <param name="access"></param>
+        /// <param name="leaveOpen"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="timeout"></param>
+        /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
+        public static ListMmf<T> CreateFromFileBlocking(FileStream fileStream, string mapName = null, long capacityElements = 0,
+            MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite, bool leaveOpen = false,
+            long headerReserveBytes = 0, bool noLocking = false, CancellationToken cancellationToken = default, int timeout = -1)
+        {
+            try
+            {
+                var semaphoreName = GetBlockingSemaphoreUniqueName(fileStream.Name, access == MemoryMappedFileAccess.Read);
+                using (var semaphore = new Semaphore(1, 1, semaphoreName))
+                {
+                    var locker = new Locker(semaphore, cancellationToken, timeout);
+                    using (locker.Lock())
+                    {
+                        return CreateFromFile(fileStream, mapName, capacityElements, access, leaveOpen, headerReserveBytes, noLocking);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (TimeoutException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Create a memory-backed ListMmf class
         /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
         /// </summary>
         /// <param name="mapName"></param>
@@ -79,6 +180,44 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
+        /// Create a memory-backed ListMmf class but block until any current ListMmf with the same mapName and access have been disposed.
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// </summary>
+        /// <param name="mapName"></param>
+        /// <param name="capacityElements"></param>
+        /// <param name="access"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="timeout"></param>
+        /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
+        public static ListMmf<T> CreateNewBlocking(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
+            long headerReserveBytes = 0, bool noLocking = false, CancellationToken cancellationToken = default, int timeout = -1)
+        {
+            try
+            {
+                var semaphoreName = GetBlockingSemaphoreUniqueName(mapName, access == MemoryMappedFileAccess.Read);
+                using (var semaphore = new Semaphore(1, 1, semaphoreName))
+                {
+                    var locker = new Locker(semaphore, cancellationToken, timeout);
+                    using (locker.Lock())
+                    {
+                        return CreateNew(mapName, capacityElements, access, headerReserveBytes, noLocking);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (TimeoutException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Create a memory-backed ListMmf class
         /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
         /// </summary>
         /// <param name="mapName"></param>
@@ -98,17 +237,55 @@ namespace BruSoftware.ListMmf
             var mmf = MemoryMappedFile.CreateOrOpen(mapName, capacityBytes, access);
             return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, null, mapName);
         }
-        
+
         /// <summary>
+        /// Create a memory-backed ListMmf class but block until any current ListMmf with the same mapName and access have been disposed.
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// </summary>
+        /// <param name="mapName"></param>
+        /// <param name="capacityElements"></param>
+        /// <param name="access"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="timeout"></param>
+        /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
+        public static ListMmf<T> CreateOrOpenBlocking(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
+            long headerReserveBytes = 0, bool noLocking = false, CancellationToken cancellationToken = default, int timeout = -1)
+        {
+            try
+            {
+                var semaphoreName = GetBlockingSemaphoreUniqueName(mapName, access == MemoryMappedFileAccess.Read);
+                using (var semaphore = new Semaphore(1, 1, semaphoreName))
+                {
+                    var locker = new Locker(semaphore, cancellationToken, timeout);
+                    using (locker.Lock())
+                    {
+                        return CreateOrOpen(mapName, capacityElements, access, headerReserveBytes, noLocking);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (TimeoutException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Open an existing memory-backed ListMmf class
         /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
         /// </summary>
         /// <param name="mapName"></param>
         /// <param name="access"></param>
-        /// <param name="headerReserve"></param>
+        /// <param name="headerReserveBytes"></param>
         /// <param name="noLocking"></param>
-        /// <returns></returns>
+        /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
         public static ListMmf<T> OpenExisting(string mapName, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
-            long headerReserve = 0, bool noLocking = false)
+            long headerReserveBytes = 0, bool noLocking = false)
         {
             if (access != MemoryMappedFileAccess.ReadWrite && access != MemoryMappedFileAccess.Read)
             {
@@ -116,7 +293,43 @@ namespace BruSoftware.ListMmf
             }
             var desiredAccessRights = access == MemoryMappedFileAccess.Read ? MemoryMappedFileRights.Read : MemoryMappedFileRights.ReadWrite;
             var mmf = MemoryMappedFile.OpenExisting(mapName, desiredAccessRights);
-            return new ListMmf<T>(headerReserve, noLocking, mmf, access, null, mapName);
+            return new ListMmf<T>(headerReserveBytes, noLocking, mmf, access, null, mapName);
+        }
+
+        /// <summary>
+        /// Open an existing memory-backed ListMmf class but block until any current ListMmf with the same mapName and access have been disposed.
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// </summary>
+        /// <param name="mapName"></param>
+        /// <param name="access"></param>
+        /// <param name="headerReserveBytes"></param>
+        /// <param name="noLocking"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        public static ListMmf<T> OpenExistingBlocking(string mapName, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
+            long headerReserveBytes = 0, bool noLocking = false, CancellationToken cancellationToken = default, int timeout = -1)
+        {
+            try
+            {
+                var semaphoreName = GetBlockingSemaphoreUniqueName(mapName, access == MemoryMappedFileAccess.Read);
+                using (var semaphore = new Semaphore(1, 1, semaphoreName))
+                {
+                    var locker = new Locker(semaphore, cancellationToken, timeout);
+                    using (locker.Lock())
+                    {
+                        return OpenExisting(mapName, access, headerReserveBytes, noLocking);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (TimeoutException)
+            {
+                return null;
+            }
         }
 
         private static FileStream CreateFileStreamFromPath(string path, MemoryMappedFileAccess access)

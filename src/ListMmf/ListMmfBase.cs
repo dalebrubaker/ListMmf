@@ -123,6 +123,11 @@ namespace BruSoftware.ListMmf
             return exists;
         }
 
+        protected static string GetBlockingSemaphoreUniqueName(string pathOrMapName, bool isReadOnly)
+        {
+            return "B-" + GetSemaphoreUniqueName(pathOrMapName, isReadOnly);
+        }
+
         protected static string GetSemaphoreUniqueName(string pathOrMapName, bool isReadOnly)
         {
             var cleanName = pathOrMapName.RemoveCharFromString(Path.DirectorySeparatorChar);
