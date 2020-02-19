@@ -13,9 +13,7 @@ namespace BruSoftware.ListMmf
     {
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
-        private readonly string _semaphoreUniqueName;
         private readonly Semaphore _semaphoreUnique; // Semaphore created for _semaphoreUniqueName
-        private string _mutexUniqueName;
         private Mutex _mutex; // for locking when T > 8
 
         private MemoryMappedFile _mmf;
@@ -133,9 +131,9 @@ namespace BruSoftware.ListMmf
             SyncRoot = new object();
             Name = fileStream == null ? mapName : fileStream.Name;
             AccessName = IsReadOnly ? "Reader " : "Writer " + Name;
-            _semaphoreUniqueName = GetSemaphoreUniqueName(Name, IsReadOnly);
-            _semaphoreUnique = new Semaphore(0, int.MaxValue, _semaphoreUniqueName);
-            SetLocking(noLocking);
+            var semaphoreUniqueName = GetSemaphoreUniqueName(Name, IsReadOnly);
+            _semaphoreUnique = new Semaphore(0, int.MaxValue, semaphoreUniqueName);
+            SetLocking(noLocking, semaphoreUniqueName);
             ResetView();
         }
 
@@ -1189,7 +1187,7 @@ namespace BruSoftware.ListMmf
             Capacity = newCapacityElements;
         }
 
-        private void SetLocking(bool noLocking)
+        private void SetLocking(bool noLocking, string semaphoreUniqueName)
         {
             if (noLocking || IsReadOnly && _sizeOfT <= 8)
             {
@@ -1199,7 +1197,7 @@ namespace BruSoftware.ListMmf
             else if (_sizeOfT > 8)
             {
                 // Full SLOW locking
-                _mutexUniqueName = "M_" + _semaphoreUniqueName;
+                var _mutexUniqueName = "M-" + semaphoreUniqueName;
                 _mutex = new Mutex(false, _mutexUniqueName);
                 _locker = new Locker(_mutex);
             }

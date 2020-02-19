@@ -131,8 +131,6 @@ namespace BruSoftware.ListMmf
         protected static string GetSemaphoreUniqueName(string pathOrMapName, bool isReadOnly)
         {
             var cleanName = pathOrMapName.RemoveCharFromString(Path.DirectorySeparatorChar);
-            cleanName = cleanName.RemoveCharFromString(',');
-            cleanName = cleanName.RemoveCharFromString(' ');
             var prefix = isReadOnly ? "R-" : "W-";
             var result = $"Global\\{prefix}{cleanName}";
             if (result.Length > 260)
