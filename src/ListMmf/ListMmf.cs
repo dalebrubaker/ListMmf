@@ -320,13 +320,7 @@ namespace BruSoftware.ListMmf
         /// </summary>
         /// <param name="collection"></param>
         /// <exception cref="ListMmfException">if list won't fit</exception>
-        public void AddRange(IEnumerable<T> collection)
-        {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
-        }
+        public void AddRange(IEnumerable<T> collection) => InsertRange(Count, collection);
 
         /// <summary>
         /// Adds the elements of the given IReadOnlyList64 to the end of this array.
@@ -374,15 +368,30 @@ namespace BruSoftware.ListMmf
             }
         }
 
+        /// <summary>
+        /// Copies this List into array, which must be of a compatible array type.
+        /// </summary>
+        /// <param name="array"></param>
+        public void CopyTo(T[] array) => CopyTo(array, 0);
+
+        /// <summary>
+        /// Copies this List into array, which must be of a compatible array type.
+        /// </summary>
+        /// <param name="array"></param>
+        /// <param name="arrayIndex"></param>
         public void CopyTo(T[] array, int arrayIndex)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            // Throw exception if Count is greater than int.MaxValue
+            var count = (int)Count;
+            CopyTo(0, array, 0, count);
         }
 
-        public void CopyTo(Array array, int index)
+        /// <summary>
+        /// Copies this List into array, which must be of a compatible array type.
+        /// </summary>
+        /// <param name="array"></param>
+        /// <param name="arrayIndex"></param>
+        public void CopyTo(Array array, int arrayIndex)
         {
             using (_locker.Lock())
             {
@@ -397,12 +406,33 @@ namespace BruSoftware.ListMmf
         /// <param name="array"></param>
         /// <param name="arrayIndex"></param>
         /// <param name="count"></param>
-        public void CopyTo(int index, T[] array, int arrayIndex, long count)
+        public void CopyTo(int index, T[] array, int arrayIndex, int count)
         {
+            if (array == null)
+            {
+                throw new ArgumentNullException(nameof(array));
+            }
+            if (array.Rank != 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(CopyTo), "Multi-Dimensional Array Rank is not supported.");
+            }
             using (_locker.Lock())
             {
-                throw new NotImplementedException();
+                if (Count - index < count)
+                {
+                    throw new ArgumentException($"There are not {count:N0} elements starting at {index:N0} in this list of {Count:N0} elements");
+                }
+                var ptr = _ptrArray + index * _sizeOfT;
+                for (int i = 0; i < count; i++)
+                {
+                    var value = Unsafe.Read<T>(ptr);
+                    array[i] = value;
+                    ptr += _sizeOfT;
+                }
             }
+
+            // Delegate rest of error checking to Array.Copy.
+            //Array.Copy(_items, index, array, arrayIndex, count);
         }
 
         /// <summary>
@@ -441,7 +471,8 @@ namespace BruSoftware.ListMmf
         {
             using (_locker.Lock())
             {
-                throw new NotImplementedException();
+                var destination = _ptrArray + index * _sizeOfT;
+                Unsafe.Write(destination, item);
             }
         }
 
@@ -756,7 +787,7 @@ namespace BruSoftware.ListMmf
             //    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
         }
 
-        public List<T> GetRange(int index, int count)
+        public List<T> GetRange(long index, long count)
         {
             using (_locker.Lock())
             {
@@ -783,69 +814,131 @@ namespace BruSoftware.ListMmf
             //return list;
         }
 
-        // Inserts the elements of the given collection at a given index. If
-        // required, the capacity of the list is increased to twice the previous
-        // capacity or the new size, whichever is larger.  Ranges may be added
-        // to the end of the list by setting index to the List's size.
-        //
-        public void InsertRange(int index, IEnumerable<T> collection)
+        /// <summary>
+        /// Copy count values beginning at sourceIndex to destinationIndex
+        /// Not in List(T) API
+        /// </summary>
+        /// <param name="sourceIndex"></param>
+        /// <param name="destinationIndex"></param>
+        /// <param name="count"></param>
+        public void CopyRange(long sourceIndex, long destinationIndex, long count)
         {
             using (_locker.Lock())
             {
-                throw new NotImplementedException();
+                var size = Unsafe.Read<long>(_ptrCount);
+                if ((ulong)destinationIndex > (ulong)size)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(destinationIndex));
+                }
+                EnsureCapacity(size + count);
+                var byteCount = count * _sizeOfT;
+                var bytesCopiedSoFar = 0L;
+                var source = _ptrArray + sourceIndex * _sizeOfT;
+                do
+                {
+                    // Limit copies to uint.MaxValue because Unsafe.CopyBlock can copy only uint.MaxValue at a time
+                    var bytesToCopy = Math.Min(byteCount - bytesCopiedSoFar, uint.MaxValue);
+                    var destination = source + bytesToCopy;
+                    Unsafe.CopyBlock(destination, source, (uint)bytesToCopy);
+                    bytesCopiedSoFar += bytesToCopy;
+                    source += bytesToCopy;
+                } while (bytesCopiedSoFar < byteCount);
             }
-
-            //if (collection==null) {
-            //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
-            //}
-
-            //if ((uint)index > (uint)_size) {
-            //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
-            //}
-            //Contract.EndContractBlock();
-
-            //ICollection<T> c = collection as ICollection<T>;
-            //if( c != null ) {    // if collection is ICollection<T>
-            //    int count = c.Count;
-            //    if (count > 0) {
-            //        EnsureCapacity(_size + count);
-            //        if (index < _size) {
-            //            Array.Copy(_items, index, _items, index + count, _size - index);
-            //        }
-
-            //        // If we're inserting a List into itself, we want to be able to deal with that.
-            //        if (this == c) {
-            //            // Copy first part of _items to insert location
-            //            Array.Copy(_items, 0, _items, index, index);
-            //            // Copy last part of _items back to inserted location
-            //            Array.Copy(_items, index+count, _items, index*2, _size-index);
-            //        }
-            //        else {
-            //            T[] itemsToInsert = new T[count];
-            //            c.CopyTo(itemsToInsert, 0);
-            //            itemsToInsert.CopyTo(_items, index);                    
-            //        }
-            //        _size += count;
-            //    }                
-            //}
-            //else {
-            //    using(IEnumerator<T> en = collection.GetEnumerator()) {
-            //        while(en.MoveNext()) {
-            //            Insert(index++, en.Current);                                    
-            //        }                
-            //    }
-            //}
-            //_version++;            
         }
 
-        // Returns the index of the last occurrence of a given value in a range of
-        // this list. The list is searched backwards, starting at the end 
-        // and ending at the first element in the list. The elements of the list 
-        // are compared to the given value using the Object.Equals method.
-        // 
-        // This method uses the Array.LastIndexOf method to perform the
-        // search.
-        // 
+        /// <summary>
+        /// Inserts the elements of the given collection at a given index. If
+        /// required, the capacity of the list is increased to twice the previous
+        /// capacity or the new size (Count), whichever is larger.  Ranges may be added
+        /// to the end of the list by setting index to the List's size (Count).
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="collection"></param>
+        public void InsertRange(long index, IEnumerable<T> collection)
+        {
+            if (collection == null)
+            {
+                throw new ArgumentNullException(nameof(collection));
+            }
+            using (_locker.Lock())
+            {
+                var size = Unsafe.Read<long>(_ptrCount);
+                if ((ulong)index > (ulong)size)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(collection));
+                }
+                long count;
+                bool isThis;
+                switch (collection)
+                {
+                    case ICollection64<T> c64:
+                        count = c64.Count;
+                        isThis = this == c64;
+                        break;
+                    case ICollection<T> c:
+                        count = c.Count;
+                        isThis = false;
+                        break;
+                    default:
+                        using (IEnumerator<T> en = collection.GetEnumerator())
+                        {
+                            while (en.MoveNext())
+                            {
+                                Insert(index++, en.Current);
+                            }
+                        }
+                        return;
+                }
+                if (count > 0)
+                {
+                    EnsureCapacity(size + count);
+                    if (index < size)
+                    {
+                        // Copy items starting at index to make room for the collection
+                        CopyRange(index, index + count, count);
+                    }
+
+                    // If we're inserting a List into itself, we want to be able to deal with that.
+                    if (isThis)
+                    {
+                        // Copy first part of _items to insert location
+                        CopyRange(0, index, index);
+
+                        //Array.Copy(_items, 0, _items, index, index);
+
+                        // Copy last part of _items back to inserted location
+                        CopyRange(index + count, index * 2, size - index);
+
+                        //Array.Copy(_items, index + count, _items, index * 2, size - index);
+                    }
+                    else
+                    {
+                        // Copy the collection into the list beginning at index
+                        var destination = _ptrArray + index * _sizeOfT;
+                        foreach (var value in collection)
+                        {
+                            Unsafe.Write(destination, value);
+                            destination += _sizeOfT;
+                        }
+
+                        //c.CopyTo(_items, index);
+                    }
+                    Unsafe.Write(_ptrCount, size + count);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the index of the last occurrence of a given value in a range of
+        /// this list. The list is searched backwards, starting at the end 
+        /// and ending at the first element in the list. The elements of the list 
+        /// are compared to the given value using the Object.Equals method.
+        /// 
+        /// This method uses the Array.LastIndexOf method to perform the
+        /// search.
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
         public int LastIndexOf(T item)
         {
             using (_locker.Lock())
@@ -1174,7 +1267,7 @@ namespace BruSoftware.ListMmf
         // whichever is larger.
         private void EnsureCapacity(long minCapacityElements)
         {
-            if (IsReadOnly || minCapacityElements <= Count)
+            if (IsReadOnly || minCapacityElements <= _capacity)
             {
                 // nothing to do
                 return;
@@ -1183,7 +1276,7 @@ namespace BruSoftware.ListMmf
             // Grow by the smaller of Capacity (doubling file size) or 1 GB (we don't want to double a 500 GB file)
             var extraCapacity = Math.Min(Capacity, 1024 * 1024 * 1024);
             var newCapacityElements = Math.Max(_capacity + extraCapacity, minCapacityElements);
-            Capacity = newCapacityElements;
+            Capacity = newCapacityElements; // Use the property to reset _mmf etc. if needed
         }
 
         private void SetLocking(bool noLocking)
