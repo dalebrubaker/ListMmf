@@ -20,7 +20,7 @@ namespace System.Collections.Tests
         private const string TestMapName = "TestMapName";
         private const int TestCapacityMmfMemory = 1000;
 
-        protected override IListMmf<T> GenericIListMmfFactory()
+        protected override IList64Disposable<T> GenericIListMmfFactory()
         {
             return GenericListMmfFactory();
         }

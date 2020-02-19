@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace BruSoftware.ListMmf
 {
-    public interface IListMmf<T> : IList64<T>, IDisposable where T : struct
+    public interface IList64Disposable<T> : IList64<T>, IDisposable where T : struct
     {
     }
 }

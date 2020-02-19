@@ -27,14 +27,14 @@ namespace System.Collections.Tests
         /// Creates an instance of an IList{T} that can be used for testing.
         /// </summary>
         /// <returns>An instance of an IList{T} that can be used for testing.</returns>
-        protected abstract IListMmf<T> GenericIListMmfFactory();
+        protected abstract IList64Disposable<T> GenericIListMmfFactory();
 
         /// <summary>
         /// Creates an instance of an IList64{T} that can be used for testing.
         /// </summary>
         /// <param name="count">The number of unique items that the returned IList64{T} contains.</param>
         /// <returns>An instance of an IList64{T} that can be used for testing.</returns>
-        protected virtual IListMmf<T> GenericIListMmfFactory(int count)
+        protected virtual IList64Disposable<T> GenericIListMmfFactory(int count)
         {
             var collection = GenericIListMmfFactory();
             AddToCollection(collection, count);
