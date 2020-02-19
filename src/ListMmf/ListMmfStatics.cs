@@ -47,9 +47,7 @@ namespace BruSoftware.ListMmf
                 CleanupFile(fileStream, existed, path);
                 throw new ArgumentException($"Read access capacity {capacityElements} is greater than file length {fileStream.Length}");
             }
-
-            // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
-            return CreateFromFile(fileStream, mapName, capacityElements, access, true, headerReserveBytes, noLocking);
+            return CreateFromFile(fileStream, mapName, capacityElements, access, false, headerReserveBytes, noLocking);
         }
 
         /// <summary>
