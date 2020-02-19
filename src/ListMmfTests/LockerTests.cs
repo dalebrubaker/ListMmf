@@ -201,8 +201,6 @@ namespace ListMmfTests
             elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
         }
 
-  
-  
         [Fact]
         public async Task Monitor_LockInLockCheck()
         {

@@ -5,7 +5,8 @@
 using System.Collections.Generic;
 using BruSoftware.ListMmf;
 using Xunit;
-using Xunit.Abstractions;
+
+// ReSharper disable ConvertToUsingDeclaration
 
 namespace System.Collections.Tests
 {
@@ -14,7 +15,6 @@ namespace System.Collections.Tests
     /// </summary>
     public abstract partial class List_Generic_Tests<T> where T : struct
     {
-
         #region IList<T> Helper Methods
 
         private const string TestMapName = "TestMapName";
@@ -55,6 +55,14 @@ namespace System.Collections.Tests
             return new List<T>(toCreateFrom);
         }
 
+        protected virtual ListMmf<T> GenericListMmfFactory(int count)
+        {
+            var result = GenericListMmfFactory();
+            var toCreateFrom = (IList<T>)CreateEnumerable(EnumerableType.List, null, count, 0, 0);
+            result.AddRange(toCreateFrom);
+            return result;
+        }
+
         protected void VerifyList(List<T> list, List<T> expectedItems)
         {
             Assert.Equal(expectedItems.Count, list.Count);
@@ -73,9 +81,11 @@ namespace System.Collections.Tests
         [MemberData(nameof(ValidCollectionSizes))]
         public void CopyTo_ArgumentValidity(int count)
         {
-            List<T> list = GenericListFactory(count);
-            AssertExtensions.Throws<ArgumentException>(null, () => list.CopyTo(0, new T[0], 0, count + 1));
-            AssertExtensions.Throws<ArgumentException>(null, () => list.CopyTo(count, new T[0], 0, 1));
+            using (var list = GenericListMmfFactory(count))
+            {
+                AssertExtensions.Throws<ArgumentException>(null, () => list.CopyTo(0, new T[0], 0, count + 1));
+                AssertExtensions.Throws<ArgumentException>(null, () => list.CopyTo(count, new T[0], 0, 1));
+            }
         }
     }
 }
