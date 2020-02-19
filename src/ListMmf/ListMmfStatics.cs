@@ -87,8 +87,8 @@ namespace BruSoftware.ListMmf
             }
 
             // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
-            var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, leaveOpen);
-            return new ListMmf<T>(semaphore, headerReserveBytes, noLocking, mmf, access, fileStream, mapName);
+            var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, true);
+            return new ListMmf<T>(semaphore, headerReserveBytes, noLocking, mmf, access, fileStream, mapName, leaveOpen);
         }
 
         /// <summary>
@@ -180,7 +180,7 @@ namespace BruSoftware.ListMmf
             return new ListMmf<T>(semaphore, headerReserveBytes, noLocking, mmf, access, null, mapName);
         }
 
-        private static FileStream CreateFileStreamFromPath(string path, MemoryMappedFileAccess access)
+        protected static FileStream CreateFileStreamFromPath(string path, MemoryMappedFileAccess access)
         {
             if (string.IsNullOrEmpty(path))
             {
@@ -231,7 +231,7 @@ namespace BruSoftware.ListMmf
         /// <param name="capacityElements"></param>
         /// <param name="headerReserveBytes"></param>
         /// <returns></returns>
-        private static long CapacityElementsToBytes(long capacityElements, long headerReserveBytes)
+        protected static long CapacityElementsToBytes(long capacityElements, long headerReserveBytes)
         {
             var result = capacityElements * Unsafe.SizeOf<T>() + headerReserveBytes + 8; // 8 for the Count field just before the beginning of the array
             var intoPage = result % 4096;
@@ -285,7 +285,7 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        private static Semaphore GetSemaphore(string pathOrMapName, bool isReadOnly, int maximumCount, CancellationToken cancellationToken, int timeout)
+        protected static Semaphore GetSemaphore(string pathOrMapName, bool isReadOnly, int maximumCount, CancellationToken cancellationToken, int timeout)
         {
             try
             {

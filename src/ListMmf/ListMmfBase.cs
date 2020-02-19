@@ -21,7 +21,7 @@ namespace BruSoftware.ListMmf
         public ListMmfIdentifier ListMmfIdentifier { get; }
 #endif
 
-        public ListMmf(string name)
+        protected ListMmf(string name)
         {
 #if DEBUG
             _instanceId = s_nextInstanceId++;

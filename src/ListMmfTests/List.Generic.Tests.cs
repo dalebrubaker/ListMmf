@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using BruSoftware.ListMmf;
+using ListMmfTests;
 using Xunit;
 
 // ReSharper disable ConvertToUsingDeclaration
@@ -18,7 +19,7 @@ namespace System.Collections.Tests
         #region IList<T> Helper Methods
 
         private const string TestMapName = "TestMapName";
-        private const int TestCapacityMmfMemory = 1000;
+        private const int TestCapacityMmf = 511; // Start out with 1 page (512 - Count field)
 
         protected override IList64Disposable<T> GenericIListMmfFactory()
         {
@@ -41,7 +42,15 @@ namespace System.Collections.Tests
 
         protected virtual ListMmf<T> GenericListMmfFactory()
         {
-            return ListMmf<T>.CreateNew(TestMapName, TestCapacityMmfMemory);
+            return TestListMmf<T>.CreateTestFile(TestCapacityMmf);
+        }
+
+        protected virtual ListMmf<T> GenericListMmfFactory(int count)
+        {
+            var result = GenericListMmfFactory();
+            var toCreateFrom = (IList<T>)CreateEnumerable(EnumerableType.List, null, count, 0, 0);
+            result.AddRange(toCreateFrom);
+            return result;
         }
 
         protected virtual List<T> GenericListFactory()
@@ -53,14 +62,6 @@ namespace System.Collections.Tests
         {
             IEnumerable<T> toCreateFrom = CreateEnumerable(EnumerableType.List, null, count, 0, 0);
             return new List<T>(toCreateFrom);
-        }
-
-        protected virtual ListMmf<T> GenericListMmfFactory(int count)
-        {
-            var result = GenericListMmfFactory();
-            var toCreateFrom = (IList<T>)CreateEnumerable(EnumerableType.List, null, count, 0, 0);
-            result.AddRange(toCreateFrom);
-            return result;
         }
 
         protected void VerifyList(List<T> list, List<T> expectedItems)

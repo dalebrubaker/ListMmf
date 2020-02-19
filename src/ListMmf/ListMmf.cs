@@ -104,7 +104,7 @@ namespace BruSoftware.ListMmf
         /// <param name="fileStream"><c>null</c> means Memory not File-backed</param>
         /// <param name="mapName"><c>null</c> with non-null fileStream means created from file but not sharing</param>
         /// <param name="leaveOpen"></param>
-        private ListMmf(Semaphore semaphore, long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName,
+        protected ListMmf(Semaphore semaphore, long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName,
             bool leaveOpen = false)
             : base(fileStream == null ? mapName : fileStream.Name)
         {
