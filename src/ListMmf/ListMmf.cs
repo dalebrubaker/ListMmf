@@ -13,7 +13,7 @@ namespace BruSoftware.ListMmf
     {
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
-        private readonly Semaphore _semaphoreUnique; // Semaphore created for _semaphoreUniqueName
+        private readonly Semaphore _semaphore;
         private Mutex _mutex; // for locking when T > 8
 
         private MemoryMappedFile _mmf;
@@ -96,6 +96,7 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="semaphore">The named semaphore unique to this Name and access</param>
         /// <param name="headerReserveBytes">Bytes to reserve in header. Evenly divisible by 8 for alignment</param>
         /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
         /// <param name="mmf"></param>
@@ -103,7 +104,7 @@ namespace BruSoftware.ListMmf
         /// <param name="fileStream"><c>null</c> means Memory not File-backed</param>
         /// <param name="mapName"><c>null</c> with non-null fileStream means created from file but not sharing</param>
         /// <param name="leaveOpen"></param>
-        private ListMmf(long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName,
+        private ListMmf(Semaphore semaphore, long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream, string mapName,
             bool leaveOpen = false)
             : base(fileStream == null ? mapName : fileStream.Name)
         {
@@ -119,6 +120,7 @@ namespace BruSoftware.ListMmf
             {
                 throw new ListMmfException($"{nameof(headerReserveBytes)} is required to be a multiple of 8 bytes.");
             }
+            _semaphore = semaphore;
             _headerReserveBytes = headerReserveBytes;
             _mmf = mmf;
             _access = access;
@@ -131,9 +133,7 @@ namespace BruSoftware.ListMmf
             SyncRoot = new object();
             Name = fileStream == null ? mapName : fileStream.Name;
             AccessName = IsReadOnly ? "Reader " : "Writer " + Name;
-            var semaphoreUniqueName = GetSemaphoreUniqueName(Name, IsReadOnly);
-            _semaphoreUnique = new Semaphore(0, int.MaxValue, semaphoreUniqueName);
-            SetLocking(noLocking, semaphoreUniqueName);
+            SetLocking(noLocking);
             ResetView();
         }
 
@@ -503,7 +503,6 @@ namespace BruSoftware.ListMmf
         IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
 
         public IEnumerator<T> GetEnumerator() => new Enumerator(this);
-
 
         // Searches a section of the list for a given element using a binary search
         // algorithm. Elements of the list are compared to the search value using
@@ -1187,7 +1186,7 @@ namespace BruSoftware.ListMmf
             Capacity = newCapacityElements;
         }
 
-        private void SetLocking(bool noLocking, string semaphoreUniqueName)
+        private void SetLocking(bool noLocking)
         {
             if (noLocking || IsReadOnly && _sizeOfT <= 8)
             {
@@ -1197,8 +1196,8 @@ namespace BruSoftware.ListMmf
             else if (_sizeOfT > 8)
             {
                 // Full SLOW locking
-                var _mutexUniqueName = "M-" + semaphoreUniqueName;
-                _mutex = new Mutex(false, _mutexUniqueName);
+                var mutexName = "M-" + GetSemaphoreName(Name, IsReadOnly);
+                _mutex = new Mutex(false, mutexName);
                 _locker = new Locker(_mutex);
             }
             else
@@ -1259,9 +1258,9 @@ namespace BruSoftware.ListMmf
         {
             try
             {
-                // _semaphoreUnique must be owned by the thread in order to block for Open methods
+                // _semaphore must be owned by the thread in order to block for Open methods
                 // But sometimes another thread will dispose
-                var count = _semaphoreUnique?.Release(1);
+                var count = _semaphore?.Release(1);
             }
             catch (SemaphoreFullException)
             {
@@ -1269,7 +1268,7 @@ namespace BruSoftware.ListMmf
             }
             finally
             {
-                _semaphoreUnique?.Dispose();
+                _semaphore?.Dispose();
             }
         }
 
@@ -1305,7 +1304,7 @@ namespace BruSoftware.ListMmf
             {
                 var localList = _list;
 
-                if (((ulong)_index < (ulong)localList.Count))
+                if ((ulong)_index < (ulong)localList.Count)
                 {
                     _current = localList[_index];
                     _index++;

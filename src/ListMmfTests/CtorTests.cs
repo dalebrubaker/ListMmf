@@ -1,7 +1,10 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Threading.Tasks;
 using BruSoftware.ListMmf;
 using FluentAssertions;
 using Xunit;
+
 // ReSharper disable ConvertToUsingDeclaration
 
 namespace ListMmfTests
@@ -169,6 +172,26 @@ namespace ListMmfTests
             isAnyoneReading.Should().BeFalse("No reader yet.");
             isAnyoneWriting = ListMmf.IsAnyoneWriting(mapName);
             isAnyoneWriting.Should().BeFalse("Writer finished.");
+        }
+
+        [Fact]
+        public async Task CreateNewBlocking_ShouldTimeout()
+        {
+            var mapName = nameof(CreateNewBlocking_ShouldTimeout);
+            const int capacityElements = 10;
+            var timeout = 100;
+            using (var listMmf1 = ListMmf<long>.CreateNew(mapName, capacityElements, maximumCount: 1, timeout: timeout))
+            {
+                listMmf1.Should().NotBeNull("Was first so was created.");
+                var sw = Stopwatch.StartNew();
+                using (var listMmf2 = ListMmf<long>.CreateNew(mapName, capacityElements, timeout: timeout))
+                {
+                    var elapsed = sw.ElapsedMilliseconds;
+                    elapsed.Should().BeGreaterThan(timeout - 10, "Blocked until timed out.");
+                    await Task.Delay(timeout + 10);
+                    listMmf2.Should().BeNull("Blocked then timed out");
+                }
+            }
         }
     }
 }

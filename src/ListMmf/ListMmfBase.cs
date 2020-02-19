@@ -100,15 +100,15 @@ namespace BruSoftware.ListMmf
 
         public static bool IsAnyoneReading(string pathOrMapName)
         {
-            var semaphoreUniqueName = GetSemaphoreUniqueName(pathOrMapName, true);
-            var exists = SemaphoreNameExists(semaphoreUniqueName);
+            var semapahoreName = GetSemaphoreName(pathOrMapName, true);
+            var exists = SemaphoreNameExists(semapahoreName);
             return exists;
         }
 
         public static bool IsAnyoneWriting(string pathOrMapName)
         {
-            var semaphoreUniqueName = GetSemaphoreUniqueName(pathOrMapName, false);
-            var exists = SemaphoreNameExists(semaphoreUniqueName);
+            var semapahoreName = GetSemaphoreName(pathOrMapName, false);
+            var exists = SemaphoreNameExists(semapahoreName);
             return exists;
         } 
         
@@ -123,12 +123,7 @@ namespace BruSoftware.ListMmf
             return exists;
         }
 
-        protected static string GetBlockingSemaphoreUniqueName(string pathOrMapName, bool isReadOnly)
-        {
-            return "B-" + GetSemaphoreUniqueName(pathOrMapName, isReadOnly);
-        }
-
-        protected static string GetSemaphoreUniqueName(string pathOrMapName, bool isReadOnly)
+        protected static string GetSemaphoreName(string pathOrMapName, bool isReadOnly)
         {
             var cleanName = pathOrMapName.RemoveCharFromString(Path.DirectorySeparatorChar);
             var prefix = isReadOnly ? "R-" : "W-";
