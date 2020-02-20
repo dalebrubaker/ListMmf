@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BruSoftware.ListMmf;
+using ListMmfTests;
 using Xunit;
 
 // ReSharper disable ConvertToUsingDeclaration
@@ -38,7 +39,7 @@ namespace System.Collections.Tests
         /// <returns>An instance of an IList64{T} that can be used for testing.</returns>
         protected virtual IList64Disposable<T> GenericIListMmfFactory(int count)
         {
-            var collection = GenericIListMmfFactory();
+            var collection = TestListMmf<T>.CreateTestFile(List_Generic_Tests<T>.TestCapacityMmf);
             AddToCollection(collection, count);
             return collection;
         }

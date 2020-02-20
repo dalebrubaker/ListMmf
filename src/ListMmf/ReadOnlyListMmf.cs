@@ -54,7 +54,8 @@ namespace BruSoftware.ListMmf
 
         void ICollection64<T>.Clear()
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();        
+        }
 
         void IList64<T>.Insert(long index, T value)
         {

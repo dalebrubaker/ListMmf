@@ -19,7 +19,7 @@ namespace System.Collections.Tests
         #region IList<T> Helper Methods
 
         private const string TestMapName = "TestMapName";
-        private const int TestCapacityMmf = 511; // Start out with 1 page (512 - Count field)
+        public const int TestCapacityMmf = 511; // Start out with 1 page (512 - Count field)
 
         protected override IList64Disposable<T> GenericIListMmfFactory()
         {
