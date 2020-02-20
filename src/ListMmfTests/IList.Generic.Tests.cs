@@ -311,20 +311,24 @@ namespace System.Collections.Tests
         {
             if (DefaultValueAllowed)
             {
-                IList<T> list = GenericIListFactory(count);
-                T value = default;
-                if (list.Contains(value))
+                using (var list = GenericIListMmfFactory(count))
                 {
-                    if (IsReadOnly)
-                        return;
-                    list.Remove(value);
+                    T value = default;
+                    if (list.Contains(value))
+                    {
+                        if (IsReadOnly)
+                            return;
+                        list.Remove(value);
+                    }
+                    Assert.Equal(-1, list.IndexOf(value));
                 }
-                Assert.Equal(-1, list.IndexOf(value));
             }
             else
             {
-                IList<T> list = GenericIListFactory(count);
-                Assert.Throws<ArgumentNullException>(() => list.IndexOf(default));
+                using (var list = GenericIListMmfFactory(count))
+                {
+                    Assert.Throws<ArgumentNullException>(() => list.IndexOf(default));
+                }
             }
         }
 
@@ -334,15 +338,17 @@ namespace System.Collections.Tests
         {
             if (count > 0 && DefaultValueAllowed)
             {
-                IList<T> list = GenericIListFactory(count);
-                T value = default;
-                if (!list.Contains(value))
+                using (var list = GenericIListMmfFactory(count))
                 {
-                    if (IsReadOnly)
-                        return;
-                    list[0] = value;
+                    T value = default;
+                    if (!list.Contains(value))
+                    {
+                        if (IsReadOnly)
+                            return;
+                        list[0] = value;
+                    }
+                    Assert.Equal(0, list.IndexOf(value));
                 }
-                Assert.Equal(0, list.IndexOf(value));
             }
         }
 
@@ -350,12 +356,14 @@ namespace System.Collections.Tests
         [MemberData(nameof(ValidCollectionSizes))]
         public void IList_Generic_IndexOf_ValidValueNotContainedInList(int count)
         {
-            IList<T> list = GenericIListFactory(count);
-            int seed = 54321;
-            T value = CreateT(seed++);
-            while (list.Contains(value))
-                value = CreateT(seed++);
-            Assert.Equal(-1, list.IndexOf(value));
+            using (var list = GenericIListMmfFactory(count))
+            {
+                int seed = 54321;
+                T value = CreateT(seed++);
+                while (list.Contains(value))
+                    value = CreateT(seed++);
+                Assert.Equal(-1, list.IndexOf(value));
+            }
         }
 
         [Theory]
@@ -365,11 +373,13 @@ namespace System.Collections.Tests
             if (count > 0 && !IsReadOnly && DuplicateValuesAllowed)
             {
                 // IndexOf should always return the lowest index for which a matching element is found
-                IList<T> list = GenericIListFactory(count);
-                T value = CreateT(12345);
-                list[0] = value;
-                list[count / 2] = value;
-                Assert.Equal(0, list.IndexOf(value));
+                using (var list = GenericIListMmfFactory(count))
+                {
+                    T value = CreateT(12345);
+                    list[0] = value;
+                    list[count / 2] = value;
+                    Assert.Equal(0, list.IndexOf(value));
+                }
             }
         }
 
@@ -378,11 +388,13 @@ namespace System.Collections.Tests
         public void IList_Generic_IndexOf_EachValueNoDuplicates(int count)
         {
             // Assumes no duplicate elements contained in the list returned by GenericIListFactory
-            IList<T> list = GenericIListFactory(count);
-            Assert.All(Enumerable.Range(0, count), index =>
+            using (var list = GenericIListMmfFactory(count))
             {
-                Assert.Equal(index, list.IndexOf(list[index]));
-            });
+                Assert.All(Enumerable.Range(0, count), index =>
+                {
+                    Assert.Equal(index, list.IndexOf(list[index]));
+                });
+            }
         }
 
         [Theory]
@@ -393,8 +405,10 @@ namespace System.Collections.Tests
             {
                 Assert.All(InvalidValues, value =>
                 {
-                    IList<T> list = GenericIListFactory(count);
-                    Assert.Throws<ArgumentException>(() => list.IndexOf(value));
+                    using (var list = GenericIListMmfFactory(count))
+                    {
+                        Assert.Throws<ArgumentException>(() => list.IndexOf(value));
+                    }
                 });
             }
         }
@@ -405,13 +419,15 @@ namespace System.Collections.Tests
         {
             if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
             {
-                IList<T> list = GenericIListFactory(count);
-                foreach (T duplicate in list.ToList()) // hard copies list to circumvent enumeration error
-                    list.Add(duplicate);
-                List<T> expectedList = list.ToList();
+                using (var list = GenericIListMmfFactory(count))
+                {
+                    foreach (T duplicate in list.ToList()) // hard copies list to circumvent enumeration error
+                        list.Add(duplicate);
+                    List<T> expectedList = list.ToList();
 
-                Assert.All(Enumerable.Range(0, count), index =>
-                    Assert.Equal(index, list.IndexOf(expectedList[index])));
+                    Assert.All(Enumerable.Range(0, count), index =>
+                        Assert.Equal(index, list.IndexOf(expectedList[index])));
+                }
             }
         }
 
