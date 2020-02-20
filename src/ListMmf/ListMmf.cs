@@ -516,8 +516,13 @@ namespace BruSoftware.ListMmf
         {
             using (_locker.Lock())
             {
+                var size = Unsafe.Read<long>(_ptrCount);
+                EnsureCapacity(size + 1);
+                CopyRange(index, index + 1, 1);
                 var destination = _ptrArray + index * _sizeOfT;
                 Unsafe.Write(destination, item);
+
+                // Remember tht CopyRange already updated Count
             }
         }
 
@@ -864,7 +869,8 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Copy count values beginning at sourceIndex to destinationIndex
+        /// Copy count values beginning at sourceIndex to destinationIndex.
+        /// Resets Count if we are copying past the current Count
         /// Not in List(T) API
         /// </summary>
         /// <param name="sourceIndex"></param>
@@ -875,23 +881,32 @@ namespace BruSoftware.ListMmf
             using (_locker.Lock())
             {
                 var size = Unsafe.Read<long>(_ptrCount);
-                if ((ulong)destinationIndex > (ulong)size)
+                var newSize = Math.Max(size, destinationIndex + count - 1);
+                if (newSize > size)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(destinationIndex));
+                    EnsureCapacity(newSize);
                 }
-                EnsureCapacity(size + count);
-                var byteCount = count * _sizeOfT;
-                var bytesCopiedSoFar = 0L;
-                var source = _ptrArray + sourceIndex * _sizeOfT;
-                do
+                if (size > 0)
                 {
-                    // Limit copies to uint.MaxValue because Unsafe.CopyBlock can copy only uint.MaxValue at a time
-                    var bytesToCopy = Math.Min(byteCount - bytesCopiedSoFar, uint.MaxValue);
-                    var destination = source + bytesToCopy;
-                    Unsafe.CopyBlock(destination, source, (uint)bytesToCopy);
-                    bytesCopiedSoFar += bytesToCopy;
-                    source += bytesToCopy;
-                } while (bytesCopiedSoFar < byteCount);
+                    // Move count existing elements starting at sourceIndex to destinationIndex
+                    var byteCount = count * _sizeOfT;
+                    var bytesCopiedSoFar = 0L;
+                    var source = _ptrArray + sourceIndex * _sizeOfT;
+                    do
+                    {
+                        // Limit copies to uint.MaxValue because Unsafe.CopyBlock can copy only uint.MaxValue at a time
+                        var bytesToCopy = Math.Min(byteCount - bytesCopiedSoFar, uint.MaxValue);
+                        var destination = source + bytesToCopy;
+                        Unsafe.CopyBlock(destination, source, (uint)bytesToCopy);
+                        bytesCopiedSoFar += bytesToCopy;
+                        source += bytesToCopy;
+                    } while (bytesCopiedSoFar < byteCount);
+                }
+                if (newSize > size)
+                {
+                    // Increase Count to reflect the end of the copied values
+                    Unsafe.Write(_ptrCount, newSize);
+                }
             }
         }
 
