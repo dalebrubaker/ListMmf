@@ -4,7 +4,6 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Engines;
 
 namespace ListMmfBenchmarks
 {
@@ -97,7 +96,7 @@ namespace ListMmfBenchmarks
             return value;
         }
 
-        
+
         /// <summary>
         /// 565 ms for 10 million 
         /// </summary>
@@ -197,8 +196,8 @@ namespace ListMmfBenchmarks
         public long ReadRandomMemoryMappedUnsafeGenericWithNoOpActions()
         {
             var value = 0L;
-            Action actionEnter = new Action(NoOp);
-            Action actionExit = new Action(NoOp);
+            Action actionEnter = NoOp;
+            Action actionExit = NoOp;
             for (int i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];

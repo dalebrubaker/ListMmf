@@ -10,7 +10,7 @@ namespace ListMmfBenchmarks
     This is almost certainly due to pulling pages into RAM. Second test only 5 seconds, etc., as my RAM gets loaded with more pages. 
     There is overlap with 10 million random accesses into 10 GB.
  */
- 
+
         private static void Main(string[] args)
         {
             //DebugTestPointerHugeFile();
@@ -20,7 +20,7 @@ namespace ListMmfBenchmarks
             //BenchmarkLocks();
 
             BenchmarkLocker();
-            
+
             //BenchmarkRandomWritest();
             //var summary = BenchmarkRunner.Run<BenchmarkTwoViews>();
 

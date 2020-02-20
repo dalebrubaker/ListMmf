@@ -110,8 +110,8 @@ namespace BruSoftware.ListMmf
             var semapahoreName = GetSemaphoreName(pathOrMapName, false);
             var exists = SemaphoreNameExists(semapahoreName);
             return exists;
-        } 
-        
+        }
+
         public static bool SemaphoreNameExists(string semapahoreName)
         {
             var exists = Semaphore.TryOpenExisting(semapahoreName, out var semaphore);

@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace BruSoftware.ListMmf
 {
-    public partial interface ICollection64
+    public interface ICollection64
     {
         /// <summary>
         /// Number of items in the collections.
@@ -17,7 +15,7 @@ namespace BruSoftware.ListMmf
         /// <param name="array"></param>
         /// <param name="index"></param>
         void CopyTo(Array array, int index);
-        
+
         /// <summary>
         /// SyncRoot will return an Object to use for synchronization 
         /// (thread safety).  You can use this object in your code to take a

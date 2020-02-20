@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using BruSoftware.ListMmf;
-using ListMmfTests;
 
 namespace System.Collections.Tests
 {

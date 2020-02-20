@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace BruSoftware.ListMmf
 {
@@ -50,15 +49,18 @@ namespace BruSoftware.ListMmf
 
         void ICollection64<T>.Add(T value)
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();
+        }
 
         void ICollection64<T>.Clear()
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();
+        }
 
         void IList64<T>.Insert(long index, T value)
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();
+        }
 
         bool ICollection64<T>.Remove(T value)
         {
@@ -67,7 +69,8 @@ namespace BruSoftware.ListMmf
 
         void IList64<T>.RemoveAt(long index)
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();
+        }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
@@ -161,18 +164,20 @@ namespace BruSoftware.ListMmf
 
         long IList64.Add(object value)
         {
-            throw new NotSupportedException();            return -1;
+            throw new NotSupportedException();
+            return -1;
         }
 
         void IList64.Clear()
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();
+        }
 
         private static bool IsCompatibleObject(object value)
         {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>.
-            return (value is T) || (value == null && default(T) == null);
+            return value is T || value == null && default(T) == null;
         }
 
         bool IList64.Contains(object value)
@@ -195,14 +200,17 @@ namespace BruSoftware.ListMmf
 
         void IList64.Insert(long index, object value)
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();
+        }
 
         void IList64.Remove(object value)
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();
+        }
 
         void IList64.RemoveAt(long index)
         {
-            throw new NotSupportedException();        }
+            throw new NotSupportedException();
+        }
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace BruSoftware.ListMmf
+﻿namespace BruSoftware.ListMmf
 {
     public interface IReadOnlyList64<T> : IReadOnlyCollection64<T>
     {

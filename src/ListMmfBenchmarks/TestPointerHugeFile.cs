@@ -43,7 +43,7 @@ namespace ListMmfBenchmarks
             var checkPointerByte2 = GetPointer(mmva);
         }
 
-        private byte * GetPointer(MemoryMappedViewAccessor mmva)
+        private byte* GetPointer(MemoryMappedViewAccessor mmva)
         {
             var safeBuffer = mmva.SafeMemoryMappedViewHandle;
             RuntimeHelpers.PrepareConstrainedRegions();

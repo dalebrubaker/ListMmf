@@ -19,6 +19,7 @@
         </e>
         <e p="IReadOnlyCollection64.cs" t="Include" />
         <e p="IReadOnlyList64.cs" t="Include" />
+        <e p="IReadOnlyList64Disposable.cs" t="Include" />
         <e p="ListMmf.cs" t="Include" />
         <e p="ListMmf.csproj" t="IncludeRecursive" />
         <e p="ListMmfBase.cs" t="Include" />

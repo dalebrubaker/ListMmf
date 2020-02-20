@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections;
-
-namespace BruSoftware.ListMmf
+﻿namespace BruSoftware.ListMmf
 {
-    public partial interface IList64 : ICollection64
+    public interface IList64 : ICollection64
     {
-
         /// <summary>
         /// </summary>
         /// <param name="index"></param>
@@ -17,15 +13,15 @@ namespace BruSoftware.ListMmf
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        long Add(Object value);
-    
+        long Add(object value);
+
         /// <summary>
         /// Returns whether the list contains a particular item.
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
         bool Contains(object value);
-    
+
         /// <summary>
         /// Removes all items from the list.
         /// </summary>
@@ -35,7 +31,7 @@ namespace BruSoftware.ListMmf
 
         bool IsFixedSize { get; }
 
-        
+
         /// <summary>
         /// From IList, but long.
         /// Returns the index of a particular item, if it is in the list.
@@ -44,7 +40,7 @@ namespace BruSoftware.ListMmf
         /// <param name="value"></param>
         /// <returns></returns>
         long IndexOf(object value);
-    
+
         /// <summary>
         /// Inserts value into the list at position index.
         /// index must be non-negative and less than or equal to the 
@@ -54,13 +50,13 @@ namespace BruSoftware.ListMmf
         /// <param name="index"></param>
         /// <param name="value"></param>
         void Insert(long index, object value);
-    
+
         /// <summary>
         /// Removes an item from the list.
         /// </summary>
         /// <param name="value"></param>
         void Remove(object value);
-    
+
         /// <summary>
         /// Removes the item at position index. 
         /// </summary>

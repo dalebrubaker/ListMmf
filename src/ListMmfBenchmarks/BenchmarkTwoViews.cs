@@ -98,6 +98,7 @@ namespace ListMmfBenchmarks
             }
             return (value, length);
         }
+
         /*
         |                                      Method |     Mean |   Error |  StdDev |
         |-------------------------------------------- |---------:|--------:|--------:|

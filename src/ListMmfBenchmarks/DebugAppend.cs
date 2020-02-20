@@ -2,7 +2,6 @@
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using BenchmarkDotNet.Attributes;
 
 namespace ListMmfBenchmarks
@@ -21,8 +20,8 @@ namespace ListMmfBenchmarks
             if (!Environment.Is64BitOperatingSystem)
                 throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
             if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            _testFilePath = @"D:\_HugeArray\TestApppend.dat"; 
-            CreateMmf(1000); 
+            _testFilePath = @"D:\_HugeArray\TestApppend.dat";
+            CreateMmf(1000);
         }
 
         private void CreateMmf(long numElements)
@@ -39,7 +38,7 @@ namespace ListMmfBenchmarks
             // If I open with 0 size, I get IOException, not enough memory with 32 bit process but no problem 64 bit
             var length = _fs.Length;
             _mmva = _mmf.CreateViewAccessor(); // 0 offset, 0 size (all file), ReadWrite
-            _basePointerInt64 = (long *)GetPointer(_mmva);
+            _basePointerInt64 = (long*)GetPointer(_mmva);
         }
 
         private byte* GetPointer(MemoryMappedViewAccessor mmva)
@@ -69,8 +68,6 @@ namespace ListMmfBenchmarks
         }
 
 
-
-
         /// <summary>
         /// Read: 154.9 ms for 10 million vs 157.1 for unsafe pointer
         /// </summary>
@@ -94,7 +91,6 @@ namespace ListMmfBenchmarks
             var index2 = length2 / 8 - 1; // this is index of longs, not byte
             Unsafe.Write(_basePointerInt64 + index2, index2);
             var value2 = Unsafe.Read<long>(_basePointerInt64 + index2);
-
         }
     }
 }

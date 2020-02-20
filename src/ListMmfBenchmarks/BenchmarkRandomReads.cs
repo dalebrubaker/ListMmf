@@ -104,7 +104,6 @@ namespace ListMmfBenchmarks
         /// <summary>
         /// 14.64 ms for 100000 random accesses, 149 ms for 1 million
         /// </summary>
-
         [Benchmark]
         public long ReadRandomMemoryMapped()
         {
@@ -120,7 +119,6 @@ namespace ListMmfBenchmarks
         /// <summary>
         /// 16 ms for 1 million, 157.1  ms for 10 million
         /// </summary>
-
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafePointer()
         {
@@ -158,7 +156,6 @@ namespace ListMmfBenchmarks
         /// 150 ms for 1 million vs 16 for ReadRandomMemoryMappedUnsafeGeneric
         /// 1554 ms for 10 million vs 162 for ReadRandomMemoryMappedUnsafeGeneric
         /// </summary>
-
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericReAcquirePointer()
         {
@@ -197,6 +194,5 @@ namespace ListMmfBenchmarks
         |                 ReadRandomMemoryMappedUnsafeGeneric | 371.5 ms | 6.43 ms | 6.01 ms |
         | ReadRandomMemoryMappedUnsafeGenericReAcquirePointer | 786.2 ms | 9.84 ms | 8.72 ms |
          */
-
-   }
+    }
 }
