@@ -15,8 +15,7 @@ namespace ListMmfTests
     public class TestListMmf<T> : ListMmf<T> where T : struct
     {
         protected TestListMmf(Semaphore semaphore, long headerReserveBytes, bool noLocking, MemoryMappedFile mmf, MemoryMappedFileAccess access, FileStream fileStream,
-            string mapName,
-            bool leaveOpen = false)
+            string mapName, bool leaveOpen = false)
             : base(semaphore, headerReserveBytes, noLocking, mmf, access, fileStream, mapName, leaveOpen)
         {
 
@@ -26,7 +25,7 @@ namespace ListMmfTests
         {
             var guid = Guid.NewGuid();
             var path = guid.ToString();
-            var mapName = path;
+            string mapName = null;
             var access = MemoryMappedFileAccess.ReadWrite;
             var headerReserveBytes = 0;
             var noLocking = false;
@@ -50,7 +49,12 @@ namespace ListMmfTests
 
             // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
             var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, true);
-            return new TestListMmf<T>(semaphore, headerReserveBytes, noLocking, mmf, access, fileStream, mapName);
+            return new TestListMmf<T>(semaphore, headerReserveBytes, noLocking, mmf, access, fileStream, mapName, leaveOpen);
+        }
+
+        protected override void ResetPointers()
+        {
+            base.ResetPointers();
         }
 
         protected override void Dispose(bool disposing)
@@ -58,7 +62,7 @@ namespace ListMmfTests
             if (disposing)
             {
                 var name = Name;
-                base.Dispose(disposing);
+                base.Dispose(true);
                 try
                 {
                     File.Delete(name);
