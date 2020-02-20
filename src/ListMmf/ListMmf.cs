@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
@@ -356,20 +355,35 @@ namespace BruSoftware.ListMmf
             }
         }
 
+        /// <summary>
+        /// Contains returns true if the specified element is in the List.
+        /// It does a linear, O(n) search.  Equality is determined by calling
+        /// EqualityComparer<T>.Default.Equals().
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
         public bool Contains(T item)
         {
             using (_locker.Lock())
             {
-                throw new NotImplementedException();
+                return Count != 0 && IndexOf(item) != -1;
             }
         }
 
-        public bool Contains(object value)
+        /// <summary>
+        /// Contains returns true if the specified element is in the List.
+        /// It does a linear, O(n) search.  Equality is determined by calling
+        /// EqualityComparer<T>.Default.Equals().
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        public bool Contains(object item)
         {
-            using (_locker.Lock())
+            if (IsCompatibleObject(item))
             {
-                throw new NotImplementedException();
+                return Contains((T)item);
             }
+            return false;
         }
 
         /// <summary>
@@ -455,20 +469,47 @@ namespace BruSoftware.ListMmf
             }
         }
 
+        /// <summary>
+        /// Returns the index of the first occurrence of a given value in a range of
+        /// this list. The list is searched forwards from beginning to end.
+        /// The elements of the list are compared to the given value using the
+        /// Object.Equals method.
+        /// Returns the index of the first occurrence of a given value in a range of
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
         public long IndexOf(T item)
         {
             using (_locker.Lock())
             {
-                throw new NotImplementedException();
+                for (long i = 0L; i < Count; i++)
+                {
+                    var value = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
+                    if (item.Equals(value))
+                    {
+                        return i;
+                    }
+                }
+                return -1;
             }
         }
 
-        public long IndexOf(object value)
+        /// <summary>
+        /// Returns the index of the first occurrence of a given value in a range of
+        /// this list. The list is searched forwards from beginning to end.
+        /// The elements of the list are compared to the given value using the
+        /// Object.Equals method.
+        /// Returns the index of the first occurrence of a given value in a range of
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        public long IndexOf(object item)
         {
-            using (_locker.Lock())
+            if (IsCompatibleObject(item))
             {
-                throw new NotImplementedException();
+                return IndexOf((T)item);
             }
+            return -1;
         }
 
         public void Insert(long index, T item)
@@ -480,11 +521,15 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        public void Insert(long index, object value)
+        public void Insert(long index, object item)
         {
-            using (_locker.Lock())
+            try
             {
-                throw new NotImplementedException();
+                Insert(index, (T)item);
+            }
+            catch (InvalidCastException)
+            {
+                throw new ArgumentException(nameof(item), "Unable to cast object to T.");
             }
         }
 
