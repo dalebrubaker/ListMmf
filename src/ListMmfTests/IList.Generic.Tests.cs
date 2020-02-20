@@ -183,10 +183,12 @@ namespace System.Collections.Tests
         {
             if (IsReadOnly && count > 0)
             {
-                IList<T> list = GenericIListFactory(count);
-                T before = list[count / 2];
-                Assert.Throws<NotSupportedException>(() => list[count / 2] = CreateT(321432));
-                Assert.Equal(before, list[count / 2]);
+                using (var list = GenericIListMmfFactory(count))
+                {
+                    T before = list[count / 2];
+                    Assert.Throws<NotSupportedException>(() => list[count / 2] = CreateT(321432));
+                    Assert.Equal(before, list[count / 2]);
+                }
             }
         }
 
@@ -196,10 +198,12 @@ namespace System.Collections.Tests
         {
             if (count > 0 && !IsReadOnly)
             {
-                IList<T> list = GenericIListFactory(count);
-                T value = CreateT(123452);
-                list[0] = value;
-                Assert.Equal(value, list[0]);
+                using (var list = GenericIListMmfFactory(count))
+                {
+                    T value = CreateT(123452);
+                    list[0] = value;
+                    Assert.Equal(value, list[0]);
+                }
             }
         }
 
@@ -209,16 +213,18 @@ namespace System.Collections.Tests
         {
             if (count > 0 && !IsReadOnly)
             {
-                IList<T> list = GenericIListFactory(count);
-                if (DefaultValueAllowed)
+                using (var list = GenericIListMmfFactory(count))
                 {
-                    list[0] = default;
-                    Assert.Equal(default, list[0]);
-                }
-                else
-                {
-                    Assert.Throws<ArgumentNullException>(() => list[0] = default);
-                    Assert.NotEqual(default, list[0]);
+                    if (DefaultValueAllowed)
+                    {
+                        list[0] = default;
+                        Assert.Equal(default, list[0]);
+                    }
+                    else
+                    {
+                        Assert.Throws<ArgumentNullException>(() => list[0] = default);
+                        Assert.NotEqual(default, list[0]);
+                    }
                 }
             }
         }
@@ -229,11 +235,13 @@ namespace System.Collections.Tests
         {
             if (count > 0 && !IsReadOnly)
             {
-                IList<T> list = GenericIListFactory(count);
-                T value = CreateT(123452);
-                int lastIndex = count > 0 ? count - 1 : 0;
-                list[lastIndex] = value;
-                Assert.Equal(value, list[lastIndex]);
+                using (var list = GenericIListMmfFactory(count))
+                {
+                    T value = CreateT(123452);
+                    int lastIndex = count > 0 ? count - 1 : 0;
+                    list[lastIndex] = value;
+                    Assert.Equal(value, list[lastIndex]);
+                }
             }
         }
 
@@ -243,17 +251,19 @@ namespace System.Collections.Tests
         {
             if (count > 0 && !IsReadOnly && DefaultValueAllowed)
             {
-                IList<T> list = GenericIListFactory(count);
-                int lastIndex = count > 0 ? count - 1 : 0;
-                if (DefaultValueAllowed)
+                using (var list = GenericIListMmfFactory(count))
                 {
-                    list[lastIndex] = default;
-                    Assert.Equal(default, list[lastIndex]);
-                }
-                else
-                {
-                    Assert.Throws<ArgumentNullException>(() => list[lastIndex] = default);
-                    Assert.NotEqual(default, list[lastIndex]);
+                    int lastIndex = count > 0 ? count - 1 : 0;
+                    if (DefaultValueAllowed)
+                    {
+                        list[lastIndex] = default;
+                        Assert.Equal(default, list[lastIndex]);
+                    }
+                    else
+                    {
+                        Assert.Throws<ArgumentNullException>(() => list[lastIndex] = default);
+                        Assert.NotEqual(default, list[lastIndex]);
+                    }
                 }
             }
         }
@@ -264,12 +274,14 @@ namespace System.Collections.Tests
         {
             if (count >= 2 && !IsReadOnly && DuplicateValuesAllowed)
             {
-                IList<T> list = GenericIListFactory(count);
-                T value = CreateT(123452);
-                list[0] = value;
-                list[1] = value;
-                Assert.Equal(value, list[0]);
-                Assert.Equal(value, list[1]);
+                using (var list = GenericIListMmfFactory(count))
+                {
+                    T value = CreateT(123452);
+                    list[0] = value;
+                    list[1] = value;
+                    Assert.Equal(value, list[0]);
+                    Assert.Equal(value, list[1]);
+                }
             }
         }
 
@@ -281,8 +293,10 @@ namespace System.Collections.Tests
             {
                 Assert.All(InvalidValues, value =>
                 {
-                    IList<T> list = GenericIListFactory(count);
-                    Assert.Throws<ArgumentException>(() => list[count / 2] = value);
+                    using (var list = GenericIListMmfFactory(count))
+                    {
+                        Assert.Throws<ArgumentException>(() => list[count / 2] = value);
+                    }
                 });
             }
         }

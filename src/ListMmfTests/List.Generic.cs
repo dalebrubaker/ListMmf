@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using BruSoftware.ListMmf;
+using ListMmfTests;
 
 namespace System.Collections.Tests
 {
@@ -29,6 +30,11 @@ namespace System.Collections.Tests
         protected override IList<int> GenericIListFactory(int setLength)
         {
             return GenericListFactory(setLength).AsReadOnly();
+        }
+
+        protected override IList64Disposable<int> GenericIListMmfFactory(int setLength)
+        {
+            return GenericListMmfFactory(setLength).AsReadOnly();
         }
 
         protected override IList<int> GenericIListFactory()
