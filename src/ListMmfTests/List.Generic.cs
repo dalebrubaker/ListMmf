@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using BruSoftware.ListMmf;
 
 namespace System.Collections.Tests
 {
@@ -33,6 +34,10 @@ namespace System.Collections.Tests
         protected override IList<int> GenericIListFactory()
         {
             return GenericListFactory().AsReadOnly();
+        }
+        protected override IList64Disposable<int> GenericIListMmfFactory()
+        {
+            return (IList64Disposable<int>)GenericListMmfFactory().AsReadOnly();
         }
 
         protected override IEnumerable<ModifyEnumerable> GetModifyEnumerables(TestBase.ModifyOperation operations) => new List<ModifyEnumerable>();

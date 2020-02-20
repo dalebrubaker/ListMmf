@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
@@ -9,6 +10,7 @@ using System.Threading;
 
 namespace BruSoftware.ListMmf
 {
+    //[DebuggerDisplay("{" + nameof(AccessName) + ",nq} {" + nameof(Capacity) + ",nq}")]
     public unsafe partial class ListMmf<T> : ListMmf, IList64Disposable<T>, IList64, IReadOnlyList64<T> where T : struct
     {
         private readonly long _headerReserveBytes;
@@ -335,6 +337,8 @@ namespace BruSoftware.ListMmf
                 throw new NotImplementedException();
             }
         }
+
+        public ReadOnlyListMmf<T> AsReadOnly() => new ReadOnlyListMmf<T>(this);
 
         public void Clear()
         {
@@ -1368,7 +1372,7 @@ namespace BruSoftware.ListMmf
         public override string ToString()
         {
             var basedOnStr = _isFileBased ? "File" : "Memory";
-            var count = _isDisposed ? 0 : Unsafe.Read<long>(_ptrCount);
+            var count = _isDisposed || _ptrCount == null ? 0 : Unsafe.Read<long>(_ptrCount);
             var result = $"{basedOnStr} {count:N0}/{_capacity:N0} {AccessName}";
 #if DEBUG
             result += base.ToString();
