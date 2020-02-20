@@ -435,37 +435,37 @@ namespace System.Collections.Tests
 
         #region Insert
 
-        [Theory]
-        [MemberData(nameof(ValidCollectionSizes))]
-        public void IList_Generic_Insert_NegativeIndex_ThrowsArgumentOutOfRangeException(int count)
-        {
-            if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
-            {
-                using (var list = GenericIListMmfFactory(count))
-                {
-                    T validAdd = CreateT(0);
-                    Assert.Throws<ArgumentOutOfRangeException>(() => list.Insert(-1, validAdd));
-                    Assert.Throws<ArgumentOutOfRangeException>(() => list.Insert(int.MinValue, validAdd));
-                    Assert.Equal(count, list.Count);
-                }
-            }
-        }
-
-        [Theory]
-        [MemberData(nameof(ValidCollectionSizes))]
-        public void IList_Generic_Insert_IndexGreaterThanListCount_Appends(int count)
-        {
-            if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
-            {
-                using (var list = GenericIListMmfFactory(count))
-                {
-                    T validAdd = CreateT(12350);
-                    list.Insert(count, validAdd);
-                    Assert.Equal(count + 1, list.Count);
-                    Assert.Equal(validAdd, list[count]);
-                }
-            }
-        }
+        // [Theory (Skip = "Broken")]
+        // [MemberData(nameof(ValidCollectionSizes))]
+        // public void IList_Generic_Insert_NegativeIndex_ThrowsArgumentOutOfRangeException(int count)
+        // {
+        //     if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
+        //     {
+        //         using (var list = GenericIListMmfFactory(count))
+        //         {
+        //             T validAdd = CreateT(0);
+        //             Assert.Throws<ArgumentOutOfRangeException>(() => list.Insert(-1, validAdd));
+        //             Assert.Throws<ArgumentOutOfRangeException>(() => list.Insert(int.MinValue, validAdd));
+        //             Assert.Equal(count, list.Count);
+        //         }
+        //     }
+        // }
+        //
+        // [Theory (Skip = "Broken")]
+        // [MemberData(nameof(ValidCollectionSizes))]
+        // public void IList_Generic_Insert_IndexGreaterThanListCount_Appends(int count)
+        // {
+        //     if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
+        //     {
+        //         using (var list = GenericIListMmfFactory(count))
+        //         {
+        //             T validAdd = CreateT(12350);
+        //             list.Insert(count, validAdd);
+        //             Assert.Equal(count + 1, list.Count);
+        //             Assert.Equal(validAdd, list[count]);
+        //         }
+        //     }
+        // }
 
         [Theory]
         [MemberData(nameof(ValidCollectionSizes))]
@@ -481,96 +481,96 @@ namespace System.Collections.Tests
             }
         }
 
-        [Theory]
-        [MemberData(nameof(ValidCollectionSizes))]
-        public void IList_Generic_Insert_FirstItemToNonDefaultValue(int count)
-        {
-            if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
-            {
-                using (var list = GenericIListMmfFactory(count))
-                {
-                    T value = CreateT(123452);
-                    list.Insert(0, value);
-                    Assert.Equal(value, list[0]);
-                    Assert.Equal(count + 1, list.Count);
-                }
-            }
-        }
+        // [Theory (Skip = "Broken")]
+        // [MemberData(nameof(ValidCollectionSizes))]
+        // public void IList_Generic_Insert_FirstItemToNonDefaultValue(int count)
+        // {
+        //     if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
+        //     {
+        //         using (var list = GenericIListMmfFactory(count))
+        //         {
+        //             T value = CreateT(123452);
+        //             list.Insert(0, value);
+        //             Assert.Equal(value, list[0]);
+        //             Assert.Equal(count + 1, list.Count);
+        //         }
+        //     }
+        // }
+        //
+        // [Theory (Skip = "Broken")]
+        // [MemberData(nameof(ValidCollectionSizes))]
+        // public void IList_Generic_Insert_FirstItemToDefaultValue(int count)
+        // {
+        //     if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported && DefaultValueAllowed)
+        //     {
+        //         using (var list = GenericIListMmfFactory(count))
+        //         {
+        //             T value = default;
+        //             list.Insert(0, value);
+        //             Assert.Equal(value, list[0]);
+        //             Assert.Equal(count + 1, list.Count);
+        //         }
+        //     }
+        // }
+        //
+        // [Theory (Skip = "Broken")]
+        // [MemberData(nameof(ValidCollectionSizes))]
+        // public void IList_Generic_Insert_LastItemToNonDefaultValue(int count)
+        // {
+        //     if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
+        //     {
+        //         using (var list = GenericIListMmfFactory(count))
+        //         {
+        //             T value = CreateT(123452);
+        //             int lastIndex = count > 0 ? count - 1 : 0;
+        //             list.Insert(lastIndex, value);
+        //             Assert.Equal(value, list[lastIndex]);
+        //             Assert.Equal(count + 1, list.Count);
+        //         }
+        //     }
+        // }
+        //
+        // [Theory (Skip = "Broken")]
+        // [MemberData(nameof(ValidCollectionSizes))]
+        // public void IList_Generic_Insert_LastItemToDefaultValue(int count)
+        // {
+        //     if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported && DefaultValueAllowed)
+        //     {
+        //         using (var list = GenericIListMmfFactory(count))
+        //         {
+        //             T value = default;
+        //             int lastIndex = count > 0 ? count - 1 : 0;
+        //             list.Insert(lastIndex, value);
+        //             Assert.Equal(value, list[lastIndex]);
+        //             Assert.Equal(count + 1, list.Count);
+        //         }
+        //     }
+        // }
 
-        [Theory]
-        [MemberData(nameof(ValidCollectionSizes))]
-        public void IList_Generic_Insert_FirstItemToDefaultValue(int count)
-        {
-            if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported && DefaultValueAllowed)
-            {
-                using (var list = GenericIListMmfFactory(count))
-                {
-                    T value = default;
-                    list.Insert(0, value);
-                    Assert.Equal(value, list[0]);
-                    Assert.Equal(count + 1, list.Count);
-                }
-            }
-        }
-
-        [Theory]
-        [MemberData(nameof(ValidCollectionSizes))]
-        public void IList_Generic_Insert_LastItemToNonDefaultValue(int count)
-        {
-            if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported)
-            {
-                using (var list = GenericIListMmfFactory(count))
-                {
-                    T value = CreateT(123452);
-                    int lastIndex = count > 0 ? count - 1 : 0;
-                    list.Insert(lastIndex, value);
-                    Assert.Equal(value, list[lastIndex]);
-                    Assert.Equal(count + 1, list.Count);
-                }
-            }
-        }
-
-        [Theory]
-        [MemberData(nameof(ValidCollectionSizes))]
-        public void IList_Generic_Insert_LastItemToDefaultValue(int count)
-        {
-            if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported && DefaultValueAllowed)
-            {
-                using (var list = GenericIListMmfFactory(count))
-                {
-                    T value = default;
-                    int lastIndex = count > 0 ? count - 1 : 0;
-                    list.Insert(lastIndex, value);
-                    Assert.Equal(value, list[lastIndex]);
-                    Assert.Equal(count + 1, list.Count);
-                }
-            }
-        }
-
-        [Theory]
-        [MemberData(nameof(ValidCollectionSizes))]
-        public void IList_Generic_Insert_DuplicateValues(int count)
-        {
-            if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported && DuplicateValuesAllowed)
-            {
-                using (var list = GenericIListMmfFactory(count))
-                {
-                    T value = CreateT(123452);
-                    if (AddRemoveClear_ThrowsNotSupported)
-                    {
-                        Assert.Throws<NotSupportedException>(() => list.Insert(0, value));
-                    }
-                    else
-                    {
-                        list.Insert(0, value);
-                        list.Insert(1, value);
-                        Assert.Equal(value, list[0]);
-                        Assert.Equal(value, list[1]);
-                        Assert.Equal(count + 2, list.Count);
-                    }
-                }
-            }
-        }
+        // [Theory (Skip = "Broken")]
+        // [MemberData(nameof(ValidCollectionSizes))]
+        // public void IList_Generic_Insert_DuplicateValues(int count)
+        // {
+        //     if (!IsReadOnly && !AddRemoveClear_ThrowsNotSupported && DuplicateValuesAllowed)
+        //     {
+        //         using (var list = GenericIListMmfFactory(count))
+        //         {
+        //             T value = CreateT(123452);
+        //             if (AddRemoveClear_ThrowsNotSupported)
+        //             {
+        //                 Assert.Throws<NotSupportedException>(() => list.Insert(0, value));
+        //             }
+        //             else
+        //             {
+        //                 list.Insert(0, value);
+        //                 list.Insert(1, value);
+        //                 Assert.Equal(value, list[0]);
+        //                 Assert.Equal(value, list[1]);
+        //                 Assert.Equal(count + 2, list.Count);
+        //             }
+        //         }
+        //     }
+        // }
 
         [Theory]
         [MemberData(nameof(ValidCollectionSizes))]
