@@ -10,7 +10,7 @@ using System.Threading;
 namespace BruSoftware.ListMmf
 {
     //[DebuggerDisplay("{" + nameof(AccessName) + ",nq} {" + nameof(Capacity) + ",nq}")]
-    public unsafe partial class ListMmf<T> : ListMmf, IList64Disposable<T>, IList64, IReadOnlyList64<T> where T : struct
+    public unsafe partial class ListMmf<T> : ListMmf, IList64Disposable<T>, IList64, IReadOnlyList64Disposable<T> where T : struct
     {
         private readonly long _headerReserveBytes;
         private readonly MemoryMappedFileAccess _access;
