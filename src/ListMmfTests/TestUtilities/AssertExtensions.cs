@@ -3,11 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Sdk;
-using System.Linq;
 
 namespace System
 {
@@ -39,8 +38,7 @@ namespace System
             }
 
             string expectedParamName =
-                IsNetFramework ?
-                netFxParamName : netCoreParamName;
+                IsNetFramework ? netFxParamName : netCoreParamName;
 
             Assert.Equal(expectedParamName, exception.ParamName);
         }
@@ -57,8 +55,7 @@ namespace System
             }
 
             string expectedParamName =
-                IsNetFramework ?
-                netFxParamName : netCoreParamName;
+                IsNetFramework ? netFxParamName : netCoreParamName;
 
             Assert.Equal(expectedParamName, exception.ParamName);
         }
@@ -150,12 +147,12 @@ namespace System
                 }
                 else
                 {
-                    AssertExtensions.Throws<TNetFxExceptionType>(action);
+                    Throws<TNetFxExceptionType>(action);
                 }
             }
             else
             {
-                AssertExtensions.Throws<TNetCoreExceptionType>(expectedParamName, action);
+                Throws<TNetCoreExceptionType>(expectedParamName, action);
             }
         }
 
@@ -172,10 +169,7 @@ namespace System
             {
                 return Assert.Throws(netFxExceptionType, action);
             }
-            else
-            {
-                return Assert.Throws(netCoreExceptionType, action);
-            }
+            return Assert.Throws(netCoreExceptionType, action);
         }
 
         public static void Throws<TNetCoreExceptionType, TNetFxExceptionType>(string netCoreParamName, string netFxParamName, Action action)
@@ -247,8 +241,7 @@ namespace System
         {
             if (userMessage == null)
                 return message;
-            else
-                return $"{message} {userMessage}";
+            return $"{message} {userMessage}";
         }
 
         /// <summary>
@@ -279,7 +272,7 @@ namespace System
             if (actual == null)
                 throw new XunitException(
                     greaterThan == null
-                        ? AddOptionalUserMessage($"Expected: <null> to be greater than <null>.", userMessage)
+                        ? AddOptionalUserMessage("Expected: <null> to be greater than <null>.", userMessage)
                         : AddOptionalUserMessage($"Expected: <null> to be greater than {greaterThan}.", userMessage));
 
             if (actual.CompareTo(greaterThan) <= 0)
@@ -297,13 +290,10 @@ namespace System
             {
                 if (lessThan == null)
                 {
-                    throw new XunitException(AddOptionalUserMessage($"Expected: <null> to be less than <null>.", userMessage));
+                    throw new XunitException(AddOptionalUserMessage("Expected: <null> to be less than <null>.", userMessage));
                 }
-                else
-                {
-                    // Null is always less than non-null
-                    return;
-                }
+                // Null is always less than non-null
+                return;
             }
 
             if (actual.CompareTo(lessThan) >= 0)
@@ -340,11 +330,8 @@ namespace System
                     // We're equal
                     return;
                 }
-                else
-                {
-                    // Null is always less than non-null
-                    throw new XunitException(AddOptionalUserMessage($"Expected: <null> to be greater than or equal to <null>.", userMessage));
-                }
+                // Null is always less than non-null
+                throw new XunitException(AddOptionalUserMessage("Expected: <null> to be greater than or equal to <null>.", userMessage));
             }
 
             if (actual.CompareTo(greaterThanOrEqualTo) < 0)

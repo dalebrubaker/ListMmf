@@ -13,14 +13,20 @@ namespace System.Collections.Tests
         [Fact]
         public void ConvertAll()
         {
-            var list = new List<int>(new int[] { 1, 2, 3});
+            var list = new List<int>(new[]
+            {
+                1,
+                2,
+                3
+            });
             var before = list.ToList();
-            var after = list.ConvertAll((i) => { return 10 * i; });
+            var after = list.ConvertAll(i => { return 10 * i; });
 
             Assert.Equal(before.Count, list.Count);
             Assert.Equal(before.Count, after.Count);
 
-            for (int i=0; i<list.Count; i++) {
+            for (int i = 0; i < list.Count; i++)
+            {
                 Assert.Equal(before[i], list[i]);
                 Assert.Equal(before[i] * 10, after[i]);
             }

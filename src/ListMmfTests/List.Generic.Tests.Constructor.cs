@@ -66,7 +66,10 @@ namespace System.Collections.Tests
         [Fact]
         public void Constructo_NullIEnumerable_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => { List<T> _list = new List<T>(null); }); //"Expected ArgumentnUllException for null items"
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                List<T> _list = new List<T>(null);
+            }); //"Expected ArgumentnUllException for null items"
         }
     }
 }

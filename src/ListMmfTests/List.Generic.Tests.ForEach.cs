@@ -18,7 +18,7 @@ namespace System.Collections.Tests
         {
             List<T> list = GenericListFactory(count);
             List<T> visitedItems = new List<T>();
-            Action<T> action = delegate (T item) { visitedItems.Add(item); };
+            Action<T> action = delegate(T item) { visitedItems.Add(item); };
 
             //[] Verify ForEach looks at every item
             visitedItems.Clear();

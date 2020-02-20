@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using Xunit;
 
 namespace System.Collections.Tests
 {
@@ -11,7 +10,7 @@ namespace System.Collections.Tests
     /// Contains tests that ensure the correctness of any class that implements the nongeneric
     /// IEnumerable interface
     /// </summary>
-    public abstract partial class IEnumerable_NonGeneric_Tests : TestBase
+    public abstract class IEnumerable_NonGeneric_Tests : TestBase
     {
         #region IEnumerable Helper Methods
 
@@ -80,6 +79,5 @@ namespace System.Collections.Tests
         }
 
         #endregion
-
     }
 }

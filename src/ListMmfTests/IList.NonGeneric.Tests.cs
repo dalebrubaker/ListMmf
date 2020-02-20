@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using Xunit;
 
 namespace System.Collections.Tests
 {
@@ -99,9 +98,9 @@ namespace System.Collections.Tests
         {
             if ((operations & ModifyOperation.Add) == ModifyOperation.Add)
             {
-                yield return (IEnumerable enumerable) =>
+                yield return enumerable =>
                 {
-                    IList casted = ((IList)enumerable);
+                    IList casted = (IList)enumerable;
                     if (!casted.IsFixedSize && !casted.IsReadOnly)
                     {
                         casted.Add(CreateT(2344));
@@ -112,9 +111,9 @@ namespace System.Collections.Tests
             }
             if ((operations & ModifyOperation.Insert) == ModifyOperation.Insert)
             {
-                yield return (IEnumerable enumerable) =>
+                yield return enumerable =>
                 {
-                    IList casted = ((IList)enumerable);
+                    IList casted = (IList)enumerable;
                     if (!casted.IsFixedSize && !casted.IsReadOnly)
                     {
                         casted.Insert(0, CreateT(12));
@@ -123,9 +122,9 @@ namespace System.Collections.Tests
                     return false;
                 };
 
-                yield return (IEnumerable enumerable) =>
+                yield return enumerable =>
                 {
-                    IList casted = ((IList)enumerable);
+                    IList casted = (IList)enumerable;
                     if (casted.Count > 0 && !casted.IsReadOnly)
                     {
                         casted[0] = CreateT(12);
@@ -136,9 +135,9 @@ namespace System.Collections.Tests
             }
             if ((operations & ModifyOperation.Remove) == ModifyOperation.Remove)
             {
-                yield return (IEnumerable enumerable) =>
+                yield return enumerable =>
                 {
-                    IList casted = ((IList)enumerable);
+                    IList casted = (IList)enumerable;
                     if (casted.Count > 0 && !casted.IsFixedSize && !casted.IsReadOnly)
                     {
                         casted.Remove(casted[0]);
@@ -146,9 +145,9 @@ namespace System.Collections.Tests
                     }
                     return false;
                 };
-                yield return (IEnumerable enumerable) =>
+                yield return enumerable =>
                 {
-                    IList casted = ((IList)enumerable);
+                    IList casted = (IList)enumerable;
                     if (casted.Count > 0 && !casted.IsFixedSize && !casted.IsReadOnly)
                     {
                         casted.RemoveAt(0);
@@ -159,9 +158,9 @@ namespace System.Collections.Tests
             }
             if ((operations & ModifyOperation.Clear) == ModifyOperation.Clear)
             {
-                yield return (IEnumerable enumerable) =>
+                yield return enumerable =>
                 {
-                    IList casted = ((IList)enumerable);
+                    IList casted = (IList)enumerable;
                     if (casted.Count > 0 && !casted.IsFixedSize && !casted.IsReadOnly)
                     {
                         casted.Clear();

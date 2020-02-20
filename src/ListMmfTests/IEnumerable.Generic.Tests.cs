@@ -3,10 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using Xunit;
 
 namespace System.Collections.Tests
 {
@@ -14,7 +10,7 @@ namespace System.Collections.Tests
     /// Contains tests that ensure the correctness of any class that implements the generic
     /// IEnumerable interface.
     /// </summary>
-    public abstract partial class IEnumerable_Generic_Tests<T> : TestBase<T> where T : struct
+    public abstract class IEnumerable_Generic_Tests<T> : TestBase<T> where T : struct
     {
         #region IEnumerable<T> Helper Methods
 
@@ -89,6 +85,5 @@ namespace System.Collections.Tests
         }
 
         #endregion
-
     }
 }

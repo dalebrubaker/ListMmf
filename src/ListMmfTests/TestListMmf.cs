@@ -1,5 +1,4 @@
 ﻿using System;
-using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Threading;
@@ -18,7 +17,6 @@ namespace ListMmfTests
             string mapName, bool leaveOpen = false)
             : base(semaphore, headerReserveBytes, noLocking, mmf, access, fileStream, mapName, leaveOpen)
         {
-
         }
 
         public static TestListMmf<T> CreateTestFile(long capacityElements)

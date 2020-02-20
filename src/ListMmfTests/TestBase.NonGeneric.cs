@@ -15,9 +15,18 @@ namespace System.Collections.Tests
 
         public static IEnumerable<object[]> ValidCollectionSizes()
         {
-            yield return new object[] { 0 };
-            yield return new object[] { 1 };
-            yield return new object[] { 75 };
+            yield return new object[]
+            {
+                0
+            };
+            yield return new object[]
+            {
+                1
+            };
+            yield return new object[]
+            {
+                75
+            };
         }
 
         public enum EnumerableType
@@ -26,8 +35,8 @@ namespace System.Collections.Tests
             SortedSet,
             List,
             Queue,
-            Lazy,
-        };
+            Lazy
+        }
 
         [Flags]
         public enum ModifyOperation

@@ -16,6 +16,7 @@ namespace System.Collections.Tests
         #region Helpers
 
         public delegate int IndexOfDelegate(List<T> list, T value);
+
         public enum IndexOfMethod
         {
             IndexOf_T,
@@ -23,25 +24,25 @@ namespace System.Collections.Tests
             IndexOf_T_int_int,
             LastIndexOf_T,
             LastIndexOf_T_int,
-            LastIndexOf_T_int_int,
-        };
+            LastIndexOf_T_int_int
+        }
 
         private IndexOfDelegate IndexOfDelegateFromType(IndexOfMethod methodType)
         {
             switch (methodType)
             {
-                case (IndexOfMethod.IndexOf_T):
-                    return ((List<T> list, T value) => { return list.IndexOf(value); });
-                case (IndexOfMethod.IndexOf_T_int):
-                    return ((List<T> list, T value) => { return list.IndexOf(value, 0); });
-                case (IndexOfMethod.IndexOf_T_int_int):
-                    return ((List<T> list, T value) => { return list.IndexOf(value, 0, list.Count); });
-                case (IndexOfMethod.LastIndexOf_T):
-                    return ((List<T> list, T value) => { return list.LastIndexOf(value); });
-                case (IndexOfMethod.LastIndexOf_T_int):
-                    return ((List<T> list, T value) => { return list.LastIndexOf(value, list.Count - 1); });
-                case (IndexOfMethod.LastIndexOf_T_int_int):
-                    return ((List<T> list, T value) => { return list.LastIndexOf(value, list.Count - 1, list.Count); });
+                case IndexOfMethod.IndexOf_T:
+                    return (list, value) => { return list.IndexOf(value); };
+                case IndexOfMethod.IndexOf_T_int:
+                    return (list, value) => { return list.IndexOf(value, 0); };
+                case IndexOfMethod.IndexOf_T_int_int:
+                    return (list, value) => { return list.IndexOf(value, 0, list.Count); };
+                case IndexOfMethod.LastIndexOf_T:
+                    return (list, value) => { return list.LastIndexOf(value); };
+                case IndexOfMethod.LastIndexOf_T_int:
+                    return (list, value) => { return list.LastIndexOf(value, list.Count - 1); };
+                case IndexOfMethod.LastIndexOf_T_int_int:
+                    return (list, value) => { return list.LastIndexOf(value, list.Count - 1, list.Count); };
                 default:
                     throw new Exception("Invalid IndexOfMethod");
             }
@@ -58,15 +59,45 @@ namespace System.Collections.Tests
             foreach (object[] sizes in ValidCollectionSizes())
             {
                 int count = (int)sizes[0];
-                yield return new object[] { IndexOfMethod.IndexOf_T, count, true };
-                yield return new object[] { IndexOfMethod.LastIndexOf_T, count, false };
+                yield return new object[]
+                {
+                    IndexOfMethod.IndexOf_T,
+                    count,
+                    true
+                };
+                yield return new object[]
+                {
+                    IndexOfMethod.LastIndexOf_T,
+                    count,
+                    false
+                };
 
                 if (count > 0) // 0 is an invalid index for IndexOf when the count is 0.
                 {
-                    yield return new object[] { IndexOfMethod.IndexOf_T_int, count, true };
-                    yield return new object[] { IndexOfMethod.LastIndexOf_T_int, count, false };
-                    yield return new object[] { IndexOfMethod.IndexOf_T_int_int, count, true };
-                    yield return new object[] { IndexOfMethod.LastIndexOf_T_int_int, count, false };
+                    yield return new object[]
+                    {
+                        IndexOfMethod.IndexOf_T_int,
+                        count,
+                        true
+                    };
+                    yield return new object[]
+                    {
+                        IndexOfMethod.LastIndexOf_T_int,
+                        count,
+                        false
+                    };
+                    yield return new object[]
+                    {
+                        IndexOfMethod.IndexOf_T_int_int,
+                        count,
+                        true
+                    };
+                    yield return new object[]
+                    {
+                        IndexOfMethod.LastIndexOf_T_int_int,
+                        count,
+                        false
+                    };
                 }
             }
         }
@@ -96,7 +127,7 @@ namespace System.Collections.Tests
         {
             _ = frontToBackOrder;
             List<T> list = GenericListFactory(count);
-            IEnumerable<T> nonexistentValues = CreateEnumerable(EnumerableType.List, list, count: count, numberOfMatchingElements: 0, numberOfDuplicateElements: 0);
+            IEnumerable<T> nonexistentValues = CreateEnumerable(EnumerableType.List, list, count, 0, 0);
             IndexOfDelegate IndexOf = IndexOfDelegateFromType(indexOfMethod);
 
             Assert.All(nonexistentValues, nonexistentValue =>
@@ -151,9 +182,9 @@ namespace System.Collections.Tests
             {
                 Assert.All(Enumerable.Range(0, 4), j =>
                 {
-                    int expectedIndex = (j * count) + i;
-                    Assert.Equal(expectedIndex, list.IndexOf(withoutDuplicates[i], (count * j)));
-                    Assert.Equal(expectedIndex, list.IndexOf(withoutDuplicates[i], (count * j), count));
+                    int expectedIndex = j * count + i;
+                    Assert.Equal(expectedIndex, list.IndexOf(withoutDuplicates[i], count * j));
+                    Assert.Equal(expectedIndex, list.IndexOf(withoutDuplicates[i], count * j, count));
                 });
             });
         }
@@ -172,9 +203,9 @@ namespace System.Collections.Tests
             {
                 Assert.All(Enumerable.Range(0, 4), j =>
                 {
-                    int expectedIndex = (j * count) + i;
-                    Assert.Equal(expectedIndex, list.LastIndexOf(withoutDuplicates[i], (count * (j + 1)) - 1));
-                    Assert.Equal(expectedIndex, list.LastIndexOf(withoutDuplicates[i], (count * (j + 1)) - 1, count));
+                    int expectedIndex = j * count + i;
+                    Assert.Equal(expectedIndex, list.LastIndexOf(withoutDuplicates[i], count * (j + 1) - 1));
+                    Assert.Equal(expectedIndex, list.LastIndexOf(withoutDuplicates[i], count * (j + 1) - 1, count));
                 });
             });
         }
@@ -213,7 +244,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             T element = CreateT(234);
             Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, count)); //"ArgumentOutOfRangeException expected."
-            if (count == 0)  // IndexOf with a 0 count List is special cased to return -1.
+            if (count == 0) // IndexOf with a 0 count List is special cased to return -1.
                 Assert.Equal(-1, list.LastIndexOf(element, -1));
             else
                 Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, -1));
@@ -233,7 +264,9 @@ namespace System.Collections.Tests
                 Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, 0, count + 1)); //"Expected ArgumentOutOfRangeException."
                 Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, 0, -1)); //"Expected ArgumentOutOfRangeException."
                 Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, -1, count)); //"Expected ArgumentOutOfRangeException."
-                Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, -1, 1)); //"Expected ArgumentOutOfRangeException."                Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, count, 0)); //"Expected ArgumentOutOfRangeException."
+                Assert.Throws<ArgumentOutOfRangeException>(() =>
+                    list.LastIndexOf(element, -1,
+                        1)); //"Expected ArgumentOutOfRangeException."                Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, count, 0)); //"Expected ArgumentOutOfRangeException."
                 Assert.Throws<ArgumentOutOfRangeException>(() => list.LastIndexOf(element, count, 1)); //"Expected ArgumentOutOfRangeException."
             }
             else // IndexOf with a 0 count List is special cased to return -1.

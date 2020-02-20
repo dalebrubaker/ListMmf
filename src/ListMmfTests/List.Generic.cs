@@ -35,11 +35,12 @@ namespace System.Collections.Tests
         {
             return GenericListFactory().AsReadOnly();
         }
+
         protected override IList64Disposable<int> GenericIListMmfFactory()
         {
-            return (IList64Disposable<int>)GenericListMmfFactory().AsReadOnly();
+            return GenericListMmfFactory().AsReadOnly();
         }
 
-        protected override IEnumerable<ModifyEnumerable> GetModifyEnumerables(TestBase.ModifyOperation operations) => new List<ModifyEnumerable>();
+        protected override IEnumerable<ModifyEnumerable> GetModifyEnumerables(ModifyOperation operations) => new List<ModifyEnumerable>();
     }
 }
