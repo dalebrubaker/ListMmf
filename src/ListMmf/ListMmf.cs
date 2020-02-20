@@ -177,6 +177,13 @@ namespace BruSoftware.ListMmf
                     return Unsafe.Read<long>(_ptrCount);
                 }
             }
+            private set
+            {
+                using (_locker.Lock())
+                {
+                    Unsafe.Write(_ptrCount, value);
+                }
+            }
         }
 
         /// <summary>
@@ -272,11 +279,10 @@ namespace BruSoftware.ListMmf
         {
             using (_locker.Lock())
             {
-                var size = Unsafe.Read<long>(_ptrCount);
-                if ((ulong)size < (ulong)Capacity)
+                if ((ulong)Count < (ulong)Capacity)
                 {
-                    Unsafe.Write(_ptrArray + size * _sizeOfT, item);
-                    Unsafe.Write(_ptrCount, size + 1); // Write Count AFTER the value, so other processes will get correct 
+                    Unsafe.Write(_ptrArray + Count * _sizeOfT, item);
+                    Count++; // Change Count AFTER the value, so other processes will get correct
                 }
                 else
                 {
@@ -289,10 +295,9 @@ namespace BruSoftware.ListMmf
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void AddWithResize(T item)
         {
-            var size = Unsafe.Read<long>(_ptrCount);
-            EnsureCapacity(size + 1);
-            Unsafe.Write((void*)_basePointerView[size * _sizeOfT], item);
-            Unsafe.Write(_ptrCount, size + 1); // Write Count AFTER the value, so other processes will get correct 
+            EnsureCapacity(Count + 1);
+            Unsafe.Write((void*)_basePointerView[Count * _sizeOfT], item);
+            Count++;  // Change Count AFTER the value, so other processes will get correct
         }
 
         long IList64.Add(object item)
@@ -311,7 +316,7 @@ namespace BruSoftware.ListMmf
             }
             using (_locker.Lock())
             {
-                return Unsafe.Read<long>(_ptrCount) - 1;
+                return Count - 1;
             }
         }
 
@@ -516,13 +521,12 @@ namespace BruSoftware.ListMmf
         {
             using (_locker.Lock())
             {
-                var size = Unsafe.Read<long>(_ptrCount);
-                EnsureCapacity(size + 1);
+                // CopyRange will EnsureCapacity()
                 CopyRange(index, index + 1, 1);
                 var destination = _ptrArray + index * _sizeOfT;
                 Unsafe.Write(destination, item);
 
-                // Remember tht CopyRange already updated Count
+                // Remember tht CopyRange already updated Count if required
             }
         }
 
@@ -880,13 +884,12 @@ namespace BruSoftware.ListMmf
         {
             using (_locker.Lock())
             {
-                var size = Unsafe.Read<long>(_ptrCount);
-                var newSize = Math.Max(size, destinationIndex + count - 1);
-                if (newSize > size)
+                var newSize = Math.Max(Count, destinationIndex + count - 1);
+                if (newSize > Count)
                 {
                     EnsureCapacity(newSize);
                 }
-                if (size > 0)
+                if (Count > 0)
                 {
                     // Move count existing elements starting at sourceIndex to destinationIndex
                     var byteCount = count * _sizeOfT;
@@ -902,10 +905,10 @@ namespace BruSoftware.ListMmf
                         source += bytesToCopy;
                     } while (bytesCopiedSoFar < byteCount);
                 }
-                if (newSize > size)
+                if (newSize > Count)
                 {
                     // Increase Count to reflect the end of the copied values
-                    Unsafe.Write(_ptrCount, newSize);
+                    Count = newSize;
                 }
             }
         }
@@ -926,8 +929,7 @@ namespace BruSoftware.ListMmf
             }
             using (_locker.Lock())
             {
-                var size = Unsafe.Read<long>(_ptrCount);
-                if ((ulong)index > (ulong)size)
+                if ((ulong)index > (ulong)Count)
                 {
                     throw new ArgumentOutOfRangeException(nameof(collection));
                 }
@@ -955,8 +957,8 @@ namespace BruSoftware.ListMmf
                 }
                 if (count > 0)
                 {
-                    EnsureCapacity(size + count);
-                    if (index < size)
+                    EnsureCapacity(Count + count);
+                    if (index < Count)
                     {
                         // Copy items starting at index to make room for the collection
                         CopyRange(index, index + count, count);
@@ -971,7 +973,7 @@ namespace BruSoftware.ListMmf
                         //Array.Copy(_items, 0, _items, index, index);
 
                         // Copy last part of _items back to inserted location
-                        CopyRange(index + count, index * 2, size - index);
+                        CopyRange(index + count, index * 2, Count - index);
 
                         //Array.Copy(_items, index + count, _items, index * 2, size - index);
                     }
@@ -987,7 +989,7 @@ namespace BruSoftware.ListMmf
 
                         //c.CopyTo(_items, index);
                     }
-                    Unsafe.Write(_ptrCount, size + count);
+                    Count += count;
                 }
             }
         }
@@ -1432,7 +1434,7 @@ namespace BruSoftware.ListMmf
         public override string ToString()
         {
             var basedOnStr = _isFileBased ? "File" : "Memory";
-            var count = _isDisposed || _ptrCount == null ? 0 : Unsafe.Read<long>(_ptrCount);
+            var count = _isDisposed || _ptrCount == null ? 0 : Count;
             var result = $"{basedOnStr} {count:N0}/{_capacity:N0} {AccessName}";
 #if DEBUG
             result += base.ToString();
