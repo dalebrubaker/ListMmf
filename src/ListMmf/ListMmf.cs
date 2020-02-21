@@ -521,12 +521,12 @@ namespace BruSoftware.ListMmf
         {
             using (_locker.Lock())
             {
-                // CopyRange will EnsureCapacity()
-                CopyRange(index, index + 1, 1);
+                // Copy will EnsureCapacity()
+                Copy(index, index + 1, 1);
                 var destination = _ptrArray + index * _sizeOfT;
                 Unsafe.Write(destination, item);
 
-                // Remember tht CopyRange already updated Count if required
+                // Remember tht Copy already updated Count if required
             }
         }
 
@@ -880,7 +880,7 @@ namespace BruSoftware.ListMmf
         /// <param name="sourceIndex"></param>
         /// <param name="destinationIndex"></param>
         /// <param name="count"></param>
-        public void CopyRange(long sourceIndex, long destinationIndex, long count)
+        public void Copy(long sourceIndex, long destinationIndex, long count)
         {
             using (_locker.Lock())
             {
@@ -961,19 +961,19 @@ namespace BruSoftware.ListMmf
                     if (index < Count)
                     {
                         // Copy items starting at index to make room for the collection
-                        CopyRange(index, index + count, count);
+                        Copy(index, index + count, count);
                     }
 
                     // If we're inserting a List into itself, we want to be able to deal with that.
                     if (isThis)
                     {
                         // Copy first part of _items to insert location
-                        CopyRange(0, index, index);
+                        Copy(0, index, index);
 
                         //Array.Copy(_items, 0, _items, index, index);
 
                         // Copy last part of _items back to inserted location
-                        CopyRange(index + count, index * 2, Count - index);
+                        Copy(index + count, index * 2, Count - index);
 
                         //Array.Copy(_items, index + count, _items, index * 2, size - index);
                     }

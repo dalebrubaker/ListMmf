@@ -63,6 +63,7 @@
       </e>
       <e p="ListMmfTests" t="IncludeRecursive">
         <e p="bin" t="ExcludeRecursive" />
+        <e p="CopyTests.cs" t="Include" />
         <e p="CtorTests.cs" t="Include" />
         <e p="ICollection.Generic.Tests.cs" t="Include" />
         <e p="ICollection.NonGeneric.Tests.cs" t="Include" />

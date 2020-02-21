@@ -192,7 +192,7 @@ namespace ListMmfBenchmarks
         }
 
         /*
-        |                                             Method |      Mean |    Error |   StdDev |
+        |     1 million                                        Method |      Mean |    Error |   StdDev |
         |--------------------------------------------------- |----------:|---------:|---------:|
         |                ReadRandomMemoryMappedUnsafeGeneric |  37.48 ms | 0.742 ms | 1.597 ms |
         |      ReadRandomMemoryMappedUnsafeGenericLockerNull |  48.43 ms | 0.963 ms | 1.762 ms |
