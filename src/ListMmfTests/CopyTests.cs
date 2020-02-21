@@ -27,7 +27,7 @@ namespace ListMmfTests
             };
             using (var list = TestListMmf<int>.CreateTestFile(init))
             {
-                list.Count.Should().Be(2);
+                list.Count.Should().Be(init.Count);
                 var toListBefore = list.ToList();
                 toListBefore.Should().BeEquivalentTo(init, opt => opt.WithStrictOrdering());
                 list.Copy(0, 2, 2);
@@ -40,14 +40,56 @@ namespace ListMmfTests
                 toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
             }
         }
+        
+        [Fact]
+        public void Copy_ForwardsNotOverlapping()
+        {
+            var init = new List<int>
+            {
+                0, 1, 2, 3
+            };
+            using (var list = TestListMmf<int>.CreateTestFile(init))
+            {
+                list.Count.Should().Be(init.Count);
+                var toListBefore = list.ToList();
+                toListBefore.Should().BeEquivalentTo(init, opt => opt.WithStrictOrdering());
+                list.Copy(0, 2, 2);
+                list.Count.Should().Be(init.Count);
+                var toListAfter = list.ToList();
+                var expected = new List<int>
+                {
+                    0, 1, 0, 1
+                };
+                toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
+            }
+        }
+        
+        
+        [Fact]
+        public void Copy_BackwardsNotOverlapping()
+        {
+            var init = new List<int>
+            {
+                0, 1, 2, 3
+            };
+            using (var list = TestListMmf<int>.CreateTestFile(init))
+            {
+                list.Count.Should().Be(init.Count);
+                var toListBefore = list.ToList();
+                toListBefore.Should().BeEquivalentTo(init, opt => opt.WithStrictOrdering());
+                list.Copy(2, 0, 2);
+                list.Count.Should().Be(init.Count);
+                var toListAfter = list.ToList();
+                var expected = new List<int>
+                {
+                    2, 3, 2, 3
+                };
+                toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
+            }
+        }
 
         /*
             TODO
-            2 at a time
-            Each test asserts Count
-            Compare .ToList with initialized array
-            Copy to start at. Count
-            Copy backwards and forwards
             Copy forwards overlapping and backwards overlapping
          */
     }
