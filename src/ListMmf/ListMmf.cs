@@ -297,7 +297,7 @@ namespace BruSoftware.ListMmf
         {
             EnsureCapacity(Count + 1);
             Unsafe.Write((void*)_basePointerView[Count * _sizeOfT], item);
-            Count++;  // Change Count AFTER the value, so other processes will get correct
+            Count++; // Change Count AFTER the value, so other processes will get correct
         }
 
         long IList64.Add(object item)
@@ -1270,22 +1270,53 @@ namespace BruSoftware.ListMmf
             //}
         }
 
-        // ToArray returns a new Object array containing the contents of the List.
-        // This requires copying the List, which is an O(n) operation.
+        /// <summary>
+        /// ToArray returns a new Object array containing the contents of the List.
+        /// This requires copying the List, which is an O(n) operation.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
         public T[] ToArray()
         {
+            if (Count > int.MaxValue)
+            {
+                throw new NotSupportedException("ToArray() is not possible when Count is higher than int.MaxValue");
+            }
             using (_locker.Lock())
             {
-                throw new NotImplementedException();
+                var result = new T[Count];
+                for (int i = 0; i < Count; i++)
+                {
+                    result[i] = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
+                }
+                return result;
             }
-
-            //Contract.Ensures(Contract.Result<T[]>() != null);
-            //Contract.Ensures(Contract.Result<T[]>().Length == Count);
-
-            //T[] array = new T[_size];
-            //Array.Copy(_items, 0, array, 0, _size);
-            //return array;
         }
+
+        /// <summary>
+        /// ToList returns a new List  containing the contents of the List.
+        /// This requires copying the List, which is an O(n) operation.
+        /// Not in the List API
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public List<T> ToList()
+        {
+            if (Count > int.MaxValue)
+            {
+                throw new NotSupportedException("ToArray() is not possible when Count is higher than int.MaxValue");
+            }
+            using (_locker.Lock())
+            {
+                var result = new List<T>((int)Count);
+                for (int i = 0; i < Count; i++)
+                {
+                    result[i] = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
+                }
+                return result;
+            }
+        }
+
 
         /// <summary>
         /// Sets the capacity of this list to the size of the list. This method can
