@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Threading;
@@ -19,7 +20,7 @@ namespace ListMmfTests
         {
         }
 
-        public static TestListMmf<T> CreateTestFile(long capacityElements)
+        public static TestListMmf<T> CreateTestFile(long capacityElements = 0)
         {
             var guid = Guid.NewGuid();
             var path = guid.ToString();
@@ -48,6 +49,13 @@ namespace ListMmfTests
             // We ALWAYS leave the fileStream open internally so we can re-create the _mmf when we grow the array.
             var mmf = MemoryMappedFile.CreateFromFile(fileStream, mapName, capacityBytes, access, HandleInheritability.None, true);
             return new TestListMmf<T>(semaphore, headerReserveBytes, noLocking, mmf, access, fileStream, mapName, leaveOpen);
+        }
+
+        public static TestListMmf<T> CreateTestFile(IEnumerable<T> collection)
+        {
+            var result = CreateTestFile();
+            result.AddRange(collection);
+            return result;
         }
 
         protected override void ResetPointers()

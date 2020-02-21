@@ -279,25 +279,10 @@ namespace BruSoftware.ListMmf
         {
             using (_locker.Lock())
             {
-                if ((ulong)Count < (ulong)Capacity)
-                {
-                    Unsafe.Write(_ptrArray + Count * _sizeOfT, item);
-                    Count++; // Change Count AFTER the value, so other processes will get correct
-                }
-                else
-                {
-                    AddWithResize(item);
-                }
+                EnsureCapacity(Count + 1);
+                Unsafe.Write(_ptrArray + Count * _sizeOfT, item);
+                Count++; // Change Count AFTER the value, so other processes will get correct
             }
-        }
-
-        // Non-inline from List.Add to improve its code quality as uncommon path
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void AddWithResize(T item)
-        {
-            EnsureCapacity(Count + 1);
-            Unsafe.Write((void*)_basePointerView[Count * _sizeOfT], item);
-            Count++; // Change Count AFTER the value, so other processes will get correct
         }
 
         long IList64.Add(object item)
@@ -326,7 +311,55 @@ namespace BruSoftware.ListMmf
         /// </summary>
         /// <param name="collection"></param>
         /// <exception cref="ListMmfException">if list won't fit</exception>
-        public void AddRange(IEnumerable<T> collection) => InsertRange(Count, collection);
+        public void AddRange(IEnumerable<T> collection)
+        {
+            if (collection == null)
+            {
+                throw new ArgumentNullException(nameof(collection));
+            }
+            using (_locker.Lock())
+            {
+                var currentCount = Count;
+                long count;
+                switch (collection)
+                {
+                    case IList<T> list:
+                        EnsureCapacity(currentCount + list.Count);
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, list[i]);
+                        }
+                        break;
+                    case ICollection<T> c:
+                        EnsureCapacity(currentCount + c.Count);
+                        foreach (var item in collection)
+                        {
+                            Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, item);
+                        }
+                        break;
+                    case ICollection64<T> c64:
+                        EnsureCapacity(currentCount + c64.Count);
+                        foreach (var item in collection)
+                        {
+                            Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, item);
+                        }
+                        break;
+                    default:
+                        using (var en = collection.GetEnumerator())
+                        {
+                            // Do inline Add
+                            Add(en.Current);
+                            while (en.MoveNext())
+                            {
+                                EnsureCapacity(currentCount + 1);
+                                Unsafe.Write(_ptrArray + currentCount * _sizeOfT, en.Current);
+                            }
+                        }
+                        return;
+                }
+                Count = currentCount; // Set this last so readers won't access items before they are written
+            }
+        }
 
         /// <summary>
         /// Adds the elements of the given IReadOnlyList64 to the end of this array.
@@ -875,6 +908,7 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// Copy count values beginning at sourceIndex to destinationIndex.
         /// Resets Count if we are copying past the current Count
+        /// Handles overlapping range.
         /// Not in List(T) API
         /// </summary>
         /// <param name="sourceIndex"></param>
@@ -882,35 +916,114 @@ namespace BruSoftware.ListMmf
         /// <param name="count"></param>
         public void Copy(long sourceIndex, long destinationIndex, long count)
         {
+            if (count == 0 || destinationIndex == sourceIndex)
+            {
+                return;
+            }
+            if (sourceIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sourceIndex), sourceIndex, $"Must not 0 or greater.");
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), count, $"Must not 0 or greater.");
+            }
+            if (destinationIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(destinationIndex), destinationIndex, $"Must not 0 or greater.");
+            }
             using (_locker.Lock())
             {
-                var newSize = Math.Max(Count, destinationIndex + count - 1);
-                if (newSize > Count)
+                var newCount = Math.Max(Count, destinationIndex + count);
+                if (newCount > Count)
                 {
-                    EnsureCapacity(newSize);
+                    EnsureCapacity(newCount);
                 }
+                var isOverlapping = IsOverlapping(sourceIndex, destinationIndex, count);
+                if (isOverlapping)
+                {
+                    if (destinationIndex > sourceIndex)
+                    {
+                        // Copying forwards. Copy the overlap area FORWARDS one item at at time
+                        while (destinationIndex <= sourceIndex + count - 1)
+                        {
+                            var value = Unsafe.Read<T>(_ptrArray + sourceIndex * _sizeOfT);
+                            Unsafe.Write(_ptrArray + destinationIndex * _sizeOfT, value);
+                            sourceIndex++;
+                            count--;
+                        }
+                    }
+                    else
+                    {
+                        // Copying backwards. Copy the overlap area BACKWARDS one item at at time
+                        while (destinationIndex + count - 1 >= sourceIndex)
+                        {
+                            var fromIndex = sourceIndex + count - 1;
+                            var value = Unsafe.Read<T>(_ptrArray + fromIndex * _sizeOfT);
+                            var toIndex = destinationIndex + count - 1;
+                            Unsafe.Write(_ptrArray + toIndex * _sizeOfT, value);
+                            count--;
+                        }
+                    }
+                }
+                
+                // Copy the non-overlapping block 
+                CopyBlock(sourceIndex, destinationIndex, count);
                 if (Count > 0)
                 {
-                    // Move count existing elements starting at sourceIndex to destinationIndex
-                    var byteCount = count * _sizeOfT;
-                    var bytesCopiedSoFar = 0L;
-                    var source = _ptrArray + sourceIndex * _sizeOfT;
-                    do
-                    {
-                        // Limit copies to uint.MaxValue because Unsafe.CopyBlock can copy only uint.MaxValue at a time
-                        var bytesToCopy = Math.Min(byteCount - bytesCopiedSoFar, uint.MaxValue);
-                        var destination = source + bytesToCopy;
-                        Unsafe.CopyBlock(destination, source, (uint)bytesToCopy);
-                        bytesCopiedSoFar += bytesToCopy;
-                        source += bytesToCopy;
-                    } while (bytesCopiedSoFar < byteCount);
+                    CopyBlock(sourceIndex, count, destinationIndex);
                 }
-                if (newSize > Count)
+                if (newCount > Count)
                 {
                     // Increase Count to reflect the end of the copied values
-                    Count = newSize;
+                    Count = newCount; // Set this last so readers won't access items before they are written
                 }
             }
+        }
+
+        /// <summary>
+        /// Copy count items starting at sourceIndex to destinationIndex, int.MaxValue bytes at a time.
+        /// Does NOT handle overlaps
+        /// </summary>
+        /// <param name="sourceIndex"></param>
+        /// <param name="destinationIndex"></param>
+        /// <param name="count"></param>
+        private void CopyBlock(long sourceIndex, long destinationIndex, long count)
+        {
+            var isOverlapping = IsOverlapping(sourceIndex, destinationIndex, count);
+            if (isOverlapping)
+            {
+                // Block copy would corrupt data
+                throw new ArgumentException($"{nameof(CopyBlock)} cannot copy overlapping regions.");
+            }
+            var byteCount = count * _sizeOfT;
+            var bytesCopiedSoFar = 0L;
+            var source = _ptrArray + sourceIndex * _sizeOfT;
+            var destination = _ptrArray + destinationIndex * _sizeOfT;
+            do
+            {
+                // Limit copies to uint.MaxValue because Unsafe.CopyBlock can copy only uint.MaxValue at a time
+                var bytesToCopy = Math.Min(byteCount - bytesCopiedSoFar, uint.MaxValue);
+                Unsafe.CopyBlock(destination, source, (uint)bytesToCopy);
+                bytesCopiedSoFar += bytesToCopy;
+                source += bytesToCopy;
+                destination += bytesToCopy;
+            } while (bytesCopiedSoFar < byteCount);
+        }
+
+        private bool IsOverlapping(in long sourceIndex, in long destinationIndex, in long count)
+        {
+            if (destinationIndex >= sourceIndex && destinationIndex <= sourceIndex + count - 1)
+            {
+                // Copying forwards and overlaps
+                return true;
+            }
+            if (destinationIndex <= sourceIndex && destinationIndex + count - 1 >= sourceIndex)
+            {
+                // Copying backwards and overlaps
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -933,6 +1046,10 @@ namespace BruSoftware.ListMmf
                 {
                     throw new ArgumentOutOfRangeException(nameof(collection));
                 }
+                
+                // TODO Handle IList<T> as in AddRange()
+                
+                
                 long count;
                 bool isThis;
                 switch (collection)
@@ -1311,7 +1428,7 @@ namespace BruSoftware.ListMmf
                 var result = new List<T>((int)Count);
                 for (int i = 0; i < Count; i++)
                 {
-                    result[i] = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
+                    result.Add(Unsafe.Read<T>(_ptrArray + i * _sizeOfT));
                 }
                 return result;
             }
