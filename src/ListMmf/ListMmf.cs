@@ -924,13 +924,13 @@ namespace BruSoftware.ListMmf
             {
                 throw new ArgumentOutOfRangeException(nameof(sourceIndex), sourceIndex, $"Must not 0 or greater.");
             }
-            if (count < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(count), count, $"Must not 0 or greater.");
-            }
             if (destinationIndex < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(destinationIndex), destinationIndex, $"Must not 0 or greater.");
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), count, $"Must not 0 or greater.");
             }
             using (_locker.Lock())
             {
@@ -969,10 +969,6 @@ namespace BruSoftware.ListMmf
                 
                 // Copy the non-overlapping block 
                 CopyBlock(sourceIndex, destinationIndex, count);
-                if (Count > 0)
-                {
-                    CopyBlock(sourceIndex, count, destinationIndex);
-                }
                 if (newCount > Count)
                 {
                     // Increase Count to reflect the end of the copied values

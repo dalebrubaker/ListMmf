@@ -31,7 +31,7 @@ namespace ListMmfTests
                 list.Count.Should().Be(2);
                 var toListBefore = list.ToList();
                 toListBefore.Should().BeEquivalentTo(init, opt => opt.WithStrictOrdering());
-                list.Copy(0, 1, 1);
+                list.Copy(0, 2, 2);
                 list.Count.Should().Be(4);
                 var toListAfter = list.ToList();
                 var expected = new List<int>
