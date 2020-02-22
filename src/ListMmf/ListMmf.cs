@@ -953,10 +953,11 @@ namespace BruSoftware.ListMmf
                         // Copy the overlap area BACKWARDS one item at at time
                         var endIndexOverlapped = destinationIndex;
                         var beginIndexOverlapped = endIndexOverlapped - overlapCount + 1;
+                        var distance = destinationIndex - sourceIndex;
                         for (long i = endIndexOverlapped; i >= beginIndexOverlapped; i--)
                         {
                             var value = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
-                            Unsafe.Write(_ptrArray + (destinationIndex + i) * _sizeOfT, value);
+                            Unsafe.Write(_ptrArray + (i + distance) * _sizeOfT, value);
                         }
                     }
                     else

@@ -50,9 +50,6 @@ namespace ListMmfTests
             };
             using (var list = TestListMmf<int>.CreateTestFile(init))
             {
-                list.Count.Should().Be(init.Count);
-                var toListBefore = list.ToList();
-                toListBefore.Should().BeEquivalentTo(init, opt => opt.WithStrictOrdering());
                 list.Copy(0, 2, 2);
                 list.Count.Should().Be(init.Count);
                 var toListAfter = list.ToList();
@@ -74,9 +71,6 @@ namespace ListMmfTests
             };
             using (var list = TestListMmf<int>.CreateTestFile(init))
             {
-                list.Count.Should().Be(init.Count);
-                var toListBefore = list.ToList();
-                toListBefore.Should().BeEquivalentTo(init, opt => opt.WithStrictOrdering());
                 list.Copy(2, 0, 2);
                 list.Count.Should().Be(init.Count);
                 var toListAfter = list.ToList();
@@ -97,9 +91,6 @@ namespace ListMmfTests
             };
             using (var list = TestListMmf<int>.CreateTestFile(init))
             {
-                list.Count.Should().Be(init.Count);
-                var toListBefore = list.ToList();
-                toListBefore.Should().BeEquivalentTo(init, opt => opt.WithStrictOrdering());
                 list.Copy(1, 6, 2);
                 list.Count.Should().Be(8);
                 var toListAfter = list.ToList();
@@ -110,9 +101,8 @@ namespace ListMmfTests
                 toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
             }
         }
-        
         [Fact]
-        public void Copy_ForwardsOverlapping()
+        public void Copy_ForwardsOverlappingDistance1()
         {
             var init = new List<int>
             {
@@ -129,6 +119,26 @@ namespace ListMmfTests
                 var expected = new List<int>
                 {
                     0, 0, 1, 2, 4
+                };
+                toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
+            }
+        }
+        
+        [Fact (Skip = "Broken")]
+        public void Copy_ForwardsOverlappingDistance2()
+        {
+            var init = new List<int>
+            {
+                0, 1, 2, 3, 4, 5
+            };
+            using (var list = TestListMmf<int>.CreateTestFile(init))
+            {
+                list.Copy(0, 2, 3);
+                list.Count.Should().Be(init.Count);
+                var toListAfter = list.ToList();
+                var expected = new List<int>
+                {
+                    0, 1, 0, 1, 2, 5
                 };
                 toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
             }
