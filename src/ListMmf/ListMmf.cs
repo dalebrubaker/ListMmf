@@ -944,31 +944,43 @@ namespace BruSoftware.ListMmf
                 {
                     if (destinationIndex > sourceIndex)
                     {
-                        // Copying forwards. Copy the overlap area FORWARDS one item at at time
-                        while (destinationIndex <= sourceIndex + count - 1)
+                        // Copying forwards. 
+                        var overlapCount = (sourceIndex + count) - destinationIndex;
+                        
+                        // Copy the non-overlapping block 
+                        CopyBlock(sourceIndex + overlapCount, destinationIndex + overlapCount, count - overlapCount);
+
+                        // Copy the overlap area BACKWARDS one item at at time
+                        var endIndexOverlapped = destinationIndex;
+                        var beginIndexOverlapped = endIndexOverlapped - overlapCount + 1;
+                        for (long i = endIndexOverlapped; i >= beginIndexOverlapped; i--)
                         {
-                            var value = Unsafe.Read<T>(_ptrArray + sourceIndex * _sizeOfT);
-                            Unsafe.Write(_ptrArray + destinationIndex * _sizeOfT, value);
-                            sourceIndex++;
-                            count--;
+                            var value = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
+                            Unsafe.Write(_ptrArray + (destinationIndex + i) * _sizeOfT, value);
                         }
                     }
                     else
                     {
-                        // Copying backwards. Copy the overlap area BACKWARDS one item at at time
+                        // TODO fix this
+                        // Copying backwards.
+                        var overlapCount = (sourceIndex + count) - destinationIndex;
+
+                        // Copy the overlap area FORWARDS one item at at time
                         while (destinationIndex + count - 1 >= sourceIndex)
                         {
-                            var fromIndex = sourceIndex + count - 1;
-                            var value = Unsafe.Read<T>(_ptrArray + fromIndex * _sizeOfT);
-                            var toIndex = destinationIndex + count - 1;
-                            Unsafe.Write(_ptrArray + toIndex * _sizeOfT, value);
-                            count--;
+                            // var fromIndex = sourceIndex + count - 1;
+                            // var value = Unsafe.Read<T>(_ptrArray + fromIndex * _sizeOfT);
+                            // var toIndex = destinationIndex + count - 1;
+                            // Unsafe.Write(_ptrArray + toIndex * _sizeOfT, value);
+                            // count--;
                         }
                     }
                 }
-                
-                // Copy the non-overlapping block 
-                CopyBlock(sourceIndex, destinationIndex, count);
+                else
+                {
+                    // Copy the non-overlapping block 
+                    CopyBlock(sourceIndex, destinationIndex, count);
+                }
                 if (newCount > Count)
                 {
                     // Increase Count to reflect the end of the copied values
