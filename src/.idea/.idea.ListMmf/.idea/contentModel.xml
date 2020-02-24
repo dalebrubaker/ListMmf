@@ -8,6 +8,7 @@
     <e p="D:\GitDev\ListMmf\src" t="IncludeFlat">
       <e p=".editorconfig" t="Include" />
       <e p="ListMmf" t="IncludeRecursive">
+        <e p="AssemblyInfo.cs" t="Include" />
         <e p="bin" t="ExcludeRecursive" />
         <e p="ICollection64.cs" t="Include" />
         <e p="ICollection64Generic.cs" t="Include" />
