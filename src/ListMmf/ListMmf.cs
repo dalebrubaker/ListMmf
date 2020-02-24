@@ -1627,6 +1627,7 @@ namespace BruSoftware.ListMmf
                 }
             }
             base.Dispose(disposing);
+            GC.SuppressFinalize(this);
         }
 
         private void DisposeSemaphore()

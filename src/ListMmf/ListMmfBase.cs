@@ -143,6 +143,7 @@ namespace BruSoftware.ListMmf
                 RemoveListMmfCreationFromDictionary(ListMmfIdentifier);
 #endif
             }
+            GC.SuppressFinalize(this);
         }
 
         public void Dispose()

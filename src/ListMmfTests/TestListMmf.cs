@@ -78,6 +78,7 @@ namespace ListMmfTests
                     Console.WriteLine(e);
                     throw;
                 }
+                GC.SuppressFinalize(this);
             }
         }
     }

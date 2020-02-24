@@ -64,6 +64,7 @@ namespace BruSoftware.ListMmf
         {
             // release lock
             _actionExit?.Invoke();
+            GC.SuppressFinalize(this);
         }
     }
 }
