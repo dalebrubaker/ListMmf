@@ -101,6 +101,7 @@ namespace ListMmfTests
                 toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
             }
         }
+
         [Fact]
         public void Copy_ForwardsOverlappingDistance1()
         {
@@ -123,8 +124,8 @@ namespace ListMmfTests
                 toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
             }
         }
-        
-        [Fact (Skip = "Broken")]
+
+        [Fact]
         public void Copy_ForwardsOverlappingDistance2()
         {
             var init = new List<int>
@@ -144,9 +145,24 @@ namespace ListMmfTests
             }
         }
 
-        /*
-            TODO
-            Copy forwards overlapping and backwards overlapping
-         */
+        [Fact]
+        public void Copy_BackwardsOverlappingDistance2()
+        {
+            var init = new List<int>
+            {
+                0, 1, 2, 3, 4, 5
+            };
+            using (var list = TestListMmf<int>.CreateTestFile(init))
+            {
+                list.Copy(2, 1, 3);
+                list.Count.Should().Be(init.Count);
+                var toListAfter = list.ToList();
+                var expected = new List<int>
+                {
+                    0, 2, 3, 4, 4, 5
+                };
+                toListAfter.Should().BeEquivalentTo(expected, opt => opt.WithStrictOrdering());
+            }
+        }
     }
 }
