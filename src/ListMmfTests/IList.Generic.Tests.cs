@@ -387,7 +387,7 @@ namespace System.Collections.Tests
         [MemberData(nameof(ValidCollectionSizes))]
         public void IList_Generic_IndexOf_EachValueNoDuplicates(int count)
         {
-            // Assumes no duplicate elements contained in the list returned by GenericIListFactory
+            // Assumes no duplicate items contained in the list returned by GenericIListFactory
             using (var list = GenericIListMmfFactory(count))
             {
                 Assert.All(Enumerable.Range(0, count), index =>
@@ -667,7 +667,7 @@ namespace System.Collections.Tests
 
         #region Enumerator.Current
 
-        // Test Enumerator.Current at end after new elements was added
+        // Test Enumerator.Current at end after new items was added
         [Theory]
         [MemberData(nameof(ValidCollectionSizes))]
         public void IList_Generic_CurrentAtEnd_AfterAdd(int count)

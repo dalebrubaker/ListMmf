@@ -15,8 +15,8 @@ namespace ListMmfTests
         public void CreateNew_SetsCapacity()
         {
             var mapName = $"{nameof(CreateNew_SetsCapacity)}";
-            const int capacityElements = 10;
-            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
+            const int capacityItems = 10;
+            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityItems))
             {
                 listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
             }
@@ -30,8 +30,8 @@ namespace ListMmfTests
             {
                 File.Delete(fileName);
             }
-            const int capacityElements = 10;
-            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityElements: capacityElements))
+            const int capacityItems = 10;
+            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityItems: capacityItems))
             {
                 listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
             }
@@ -46,8 +46,8 @@ namespace ListMmfTests
             {
                 File.Delete(fileName);
             }
-            const int capacityElements = 10;
-            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityElements: capacityElements))
+            const int capacityItems = 10;
+            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityItems: capacityItems))
             {
                 listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
                 listMmf.Capacity = 511 + 512; // add another page
@@ -60,8 +60,8 @@ namespace ListMmfTests
         public void Add_ShouldGrowCount()
         {
             var mapName = $"{nameof(Add_ShouldGrowCount)}";
-            const int capacityElements = 10;
-            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
+            const int capacityItems = 10;
+            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityItems))
             {
                 listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
                 listMmf.Count.Should().Be(0);
@@ -77,8 +77,8 @@ namespace ListMmfTests
         public void This_Test()
         {
             var mapName = $"{nameof(This_Test)}";
-            const int capacityElements = 10;
-            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
+            const int capacityItems = 10;
+            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityItems))
             {
                 listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
                 listMmf.Count.Should().Be(0);
@@ -101,8 +101,8 @@ namespace ListMmfTests
             {
                 File.Delete(fileName);
             }
-            const int capacityElements = 511 + 512;
-            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityElements: capacityElements))
+            const int capacityItems = 511 + 512;
+            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityItems: capacityItems))
             {
                 listMmf.Capacity.Should().Be(511 + 512, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
                 listMmf.Count.Should().Be(0);
@@ -129,9 +129,9 @@ namespace ListMmfTests
             {
                 File.Delete(fileName);
             }
-            const int capacityElements = 511 + 512;
+            const int capacityItems = 511 + 512;
             long capacityBytesBeforeAddingEmptyCapacity = 0;
-            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityElements: capacityElements))
+            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityItems: capacityItems))
             {
                 listMmf.Capacity.Should().Be(511 + 512, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
                 listMmf.Count.Should().Be(0);
@@ -160,8 +160,8 @@ namespace ListMmfTests
             var isAnyoneWriting = ListMmf.IsAnyoneWriting(mapName);
             isAnyoneWriting.Should().BeFalse("No writer yet.");
 
-            const int capacityElements = 10;
-            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityElements))
+            const int capacityItems = 10;
+            using (var listMmf = ListMmf<long>.CreateNew(mapName, capacityItems))
             {
                 isAnyoneReading = ListMmf.IsAnyoneReading(mapName);
                 isAnyoneReading.Should().BeFalse("This is a writer, not a reader");
@@ -178,13 +178,13 @@ namespace ListMmfTests
         public async Task CreateNewBlocking_ShouldTimeout()
         {
             var mapName = nameof(CreateNewBlocking_ShouldTimeout);
-            const int capacityElements = 10;
+            const int capacityItems = 10;
             var timeout = 100;
-            using (var listMmf1 = ListMmf<long>.CreateNew(mapName, capacityElements, maximumCount: 1, timeout: timeout))
+            using (var listMmf1 = ListMmf<long>.CreateNew(mapName, capacityItems, maximumCount: 1, timeout: timeout))
             {
                 listMmf1.Should().NotBeNull("Was first so was created.");
                 var sw = Stopwatch.StartNew();
-                using (var listMmf2 = ListMmf<long>.CreateNew(mapName, capacityElements, timeout: timeout))
+                using (var listMmf2 = ListMmf<long>.CreateNew(mapName, capacityItems, timeout: timeout))
                 {
                     var elapsed = sw.ElapsedMilliseconds;
                     elapsed.Should().BeGreaterThan(timeout - 10, "Blocked until timed out.");

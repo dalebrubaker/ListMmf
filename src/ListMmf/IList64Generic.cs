@@ -20,7 +20,7 @@
         /// <summary>
         /// Inserts value into the list at position index.
         /// index must be non-negative and less than or equal to the 
-        /// number of elements in the list.  If index equals the number
+        /// number of items in the list.  If index equals the number
         /// of items in the list, then value is appended to the end.
         /// </summary>
         /// <param name="index"></param>

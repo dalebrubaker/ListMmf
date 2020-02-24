@@ -21,7 +21,7 @@ namespace BruSoftware.ListMmf
         private MemoryMappedViewAccessor _view;
 
         /// <summary>
-        /// This is the field corresponding to Capacity (in Elements, not Bytes)
+        /// This is the field corresponding to Capacity (in items, not Bytes)
         /// </summary>
         private long _capacity;
 
@@ -165,7 +165,7 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Read-only property describing how many elements are in the List.
+        /// Read-only property describing how many items are in the List.
         /// Same as _size in list.cs
         /// </summary>
         public long Count
@@ -187,7 +187,7 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// The capacity of this ListMmf (number of elements)
+        /// The capacity of this ListMmf (number of items)
         /// </summary>
         public long Capacity
         {
@@ -214,7 +214,7 @@ namespace BruSoftware.ListMmf
                 using (_locker.Lock())
                 {
                     // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
-                    var capacityBytes = CapacityElementsToBytes(value, _headerReserveBytes);
+                    var capacityBytes = CapacityItemsToBytes(value, _headerReserveBytes);
                     _view?.Dispose();
                     _view = null;
                     _mmf?.Dispose();
@@ -306,8 +306,8 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Adds the elements of the given collection to the end of this array.
-        /// If required, the capacity of this array is increased before adding the new elements.
+        /// Adds the items of the given collection to the end of this array.
+        /// If required, the capacity of this array is increased before adding the new items.
         /// </summary>
         /// <param name="collection"></param>
         /// <exception cref="ListMmfException">if list won't fit</exception>
@@ -362,8 +362,8 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Adds the elements of the given IReadOnlyList64 to the end of this array.
-        /// If required, the capacity of this array is increased before adding the new elements.
+        /// Adds the items of the given IReadOnlyList64 to the end of this array.
+        /// If required, the capacity of this array is increased before adding the new items.
         /// </summary>
         /// <param name="list"></param>
         /// <exception cref="ListMmfException">if list won't fit</exception>
@@ -476,7 +476,7 @@ namespace BruSoftware.ListMmf
             {
                 if (Count - index < count)
                 {
-                    throw new ArgumentException($"There are not {count:N0} elements starting at {index:N0} in this list of {Count:N0} elements");
+                    throw new ArgumentException($"There are not {count:N0} items starting at {index:N0} in this list of {Count:N0} items");
                 }
                 var ptr = _ptrArray + index * _sizeOfT;
                 for (int i = 0; i < count; i++)
@@ -492,7 +492,7 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Return an IReadOnlyList64 consisting of Count elements starting at lowerBound
+        /// Return an IReadOnlyList64 consisting of Count items starting at lowerBound
         /// If count is NOT long.MaxValue, Count is fixed at count.
         /// If count is long.MaxValue, Count = list.Count - lowerBound.
         /// </summary>
@@ -510,7 +510,7 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// Returns the index of the first occurrence of a given value in a range of
         /// this list. The list is searched forwards from beginning to end.
-        /// The elements of the list are compared to the given value using the
+        /// The items of the list are compared to the given value using the
         /// Object.Equals method.
         /// Returns the index of the first occurrence of a given value in a range of
         /// </summary>
@@ -535,7 +535,7 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// Returns the index of the first occurrence of a given value in a range of
         /// this list. The list is searched forwards from beginning to end.
-        /// The elements of the list are compared to the given value using the
+        /// The items of the list are compared to the given value using the
         /// Object.Equals method.
         /// Returns the index of the first occurrence of a given value in a range of
         /// </summary>
@@ -608,7 +608,7 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Truncate Length to newCapacity elements.
+        /// Truncate Length to newCapacity items.
         /// If no other writer or reader is accessing the file, this also reduces Capacity, the size of the file.
         /// This method is only allowed for the Writer, not the Reader.
         /// </summary>
@@ -627,10 +627,10 @@ namespace BruSoftware.ListMmf
         public IEnumerator<T> GetEnumerator() => new Enumerator(this);
 
         // Searches a section of the list for a given element using a binary search
-        // algorithm. Elements of the list are compared to the search value using
-        // the given IComparer interface. If comparer is null, elements of
+        // algorithm. Items of the list are compared to the search value using
+        // the given IComparer interface. If comparer is null, items of
         // the list are compared to the search value using the IComparable
-        // interface, which in that case must be implemented by all elements of the
+        // interface, which in that case must be implemented by all items of the
         // list and the given search value. This method assumes that the given
         // section of the list is already sorted; if this is not the case, the
         // result will be incorrect.
@@ -1024,7 +1024,7 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Inserts the elements of the given collection at a given index. If
+        /// Inserts the items of the given collection at a given index. If
         /// required, the capacity of the list is increased to twice the previous
         /// capacity or the new size (Count), whichever is larger.  Ranges may be added
         /// to the end of the list by setting index to the List's size (Count).
@@ -1111,7 +1111,7 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// Returns the index of the last occurrence of a given value in a range of
         /// this list. The list is searched backwards, starting at the end 
-        /// and ending at the first element in the list. The elements of the list 
+        /// and ending at the first element in the list. The items of the list 
         /// are compared to the given value using the Object.Equals method.
         /// 
         /// This method uses the Array.LastIndexOf method to perform the
@@ -1139,7 +1139,7 @@ namespace BruSoftware.ListMmf
         // Returns the index of the last occurrence of a given value in a range of
         // this list. The list is searched backwards, starting at index
         // index and ending at the first element in the list. The 
-        // elements of the list are compared to the given value using the 
+        // items of the list are compared to the given value using the 
         // Object.Equals method.
         // 
         // This method uses the Array.LastIndexOf method to perform the
@@ -1162,7 +1162,7 @@ namespace BruSoftware.ListMmf
 
         // Returns the index of the last occurrence of a given value in a range of
         // this list. The list is searched backwards, starting at index
-        // index and upto count elements. The elements of
+        // index and upto count items. The items of
         // the list are compared to the given value using the Object.Equals
         // method.
         // 
@@ -1242,7 +1242,7 @@ namespace BruSoftware.ListMmf
             //return result;
         }
 
-        // Removes a range of elements from this list.
+        // Removes a range of items from this list.
         // 
         public void RemoveRange(int index, int count)
         {
@@ -1274,7 +1274,7 @@ namespace BruSoftware.ListMmf
             //}
         }
 
-        // Reverses the elements in this list.
+        // Reverses the items in this list.
         public void Reverse()
         {
             using (_locker.Lock())
@@ -1285,13 +1285,13 @@ namespace BruSoftware.ListMmf
             //Reverse(0, Count);
         }
 
-        // Reverses the elements in a range of this list. Following a call to this
+        // Reverses the items in a range of this list. Following a call to this
         // method, an element in the range given by index and count
         // which was previously located at index i will now be located at
         // index index + (index + count - i - 1).
         // 
         // This method uses the Array.Reverse method to reverse the
-        // elements.
+        // items.
         // 
         public void Reverse(int index, int count)
         {
@@ -1315,7 +1315,7 @@ namespace BruSoftware.ListMmf
             //_version++;
         }
 
-        // Sorts the elements in this list.  Uses the default comparer and 
+        // Sorts the items in this list.  Uses the default comparer and 
         // Array.Sort.
         public void Sort()
         {
@@ -1325,7 +1325,7 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        // Sorts the elements in this list.  Uses Array.Sort with the
+        // Sorts the items in this list.  Uses Array.Sort with the
         // provided comparer.
         public void Sort(IComparer<T> comparer)
         {
@@ -1335,13 +1335,13 @@ namespace BruSoftware.ListMmf
             }
         }
 
-        // Sorts the elements in a section of this list. The sort compares the
-        // elements to each other using the given IComparer interface. If
-        // comparer is null, the elements are compared to each other using
+        // Sorts the items in a section of this list. The sort compares the
+        // items to each other using the given IComparer interface. If
+        // comparer is null, the items are compared to each other using
         // the IComparable interface, which in that case must be implemented by all
-        // elements of the list.
+        // items of the list.
         // 
-        // This method uses the Array.Sort method to sort the elements.
+        // This method uses the Array.Sort method to sort the items.
         // 
         public void Sort(long index, long count, IComparer<T> comparer)
         {
@@ -1435,7 +1435,7 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// Sets the capacity of this list to the size of the list. This method can
         /// be used to minimize a list's memory overhead once it is known that no
-        /// new elements will be added to the list. To completely clear a list and
+        /// new items will be added to the list. To completely clear a list and
         /// release all memory referenced by the list, execute the following
         /// statements:
         /// 
@@ -1476,9 +1476,9 @@ namespace BruSoftware.ListMmf
         // value. If the correct capacity of the list is less than min, the
         // capacity is increased to twice the current capacity or to min,
         // whichever is larger.
-        private void EnsureCapacity(long minCapacityElements)
+        private void EnsureCapacity(long minCapacityItems)
         {
-            if (IsReadOnly || minCapacityElements <= _capacity)
+            if (IsReadOnly || minCapacityItems <= _capacity)
             {
                 // nothing to do
                 return;
@@ -1486,8 +1486,8 @@ namespace BruSoftware.ListMmf
 
             // Grow by the smaller of Capacity (doubling file size) or 1 GB (we don't want to double a 500 GB file)
             var extraCapacity = Math.Min(Capacity, 1024 * 1024 * 1024);
-            var newCapacityElements = Math.Max(_capacity + extraCapacity, minCapacityElements);
-            Capacity = newCapacityElements; // Use the property to reset _mmf etc. if needed
+            var newCapacityItems = Math.Max(_capacity + extraCapacity, minCapacityItems);
+            Capacity = newCapacityItems; // Use the property to reset _mmf etc. if needed
         }
 
         private void SetLocking(bool noLocking)
@@ -1527,7 +1527,7 @@ namespace BruSoftware.ListMmf
                     _fileStream.SetLength(CapacityBytes);
                 }
                 ResetPointers();
-                _capacity = CapacityBytesToElements(CapacityBytes, _headerReserveBytes);
+                _capacity = CapacityBytesToItems(CapacityBytes, _headerReserveBytes);
             }
         }
 

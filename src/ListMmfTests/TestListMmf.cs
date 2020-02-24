@@ -20,7 +20,7 @@ namespace ListMmfTests
         {
         }
 
-        public static TestListMmf<T> CreateTestFile(long capacityElements = 0)
+        public static TestListMmf<T> CreateTestFile(long capacityItems = 0)
         {
             var guid = Guid.NewGuid();
             var path = guid.ToString();
@@ -39,10 +39,10 @@ namespace ListMmfTests
             {
                 return null;
             }
-            var capacityBytes = CapacityElementsToBytes(capacityElements, headerReserveBytes);
+            var capacityBytes = CapacityItemsToBytes(capacityItems, headerReserveBytes);
             if (fileStream.Length > capacityBytes)
             {
-                // Don't allow a crash because the user requested fewer elements than the file already supports
+                // Don't allow a crash because the user requested fewer items than the file already supports
                 capacityBytes = fileStream.Length;
             }
 

@@ -356,7 +356,7 @@ namespace System
         //    }
         //}
 
-        /// <summary>Validates that the two sets contains the same elements. XUnit doesn't display the full collections.</summary>
+        /// <summary>Validates that the two sets contains the same items. XUnit doesn't display the full collections.</summary>
         public static void Equal<T>(HashSet<T> expected, HashSet<T> actual)
         {
             if (!actual.SetEquals(expected))

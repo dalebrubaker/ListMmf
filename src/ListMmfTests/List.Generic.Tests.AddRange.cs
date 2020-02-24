@@ -17,11 +17,11 @@ namespace System.Collections.Tests
 
         [Theory]
         [MemberData(nameof(EnumerableTestData))]
-        public void AddRange(EnumerableType enumerableType, int listLength, int enumerableLength, int numberOfMatchingElements, int numberOfDuplicateElements)
+        public void AddRange(EnumerableType enumerableType, int listLength, int enumerableLength, int numberOfMatchingItems, int numberOfDuplicateItems)
         {
             List<T> list = GenericListFactory(listLength);
             List<T> listBeforeAdd = list.ToList();
-            IEnumerable<T> enumerable = CreateEnumerable(enumerableType, list, enumerableLength, numberOfMatchingElements, numberOfDuplicateElements);
+            IEnumerable<T> enumerable = CreateEnumerable(enumerableType, list, enumerableLength, numberOfMatchingItems, numberOfDuplicateItems);
             list.AddRange(enumerable);
 
             // Check that the first section of the List is unchanged
@@ -30,7 +30,7 @@ namespace System.Collections.Tests
                 Assert.Equal(listBeforeAdd[index], list[index]);
             });
 
-            // Check that the added elements are correct
+            // Check that the added items are correct
             Assert.All(Enumerable.Range(0, enumerableLength), index =>
             {
                 Assert.Equal(enumerable.ElementAt(index), list[index + listLength]);
@@ -56,7 +56,7 @@ namespace System.Collections.Tests
             list.AddRange(list);
             list.AddRange(list.Where(_ => true));
 
-            // Succeeds when list has elements and is added as collection.
+            // Succeeds when list has items and is added as collection.
             list.Add(default);
             Assert.Equal(1, list.Count);
             list.AddRange(list);
@@ -64,7 +64,7 @@ namespace System.Collections.Tests
             list.AddRange(list);
             Assert.Equal(4, list.Count);
 
-            // Fails version check when list has elements and is added as non-collection.
+            // Fails version check when list has items and is added as non-collection.
             Assert.Throws<InvalidOperationException>(() => list.AddRange(list.Where(_ => true)));
             Assert.Equal(5, list.Count);
             Assert.Throws<InvalidOperationException>(() => list.AddRange(list.Where(_ => true)));

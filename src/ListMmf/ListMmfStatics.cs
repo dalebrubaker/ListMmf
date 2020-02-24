@@ -4,8 +4,6 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-// ReSharper disable ConvertToUsingDeclaration
-
 namespace BruSoftware.ListMmf
 {
     public partial class ListMmf<T>
@@ -15,7 +13,7 @@ namespace BruSoftware.ListMmf
         /// </summary>
         /// <param name="path">The path to a file-backed (persistent) memory mapped file.</param>
         /// <param name="mapName">The system-wide unique name for the memory mapped file, or <c>null</c> if you do not intend to share across processes.</param>
-        /// <param name="capacityElements">The total number of elements the file can hold without resizing.</param>
+        /// <param name="capacityItems">The total number of items the file can hold without resizing.</param>
         /// <param name="access">Either Read or ReadWrite.</param>
         /// <param name="headerReserveBytes">The number of bytes reserved at the front of this file for use by others. Must be evenly divisible by 8.</param>
         /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
@@ -23,7 +21,7 @@ namespace BruSoftware.ListMmf
         /// <param name="cancellationToken">allows cancellation when blocking because maximumCount are already open</param>
         /// <param name="timeout">timeout in milliseconds (-1 is Infinite) applicable when blocking because maximumCount are already open</param>
         /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
-        public static ListMmf<T> CreateFromFile(string path, string mapName = null, long capacityElements = 0,
+        public static ListMmf<T> CreateFromFile(string path, string mapName = null, long capacityItems = 0,
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserveBytes = 0, bool noLocking = false, int maximumCount = int.MaxValue, CancellationToken cancellationToken = default, int timeout = -1)
         {
@@ -37,17 +35,17 @@ namespace BruSoftware.ListMmf
             }
             var existed = File.Exists(path);
             var fileStream = CreateFileStreamFromPath(path, access);
-            if (capacityElements == 0 && fileStream.Length == 0)
+            if (capacityItems == 0 && fileStream.Length == 0)
             {
                 CleanupFile(fileStream, existed, path);
                 throw new ArgumentException($"File at {path} is empty.");
             }
-            if (access == MemoryMappedFileAccess.Read && capacityElements > fileStream.Length)
+            if (access == MemoryMappedFileAccess.Read && capacityItems > fileStream.Length)
             {
                 CleanupFile(fileStream, existed, path);
-                throw new ArgumentException($"Read access capacity {capacityElements} is greater than file length {fileStream.Length}");
+                throw new ArgumentException($"Read access capacity {capacityItems} is greater than file length {fileStream.Length}");
             }
-            return CreateFromFile(fileStream, mapName, capacityElements, access, false, headerReserveBytes, noLocking);
+            return CreateFromFile(fileStream, mapName, capacityItems, access, false, headerReserveBytes, noLocking);
         }
 
         /// <summary>
@@ -55,7 +53,7 @@ namespace BruSoftware.ListMmf
         /// </summary>
         /// <param name="fileStream">The FileStream to a file-backed (persistent) memory mapped file.</param>
         /// <param name="mapName">The system-wide unique name for the memory mapped file, or <c>null</c> if you do not intend to share across processes.</param>
-        /// <param name="capacityElements">The total number of elements the file can hold without resizing.</param>
+        /// <param name="capacityItems">The total number of items the file can hold without resizing.</param>
         /// <param name="access">Either Read or ReadWrite.</param>
         /// <param name="leaveOpen">Set <c>true</c> to leave the fileStream open after the ListMmf class is disposed.</param>
         /// <param name="headerReserveBytes">The number of bytes reserved at the front of this file for use by others. Must be evenly divisible by 8.</param>
@@ -64,7 +62,7 @@ namespace BruSoftware.ListMmf
         /// <param name="cancellationToken">allows cancellation when blocking because maximumCount are already open</param>
         /// <param name="timeout">timeout in milliseconds (-1 is Infinite) applicable when blocking because maximumCount are already open</param>
         /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
-        public static ListMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacityElements = 0,
+        public static ListMmf<T> CreateFromFile(FileStream fileStream, string mapName = null, long capacityItems = 0,
             MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite, bool leaveOpen = false,
             long headerReserveBytes = 0, bool noLocking = false, int maximumCount = int.MaxValue, CancellationToken cancellationToken = default, int timeout = -1)
         {
@@ -77,10 +75,10 @@ namespace BruSoftware.ListMmf
             {
                 return null;
             }
-            var capacityBytes = CapacityElementsToBytes(capacityElements, headerReserveBytes);
+            var capacityBytes = CapacityItemsToBytes(capacityItems, headerReserveBytes);
             if (fileStream.Length > capacityBytes)
             {
-                // Don't allow a crash because the user requested fewer elements than the file already supports
+                // Don't allow a crash because the user requested fewer items than the file already supports
                 capacityBytes = fileStream.Length;
             }
 
@@ -91,10 +89,10 @@ namespace BruSoftware.ListMmf
 
         /// <summary>
         /// Create a memory-backed ListMmf class
-        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add items until Capacity is reached.
         /// </summary>
         /// <param name="mapName">A name to assign to the memory-mapped file.</param>
-        /// <param name="capacityElements">The total number of elements the file can hold without resizing.</param>
+        /// <param name="capacityItems">The total number of items the file can hold without resizing.</param>
         /// <param name="access">Either Read or ReadWrite.</param>
         /// <param name="headerReserveBytes">The number of bytes reserved at the front of this file for use by others. Must be evenly divisible by 8.</param>
         /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
@@ -102,7 +100,7 @@ namespace BruSoftware.ListMmf
         /// <param name="cancellationToken">allows cancellation when blocking because maximumCount are already open</param>
         /// <param name="timeout">timeout in milliseconds (-1 is Infinite) applicable when blocking because maximumCount are already open</param>
         /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
-        public static ListMmf<T> CreateNew(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
+        public static ListMmf<T> CreateNew(string mapName, long capacityItems, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserveBytes = 0, bool noLocking = false, int maximumCount = int.MaxValue, CancellationToken cancellationToken = default, int timeout = -1)
         {
             if (access != MemoryMappedFileAccess.ReadWrite && access != MemoryMappedFileAccess.Read)
@@ -114,17 +112,17 @@ namespace BruSoftware.ListMmf
             {
                 return null;
             }
-            var capacityBytes = CapacityElementsToBytes(capacityElements, headerReserveBytes);
+            var capacityBytes = CapacityItemsToBytes(capacityItems, headerReserveBytes);
             var mmf = MemoryMappedFile.CreateNew(mapName, capacityBytes, access);
             return new ListMmf<T>(semaphore, headerReserveBytes, noLocking, mmf, access, null, mapName);
         }
 
         /// <summary>
         /// Create a memory-backed ListMmf class
-        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add items until Capacity is reached.
         /// </summary>
         /// <param name="mapName">A name to assign to the memory-mapped file.</param>
-        /// <param name="capacityElements">The total number of elements the file can hold without resizing.</param>
+        /// <param name="capacityItems">The total number of items the file can hold without resizing.</param>
         /// <param name="access">Either Read or ReadWrite.</param>
         /// <param name="headerReserveBytes">The number of bytes reserved at the front of this file for use by others. Must be evenly divisible by 8.</param>
         /// <param name="noLocking"><c>true</c> when your design ensures that reading and writing cannot be happening at the same location in the file, system-wide</param>
@@ -132,7 +130,7 @@ namespace BruSoftware.ListMmf
         /// <param name="cancellationToken">allows cancellation when blocking because maximumCount are already open</param>
         /// <param name="timeout">timeout in milliseconds (-1 is Infinite) applicable when blocking because maximumCount are already open</param>
         /// <returns>A ListMmf class, or <c>null</c> if cancelled or timed out</returns>
-        public static ListMmf<T> CreateOrOpen(string mapName, long capacityElements, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
+        public static ListMmf<T> CreateOrOpen(string mapName, long capacityItems, MemoryMappedFileAccess access = MemoryMappedFileAccess.ReadWrite,
             long headerReserveBytes = 0, bool noLocking = false, int maximumCount = int.MaxValue, CancellationToken cancellationToken = default, int timeout = -1)
         {
             if (access != MemoryMappedFileAccess.ReadWrite && access != MemoryMappedFileAccess.Read)
@@ -144,14 +142,14 @@ namespace BruSoftware.ListMmf
             {
                 return null;
             }
-            var capacityBytes = CapacityElementsToBytes(capacityElements, headerReserveBytes);
+            var capacityBytes = CapacityItemsToBytes(capacityItems, headerReserveBytes);
             var mmf = MemoryMappedFile.CreateOrOpen(mapName, capacityBytes, access);
             return new ListMmf<T>(semaphore, headerReserveBytes, noLocking, mmf, access, null, mapName);
         }
 
         /// <summary>
         /// Open an existing memory-backed ListMmf class
-        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add elements until Capacity is reached.
+        /// A memory (not-persisted) ListMmf can NOT be expanded. You can only add items until Capacity is reached.
         /// </summary>
         /// <param name="mapName">A name to assign to the memory-mapped file.</param>
         /// <param name="access">Either Read or ReadWrite.</param>
@@ -224,14 +222,14 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Return the capacity in bytes needed to store capacityElements, rounded up to the 4096 page size used by MMF
+        /// Return the capacity in bytes needed to store capacityItems, rounded up to the 4096 page size used by MMF
         /// </summary>
-        /// <param name="capacityElements"></param>
+        /// <param name="capacityItems"></param>
         /// <param name="headerReserveBytes"></param>
         /// <returns></returns>
-        protected static long CapacityElementsToBytes(long capacityElements, long headerReserveBytes)
+        protected static long CapacityItemsToBytes(long capacityItems, long headerReserveBytes)
         {
-            var result = capacityElements * Unsafe.SizeOf<T>() + headerReserveBytes + 8; // 8 for the Count field just before the beginning of the array
+            var result = capacityItems * Unsafe.SizeOf<T>() + headerReserveBytes + 8; // 8 for the Count field just before the beginning of the array
             var intoPage = result % 4096;
             if (intoPage > 0)
             {
@@ -242,12 +240,12 @@ namespace BruSoftware.ListMmf
         }
 
         /// <summary>
-        /// Return the capacity in elements that will fit within capacityBytes
+        /// Return the capacity in items that will fit within capacityBytes
         /// </summary>
         /// <param name="capacityBytes"></param>
         /// <param name="headerReserveBytes"></param>
         /// <returns></returns>
-        private static long CapacityBytesToElements(long capacityBytes, long headerReserveBytes)
+        private static long CapacityBytesToItems(long capacityBytes, long headerReserveBytes)
         {
             var result = (capacityBytes - headerReserveBytes - 8) / Unsafe.SizeOf<T>(); // 8 for the Count field just before the beginning of the array
             return result;

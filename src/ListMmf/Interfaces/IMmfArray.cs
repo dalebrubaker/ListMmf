@@ -36,16 +36,16 @@ namespace BruSoftware.ListMmf.Interfaces
         void Add(T item);
 
         /// <summary>
-        /// Adds the elements of the given collection to the end of this array.
-        /// If required, the capacity of this array is increased before adding the new elements.
+        /// Adds the items of the given collection to the end of this array.
+        /// If required, the capacity of this array is increased before adding the new items.
         /// </summary>
         /// <param name="collection"></param>
         /// <exception cref="ListMmfException">if list won't fit</exception>
         void AddRange(IEnumerable<T> collection);
 
         /// <summary>
-        /// Adds the elements of the given IReadOnlyList64 to the end of this array.
-        /// If required, the capacity of this array is increased before adding the new elements.
+        /// Adds the items of the given IReadOnlyList64 to the end of this array.
+        /// If required, the capacity of this array is increased before adding the new items.
         /// </summary>
         /// <param name="list"></param>
         /// <exception cref="ListMmfException">if list won't fit</exception>
@@ -94,7 +94,7 @@ namespace BruSoftware.ListMmf.Interfaces
         new T this[long index] { get; set; }
 
         /// <summary>
-        /// Return an IReadOnlyList64 consisting of Count elements starting at lowerBound
+        /// Return an IReadOnlyList64 consisting of Count items starting at lowerBound
         /// If count is NOT long.MaxValue, Count is fixed at count.
         /// If count is long.MaxValue, Count = list.Count - lowerBound.
         /// </summary>
@@ -117,21 +117,21 @@ namespace BruSoftware.ListMmf.Interfaces
 
 
         ///// <summary>
-        ///// Extend the array (underlying file) to at least the given minimum number of elements.
+        ///// Extend the array (underlying file) to at least the given minimum number of items.
         ///// Adding a value to the array is expensive, as the underlying file etc. must closed and re-opened.
         ///// The file will shrink back to Length when it is Disposed().
         ///// </summary>
-        ///// <param name="minNumElements"></param>
-        //void EnsureCapacity(long minNumElements);
+        ///// <param name="minNumitems"></param>
+        //void EnsureCapacity(long minNumitems);
 
         ///// <summary>
-        ///// Extend the array to Length == newLength, setting added elements to zero.
+        ///// Extend the array to Length == newLength, setting added items to zero.
         ///// </summary>
         ///// <param name="newLength"></param>
         //void Extend(long newLength);
 
         ///// <summary>
-        ///// Truncate Length to newCapacity elements.
+        ///// Truncate Length to newCapacity items.
         ///// If no other writer or reader is accessing the file, this also reduces Capacity, the size of the file.
         ///// This method is only allowed for the Writer, not the Reader.
         ///// </summary>

@@ -24,13 +24,13 @@ namespace ListMmfBenchmarks
             CreateMmf(1000);
         }
 
-        private void CreateMmf(long numElements)
+        private void CreateMmf(long numItems)
         {
             _mmva?.Dispose();
             _mmf?.Dispose();
             _fs?.Dispose();
             _fs = new FileStream(_testFilePath, FileMode.Create);
-            _mmf = MemoryMappedFile.CreateFromFile(_fs, null, numElements * 8, MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, false);
+            _mmf = MemoryMappedFile.CreateFromFile(_fs, null, numItems * 8, MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, false);
 
             //_mmf = MemoryMappedFile.CreateFromFile(testFilePath, FileMode.Open,null, 0, MemoryMappedFileAccess.Read);
             //_mmva = _mmf.CreateViewAccessor(0, count * 8, MemoryMappedFileAccess.Read);

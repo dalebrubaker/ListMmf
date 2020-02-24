@@ -17,7 +17,7 @@ namespace System.Collections.Tests
 
         [Theory]
         [MemberData(nameof(ValidCollectionSizes))]
-        public void RemoveAll_AllElements(int count)
+        public void RemoveAll_AllItems(int count)
         {
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
@@ -28,7 +28,7 @@ namespace System.Collections.Tests
 
         [Theory]
         [MemberData(nameof(ValidCollectionSizes))]
-        public void RemoveAll_NoElements(int count)
+        public void RemoveAll_NoItems(int count)
         {
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
@@ -40,7 +40,7 @@ namespace System.Collections.Tests
 
         [Theory]
         [MemberData(nameof(ValidCollectionSizes))]
-        public void RemoveAll_DefaultElements(int count)
+        public void RemoveAll_DefaultItems(int count)
         {
             List<T> list = GenericListFactory(count);
             List<T> beforeList = list.ToList();
