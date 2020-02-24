@@ -199,29 +199,14 @@ namespace BruSoftware.ListMmf
                     // no change
                     return;
                 }
-                if (IsReadOnly)
+                if (value < _capacity)
                 {
-                    throw new ListMmfException($"{nameof(Capacity)} cannot be set on this Read-Only list.");
+                    // Trim the extra down to make just enough room for Count   
+                    ResetCapacity(value);
                 }
-                if (value < Count)
+                else
                 {
-                    throw new ListMmfException($"{nameof(Capacity)} cannot be set to {value} because Count={Count}. Use Truncate() to reduce the size of this list.");
-                }
-                if (!_isFileBased)
-                {
-                    throw new ListMmfException("A memory (not-persisted) ListMmf can NOT be expanded or truncated.");
-                }
-                using (_locker.Lock())
-                {
-                    // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
-                    var capacityBytes = CapacityItemsToBytes(value, _headerReserveBytes);
-                    _view?.Dispose();
-                    _view = null;
-                    _mmf?.Dispose();
-                    _mmf = null;
-                    _fileStream.SetLength(capacityBytes);
-                    _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
-                    ResetView();
+                    GrowCapacity(value);
                 }
             }
         }
@@ -277,9 +262,16 @@ namespace BruSoftware.ListMmf
         /// <param name="item"></param>
         public void Add(T item)
         {
+            if (IsReadOnly)
+            {
+                throw new ListMmfException($"{nameof(Add)} cannot be done on this Read-Only list.");
+            }
             using (_locker.Lock())
             {
-                EnsureCapacity(Count + 1);
+                if (Count + 1 > _capacity)
+                {
+                    GrowCapacity(Count + 1);
+                }
                 Unsafe.Write(_ptrArray + Count * _sizeOfT, item);
                 Count++; // Change Count AFTER the value, so other processes will get correct
             }
@@ -313,6 +305,10 @@ namespace BruSoftware.ListMmf
         /// <exception cref="ListMmfException">if list won't fit</exception>
         public void AddRange(IEnumerable<T> collection)
         {
+            if (IsReadOnly)
+            {
+                throw new ListMmfException($"{nameof(AddRange)} cannot be done on this Read-Only list.");
+            }
             if (collection == null)
             {
                 throw new ArgumentNullException(nameof(collection));
@@ -324,21 +320,30 @@ namespace BruSoftware.ListMmf
                 switch (collection)
                 {
                     case IList<T> list:
-                        EnsureCapacity(currentCount + list.Count);
+                        if (currentCount + list.Count > _capacity)
+                        {
+                            GrowCapacity(currentCount + list.Count);
+                        }
                         for (int i = 0; i < list.Count; i++)
                         {
                             Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, list[i]);
                         }
                         break;
                     case ICollection<T> c:
-                        EnsureCapacity(currentCount + c.Count);
+                        if (currentCount + c.Count > _capacity)
+                        {
+                            GrowCapacity(currentCount + c.Count);
+                        }
                         foreach (var item in collection)
                         {
                             Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, item);
                         }
                         break;
                     case ICollection64<T> c64:
-                        EnsureCapacity(currentCount + c64.Count);
+                        if (currentCount + c64.Count > _capacity)
+                        {
+                            GrowCapacity(currentCount + c64.Count);
+                        }
                         foreach (var item in collection)
                         {
                             Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, item);
@@ -351,8 +356,11 @@ namespace BruSoftware.ListMmf
                             Add(en.Current);
                             while (en.MoveNext())
                             {
-                                EnsureCapacity(currentCount + 1);
-                                Unsafe.Write(_ptrArray + currentCount * _sizeOfT, en.Current);
+                                if (currentCount + 1 > _capacity)
+                                {
+                                    GrowCapacity(currentCount + 1);
+                                }
+                                Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, en.Current);
                             }
                         }
                         return;
@@ -916,28 +924,32 @@ namespace BruSoftware.ListMmf
         /// <param name="count"></param>
         public void Copy(long sourceIndex, long destinationIndex, long count)
         {
+            if (IsReadOnly)
+            {
+                throw new ListMmfException($"{nameof(Copy)} cannot be done on this Read-Only list.");
+            }
             if (count == 0 || destinationIndex == sourceIndex)
             {
                 return;
             }
             if (sourceIndex < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(sourceIndex), sourceIndex, $"Must not 0 or greater.");
+                throw new ArgumentOutOfRangeException(nameof(sourceIndex), sourceIndex, "Must not 0 or greater.");
             }
             if (destinationIndex < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(destinationIndex), destinationIndex, $"Must not 0 or greater.");
+                throw new ArgumentOutOfRangeException(nameof(destinationIndex), destinationIndex, "Must not 0 or greater.");
             }
             if (count < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(count), count, $"Must not 0 or greater.");
+                throw new ArgumentOutOfRangeException(nameof(count), count, "Must not 0 or greater.");
             }
             using (_locker.Lock())
             {
                 var newCount = Math.Max(Count, destinationIndex + count);
-                if (newCount > Count)
+                if (newCount > _capacity)
                 {
-                    EnsureCapacity(newCount);
+                    GrowCapacity(newCount);
                 }
                 var sourceEndIndex = sourceIndex + count - 1;
                 var destinationEndIndex = destinationIndex + count - 1;
@@ -1033,6 +1045,10 @@ namespace BruSoftware.ListMmf
         /// <param name="collection"></param>
         public void InsertRange(long index, IEnumerable<T> collection)
         {
+            if (IsReadOnly)
+            {
+                throw new ListMmfException($"{nameof(InsertRange)} cannot be done on this Read-Only list.");
+            }
             if (collection == null)
             {
                 throw new ArgumentNullException(nameof(collection));
@@ -1043,10 +1059,10 @@ namespace BruSoftware.ListMmf
                 {
                     throw new ArgumentOutOfRangeException(nameof(collection));
                 }
-                
+
                 // TODO Handle IList<T> as in AddRange()
-                
-                
+
+
                 long count;
                 bool isThis;
                 switch (collection)
@@ -1071,7 +1087,10 @@ namespace BruSoftware.ListMmf
                 }
                 if (count > 0)
                 {
-                    EnsureCapacity(Count + count);
+                    if (Count + count > _capacity)
+                    {
+                        GrowCapacity(Count + count);
+                    }
                     if (index < Count)
                     {
                         // Copy items starting at index to make room for the collection
@@ -1484,10 +1503,62 @@ namespace BruSoftware.ListMmf
                 return;
             }
 
+            GrowCapacity(minCapacityItems);
+        }
+
+        /// <summary>
+        /// Grows the capacity of this list to at least the given minCapacityItems.
+        /// If the correct capacity is less than minCapacityItems, the
+        /// capacity is increased to the maximum of (twice the current capacity) or 1GB,
+        ///     or to minCapacityItems if that is larger
+        /// </summary>
+        /// <param name="minCapacityItems"></param>
+        private void GrowCapacity(long minCapacityItems)
+        {
+            if (IsReadOnly || minCapacityItems <= _capacity)
+            {
+                // nothing to do
+                return;
+            }
+
             // Grow by the smaller of Capacity (doubling file size) or 1 GB (we don't want to double a 500 GB file)
             var extraCapacity = Math.Min(Capacity, 1024 * 1024 * 1024);
             var newCapacityItems = Math.Max(_capacity + extraCapacity, minCapacityItems);
-            Capacity = newCapacityItems; // Use the property to reset _mmf etc. if needed
+            ResetCapacity(newCapacityItems);
+        }
+
+
+        /// <summary>
+        /// Reset Capacity to newCapacityItems
+        /// </summary>
+        /// <param name="newCapacityItems"></param>
+        /// <exception cref="ListMmfException"></exception>
+        private void ResetCapacity(long newCapacityItems)
+        {
+            if (IsReadOnly)
+            {
+                throw new ListMmfException($"{nameof(Capacity)} cannot be set on this Read-Only list.");
+            }
+            if (newCapacityItems < Count)
+            {
+                throw new ListMmfException($"{nameof(Capacity)} cannot be set to {newCapacityItems} because Count={Count}. Use Truncate() to reduce the size of this list.");
+            }
+            if (!_isFileBased)
+            {
+                throw new ListMmfException("A memory (not-persisted) ListMmf can NOT be expanded or truncated.");
+            }
+            using (_locker.Lock())
+            {
+                // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
+                var capacityBytes = CapacityItemsToBytes(newCapacityItems, _headerReserveBytes);
+                _view?.Dispose();
+                _view = null;
+                _mmf?.Dispose();
+                _mmf = null;
+                _fileStream.SetLength(capacityBytes);
+                _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
+                ResetView();
+            }
         }
 
         private void SetLocking(bool noLocking)

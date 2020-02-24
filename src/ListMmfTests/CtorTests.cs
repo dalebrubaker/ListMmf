@@ -114,7 +114,7 @@ namespace ListMmfTests
                 listMmf.Count.Should().Be(capacity);
                 listMmf.Capacity += 512;
                 listMmf.Count.Should().Be(capacity, "Increased capacity should not have changed Count");
-                listMmf.Capacity.Should().Be(capacity + 512);
+                listMmf.Capacity.Should().Be(2047, "Capacity was doubled");
                 listMmf.TrimExcess();
                 listMmf.Capacity.Should().Be(capacity, "Should have removed capacity beyond Count");
             }
@@ -144,7 +144,7 @@ namespace ListMmfTests
                 capacityBytesBeforeAddingEmptyCapacity = listMmf.CapacityBytes;
                 listMmf.Capacity += 512;
                 listMmf.Count.Should().Be(capacity, "Increased capacity should not have changed Count");
-                listMmf.Capacity.Should().Be(capacity + 512);
+                listMmf.Capacity.Should().Be(2047, "Capacity doubled.");
             }
             var fileInfo = new FileInfo(fileName);
             fileInfo.Length.Should().Be(capacityBytesBeforeAddingEmptyCapacity);
