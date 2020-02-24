@@ -264,8 +264,7 @@ namespace BruSoftware.ListMmf
         {
             var eventThatSignaledIndex = WaitHandle.WaitAny(new[]
             {
-                semaphore,
-                cancellationToken.WaitHandle
+                semaphore, cancellationToken.WaitHandle
             }, timeout);
             if (eventThatSignaledIndex == 1)
             {

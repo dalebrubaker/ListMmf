@@ -30,10 +30,7 @@
         <e p="Locker.cs" t="Include" />
         <e p="obj" t="ExcludeRecursive">
           <e p="Debug" t="Include">
-            <e p="net46" t="Include">
-              <e p="ListMmf.AssemblyInfo.cs" t="Include" />
-            </e>
-            <e p="netcoreapp3.1" t="Include">
+            <e p="netstandard2.0" t="Include">
               <e p="ListMmf.AssemblyInfo.cs" t="Include" />
             </e>
           </e>
@@ -91,10 +88,7 @@
         <e p="MmfTests.cs" t="Include" />
         <e p="obj" t="ExcludeRecursive">
           <e p="Debug" t="Include">
-            <e p="net46" t="Include">
-              <e p="ListMmfTests.AssemblyInfo.cs" t="Include" />
-            </e>
-            <e p="netcoreapp3.1" t="Include">
+            <e p="net48" t="Include">
               <e p="ListMmfTests.AssemblyInfo.cs" t="Include" />
             </e>
           </e>
@@ -110,17 +104,9 @@
       <e p="Solution Items" t="Include" />
       <e p="SolutionFolder" t="Include" />
     </e>
-    <e p="D:\nuget\packages\microsoft.net.test.sdk\16.5.0\build\netcoreapp2.1" t="Include">
-      <e p="Microsoft.NET.Test.Sdk.Program.cs" t="Include" />
-    </e>
-    <e p="D:\nuget\packages\microsoft.testplatform.testhost\16.5.0\build\netcoreapp2.1\x64\testhost.dll" t="Include" />
-    <e p="D:\nuget\packages\microsoft.testplatform.testhost\16.5.0\build\netcoreapp2.1\x64\testhost.exe" t="Include" />
     <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.abstractions.dll" t="Include" />
     <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.reporters.net452.dll" t="Include" />
     <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.utility.net452.dll" t="Include" />
     <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.visualstudio.testadapter.dll" t="Include" />
-    <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\netcoreapp1.0\xunit.runner.reporters.netcoreapp10.dll" t="Include" />
-    <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\netcoreapp1.0\xunit.runner.utility.netcoreapp10.dll" t="Include" />
-    <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\netcoreapp1.0\xunit.runner.visualstudio.dotnetcore.testadapter.dll" t="Include" />
   </component>
 </project>

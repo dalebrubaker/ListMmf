@@ -15,9 +15,7 @@ namespace System.Collections.Tests
         {
             var list = new List<int>(new[]
             {
-                1,
-                2,
-                3
+                1, 2, 3
             });
             var before = list.ToList();
             var after = list.ConvertAll(i => { return 10 * i; });

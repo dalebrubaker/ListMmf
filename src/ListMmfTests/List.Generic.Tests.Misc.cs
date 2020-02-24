@@ -21,9 +21,7 @@ namespace System.Collections.Tests
             {
                 CollectionGenerators = new Func<T[], IEnumerable<T>>[]
                 {
-                    ConstructTestList,
-                    ConstructTestEnumerable,
-                    ConstructLazyTestEnumerable
+                    ConstructTestList, ConstructTestEnumerable, ConstructLazyTestEnumerable
                 };
             }
 
@@ -64,12 +62,7 @@ namespace System.Collections.Tests
                 List<T> list = new List<T>(items);
                 int[] bad =
                 {
-                    items.Length + 1,
-                    items.Length + 2,
-                    int.MaxValue,
-                    -1,
-                    -2,
-                    int.MinValue
+                    items.Length + 1, items.Length + 2, int.MaxValue, -1, -2, int.MinValue
                 };
                 for (int i = 0; i < bad.Length; i++)
                 {
@@ -113,12 +106,7 @@ namespace System.Collections.Tests
                 IList _ilist = list;
                 int[] bad =
                 {
-                    items.Length + 1,
-                    items.Length + 2,
-                    int.MaxValue,
-                    -1,
-                    -2,
-                    int.MinValue
+                    items.Length + 1, items.Length + 2, int.MaxValue, -1, -2, int.MinValue
                 };
                 for (int i = 0; i < bad.Length; i++)
                 {
@@ -193,12 +181,7 @@ namespace System.Collections.Tests
                 List<T> list = new List<T>(constructIEnumerable(items));
                 int[] bad =
                 {
-                    items.Length + 1,
-                    items.Length + 2,
-                    int.MaxValue,
-                    -1,
-                    -2,
-                    int.MinValue
+                    items.Length + 1, items.Length + 2, int.MaxValue, -1, -2, int.MinValue
                 };
                 for (int i = 0; i < bad.Length; i++)
                 {
@@ -273,34 +256,20 @@ namespace System.Collections.Tests
                 List<T> list = new List<T>(items);
                 int[] bad =
                 {
-                    /**/items.Length,
-                    1,
-                    /**/ items.Length + 1,
-                    0,
-                    /**/ items.Length + 1,
-                    1,
-                    /**/ items.Length,
-                    2,
-                    /**/ items.Length / 2,
-                    items.Length / 2 + 1,
-                    /**/ items.Length - 1,
-                    2,
-                    /**/ items.Length - 2,
-                    3,
-                    /**/ 1,
-                    items.Length,
-                    /**/ 0,
-                    items.Length + 1,
-                    /**/ 1,
-                    items.Length + 1,
-                    /**/ 2,
-                    items.Length,
-                    /**/ items.Length / 2 + 1,
-                    items.Length / 2,
-                    /**/ 2,
-                    items.Length - 1,
-                    /**/ 3,
-                    items.Length - 2
+                    /**/items.Length, 1,
+                    /**/ items.Length + 1, 0,
+                    /**/ items.Length + 1, 1,
+                    /**/ items.Length, 2,
+                    /**/ items.Length / 2, items.Length / 2 + 1,
+                    /**/ items.Length - 1, 2,
+                    /**/ items.Length - 2, 3,
+                    /**/ 1, items.Length,
+                    /**/ 0, items.Length + 1,
+                    /**/ 1, items.Length + 1,
+                    /**/ 2, items.Length,
+                    /**/ items.Length / 2 + 1, items.Length / 2,
+                    /**/ 2, items.Length - 1,
+                    /**/ 3, items.Length - 2
                 };
 
                 for (int i = 0; i < bad.Length; i++)
@@ -310,20 +279,13 @@ namespace System.Collections.Tests
 
                 bad = new[]
                 {
-                    /**/ -1,
-                    -1,
-                    /**/ -1,
-                    0,
-                    /**/ -1,
-                    1,
-                    /**/ -1,
-                    2,
-                    /**/ 0,
-                    -1,
-                    /**/ 1,
-                    -1,
-                    /**/ 2,
-                    -1
+                    /**/ -1, -1,
+                    /**/ -1, 0,
+                    /**/ -1, 1,
+                    /**/ -1, 2,
+                    /**/ 0, -1,
+                    /**/ 1, -1,
+                    /**/ 2, -1
                 };
 
                 for (int i = 0; i < bad.Length; i++)
@@ -773,27 +735,15 @@ namespace System.Collections.Tests
             StringDriver.BasicInsert(stringArr1, "strobia", 0, 100);
             StringDriver.BasicInsert(new[]
             {
-                null,
-                null,
-                null,
-                "strobia",
-                null
+                null, null, null, "strobia", null
             }, null, 2, 3);
             StringDriver.BasicInsert(new string[]
             {
-                null,
-                null,
-                null,
-                null,
-                null
+                null, null, null, null, null
             }, "strobia", 0, 5);
             StringDriver.BasicInsert(new string[]
             {
-                null,
-                null,
-                null,
-                null,
-                null
+                null, null, null, null, null
             }, "strobia", 5, 1);
             StringDriver.NonGenericIListBasicInsert(stringArr1, "strobia", 99, 2);
             StringDriver.NonGenericIListBasicInsert(stringArr1, "strobia", 100, 3);
@@ -803,27 +753,15 @@ namespace System.Collections.Tests
             StringDriver.NonGenericIListBasicInsert(stringArr1, "strobia", 0, 100);
             StringDriver.NonGenericIListBasicInsert(new[]
             {
-                null,
-                null,
-                null,
-                "strobia",
-                null
+                null, null, null, "strobia", null
             }, null, 2, 3);
             StringDriver.NonGenericIListBasicInsert(new string[]
             {
-                null,
-                null,
-                null,
-                null,
-                null
+                null, null, null, null, null
             }, "strobia", 0, 5);
             StringDriver.NonGenericIListBasicInsert(new string[]
             {
-                null,
-                null,
-                null,
-                null,
-                null
+                null, null, null, null, null
             }, "strobia", 5, 1);
         }
 
@@ -887,43 +825,25 @@ namespace System.Collections.Tests
                 StringDriver.InsertRangeIEnumerable(stringArr1, stringArr2, 50, 50, collectionGenerator);
                 StringDriver.InsertRangeIEnumerable(new string[]
                 {
-                    null,
-                    null,
-                    null,
-                    null
+                    null, null, null, null
                 }, stringArr2, 0, 1, collectionGenerator);
                 StringDriver.InsertRangeIEnumerable(new string[]
                 {
-                    null,
-                    null,
-                    null,
-                    null
+                    null, null, null, null
                 }, stringArr2, 4, 1, collectionGenerator);
                 StringDriver.InsertRangeIEnumerable(new string[]
                 {
-                    null,
-                    null,
-                    null,
-                    null
+                    null, null, null, null
                 }, new string[]
                 {
-                    null,
-                    null,
-                    null,
-                    null
+                    null, null, null, null
                 }, 0, 1, collectionGenerator);
                 StringDriver.InsertRangeIEnumerable(new string[]
                 {
-                    null,
-                    null,
-                    null,
-                    null
+                    null, null, null, null
                 }, new string[]
                 {
-                    null,
-                    null,
-                    null,
-                    null
+                    null, null, null, null
                 }, 4, 50, collectionGenerator);
             }
         }

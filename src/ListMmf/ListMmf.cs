@@ -172,17 +172,13 @@ namespace BruSoftware.ListMmf
         {
             get
             {
-                using (_locker.Lock())
-                {
-                    return Unsafe.Read<long>(_ptrCount);
-                }
+                using (_locker.Lock()) ;
+                return Unsafe.Read<long>(_ptrCount);
             }
             private set
             {
-                using (_locker.Lock())
-                {
-                    Unsafe.Write(_ptrCount, value);
-                }
+                using (_locker.Lock()) ;
+                Unsafe.Write(_ptrCount, value);
             }
         }
 
@@ -215,26 +211,23 @@ namespace BruSoftware.ListMmf
         {
             get
             {
-                using (_locker.Lock())
+                using (_locker.Lock()) ;
+
+                // Following trick can reduce the range check by one
+                if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
                 {
-                    // Following trick can reduce the range check by one
-                    if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
-                    }
-                    return Unsafe.Read<T>(_ptrArray + index * _sizeOfT);
+                    throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
                 }
+                return Unsafe.Read<T>(_ptrArray + index * _sizeOfT);
             }
             set
             {
-                using (_locker.Lock())
+                using (_locker.Lock()) ;
+                if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
                 {
-                    if ((ulong)index >= (uint)Unsafe.Read<long>(_ptrCount))
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
-                    }
-                    Unsafe.Write(_ptrArray + index * _sizeOfT, value);
+                    throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
                 }
+                Unsafe.Write(_ptrArray + index * _sizeOfT, value);
             }
         }
 
@@ -266,15 +259,13 @@ namespace BruSoftware.ListMmf
             {
                 throw new ListMmfException($"{nameof(Add)} cannot be done on this Read-Only list.");
             }
-            using (_locker.Lock())
+            using (_locker.Lock()) ;
+            if (Count + 1 > _capacity)
             {
-                if (Count + 1 > _capacity)
-                {
-                    GrowCapacity(Count + 1);
-                }
-                Unsafe.Write(_ptrArray + Count * _sizeOfT, item);
-                Count++; // Change Count AFTER the value, so other processes will get correct
+                GrowCapacity(Count + 1);
             }
+            Unsafe.Write(_ptrArray + Count * _sizeOfT, item);
+            Count++; // Change Count AFTER the value, so other processes will get correct
         }
 
         long IList64.Add(object item)
@@ -291,10 +282,8 @@ namespace BruSoftware.ListMmf
             {
                 throw new InvalidCastException($"Cannot cast {item.GetType()} to {typeof(T)}");
             }
-            using (_locker.Lock())
-            {
-                return Count - 1;
-            }
+            using (_locker.Lock()) ;
+            return Count - 1;
         }
 
         /// <summary>
@@ -313,60 +302,57 @@ namespace BruSoftware.ListMmf
             {
                 throw new ArgumentNullException(nameof(collection));
             }
-            using (_locker.Lock())
+            var currentCount = Count;
+            long count;
+            switch (collection)
             {
-                var currentCount = Count;
-                long count;
-                switch (collection)
-                {
-                    case IList<T> list:
-                        if (currentCount + list.Count > _capacity)
+                case IList<T> list:
+                    if (currentCount + list.Count > _capacity)
+                    {
+                        GrowCapacity(currentCount + list.Count);
+                    }
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, list[i]);
+                    }
+                    break;
+                case ICollection<T> c:
+                    if (currentCount + c.Count > _capacity)
+                    {
+                        GrowCapacity(currentCount + c.Count);
+                    }
+                    foreach (var item in collection)
+                    {
+                        Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, item);
+                    }
+                    break;
+                case ICollection64<T> c64:
+                    if (currentCount + c64.Count > _capacity)
+                    {
+                        GrowCapacity(currentCount + c64.Count);
+                    }
+                    foreach (var item in collection)
+                    {
+                        Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, item);
+                    }
+                    break;
+                default:
+                    using (var en = collection.GetEnumerator())
+                    {
+                        // Do inline Add
+                        Add(en.Current);
+                        while (en.MoveNext())
                         {
-                            GrowCapacity(currentCount + list.Count);
-                        }
-                        for (int i = 0; i < list.Count; i++)
-                        {
-                            Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, list[i]);
-                        }
-                        break;
-                    case ICollection<T> c:
-                        if (currentCount + c.Count > _capacity)
-                        {
-                            GrowCapacity(currentCount + c.Count);
-                        }
-                        foreach (var item in collection)
-                        {
-                            Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, item);
-                        }
-                        break;
-                    case ICollection64<T> c64:
-                        if (currentCount + c64.Count > _capacity)
-                        {
-                            GrowCapacity(currentCount + c64.Count);
-                        }
-                        foreach (var item in collection)
-                        {
-                            Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, item);
-                        }
-                        break;
-                    default:
-                        using (var en = collection.GetEnumerator())
-                        {
-                            // Do inline Add
-                            Add(en.Current);
-                            while (en.MoveNext())
+                            if (currentCount + 1 > _capacity)
                             {
-                                if (currentCount + 1 > _capacity)
-                                {
-                                    GrowCapacity(currentCount + 1);
-                                }
-                                Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, en.Current);
+                                GrowCapacity(currentCount + 1);
                             }
+                            Unsafe.Write(_ptrArray + currentCount++ * _sizeOfT, en.Current);
                         }
-                        return;
-                }
-                Count = currentCount; // Set this last so readers won't access items before they are written
+                    }
+                    return;
             }
+            Count = currentCount; // Set this last so readers won't access items before they are written
         }
 
         /// <summary>
@@ -387,18 +373,14 @@ namespace BruSoftware.ListMmf
 
         public void Clear()
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         void ICollection64<T>.Clear()
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -410,10 +392,8 @@ namespace BruSoftware.ListMmf
         /// <returns></returns>
         public bool Contains(T item)
         {
-            using (_locker.Lock())
-            {
-                return Count != 0 && IndexOf(item) != -1;
-            }
+            using (_locker.Lock()) ;
+            return Count != 0 && IndexOf(item) != -1;
         }
 
         /// <summary>
@@ -457,10 +437,8 @@ namespace BruSoftware.ListMmf
         /// <param name="arrayIndex"></param>
         public void CopyTo(Array array, int arrayIndex)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -480,19 +458,17 @@ namespace BruSoftware.ListMmf
             {
                 throw new ArgumentOutOfRangeException(nameof(CopyTo), "Multi-Dimensional Array Rank is not supported.");
             }
-            using (_locker.Lock())
+            using (_locker.Lock()) ;
+            if (Count - index < count)
             {
-                if (Count - index < count)
-                {
-                    throw new ArgumentException($"There are not {count:N0} items starting at {index:N0} in this list of {Count:N0} items");
-                }
-                var ptr = _ptrArray + index * _sizeOfT;
-                for (int i = 0; i < count; i++)
-                {
-                    var value = Unsafe.Read<T>(ptr);
-                    array[i] = value;
-                    ptr += _sizeOfT;
-                }
+                throw new ArgumentException($"There are not {count:N0} items starting at {index:N0} in this list of {Count:N0} items");
+            }
+            var ptr = _ptrArray + index * _sizeOfT;
+            for (int i = 0; i < count; i++)
+            {
+                var value = Unsafe.Read<T>(ptr);
+                array[i] = value;
+                ptr += _sizeOfT;
             }
 
             // Delegate rest of error checking to Array.Copy.
@@ -509,10 +485,8 @@ namespace BruSoftware.ListMmf
         /// <returns></returns>
         public IReadOnlyList64<T> GetReadOnlyList64(long lowerBound, long count = long.MaxValue)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -560,15 +534,13 @@ namespace BruSoftware.ListMmf
 
         public void Insert(long index, T item)
         {
-            using (_locker.Lock())
-            {
-                // Copy will EnsureCapacity()
-                Copy(index, index + 1, 1);
-                var destination = _ptrArray + index * _sizeOfT;
-                Unsafe.Write(destination, item);
+            using (_locker.Lock()) ;
+            // Copy will EnsureCapacity()
+            Copy(index, index + 1, 1);
+            var destination = _ptrArray + index * _sizeOfT;
+            Unsafe.Write(destination, item);
 
-                // Remember tht Copy already updated Count if required
-            }
+            // Remember tht Copy already updated Count if required
         }
 
         public void Insert(long index, object item)
@@ -585,34 +557,26 @@ namespace BruSoftware.ListMmf
 
         public bool Remove(T item)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         public void Remove(object value)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         void IList64<T>.RemoveAt(long index)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         void IList64.RemoveAt(long index)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -624,10 +588,8 @@ namespace BruSoftware.ListMmf
         /// <exception cref="NotSupportedException">The array is read-only.</exception>
         public void Truncate(long newLength)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
@@ -656,10 +618,8 @@ namespace BruSoftware.ListMmf
         // 
         public int BinarySearch(long index, long count, T item, IComparer<T> comparer)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
         }
 
         public int BinarySearch(T item)
@@ -688,10 +648,8 @@ namespace BruSoftware.ListMmf
 
         public T Find(Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -708,10 +666,8 @@ namespace BruSoftware.ListMmf
 
         public List<T> FindAll(Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -729,30 +685,24 @@ namespace BruSoftware.ListMmf
 
         public int FindIndex(Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //return FindIndex(0, _size, match);
         }
 
         public int FindIndex(int startIndex, Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //return FindIndex(startIndex, _size - startIndex, match);
         }
 
         public int FindIndex(int startIndex, int count, Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( (uint)startIndex > (uint)_size ) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);                
@@ -778,10 +728,8 @@ namespace BruSoftware.ListMmf
 
         public T FindLast(Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -798,10 +746,8 @@ namespace BruSoftware.ListMmf
 
         public int FindLastIndex(Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() < Count);
@@ -810,10 +756,8 @@ namespace BruSoftware.ListMmf
 
         public int FindLastIndex(int startIndex, Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() <= startIndex);
@@ -822,10 +766,8 @@ namespace BruSoftware.ListMmf
 
         public int FindLastIndex(int startIndex, int count, Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -863,10 +805,8 @@ namespace BruSoftware.ListMmf
 
         public void ForEach(Action<T> action)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( action == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -888,10 +828,8 @@ namespace BruSoftware.ListMmf
 
         public List<T> GetRange(long index, long count)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -944,49 +882,47 @@ namespace BruSoftware.ListMmf
             {
                 throw new ArgumentOutOfRangeException(nameof(count), count, "Must not 0 or greater.");
             }
-            using (_locker.Lock())
+            using (_locker.Lock()) ;
+            var newCount = Math.Max(Count, destinationIndex + count);
+            if (newCount > _capacity)
             {
-                var newCount = Math.Max(Count, destinationIndex + count);
-                if (newCount > _capacity)
+                GrowCapacity(newCount);
+            }
+            var sourceEndIndex = sourceIndex + count - 1;
+            var destinationEndIndex = destinationIndex + count - 1;
+            if (destinationIndex > sourceIndex && sourceEndIndex <= destinationEndIndex)
+            {
+                // copying forwards and overlapping
+                // copy the overlapping portion first, 1 at a time, backwards
+                var distance = destinationIndex - sourceIndex;
+                for (long i = sourceEndIndex; i >= destinationIndex; i--)
                 {
-                    GrowCapacity(newCount);
+                    var value = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
+                    Unsafe.Write(_ptrArray + (i + distance) * _sizeOfT, value);
                 }
-                var sourceEndIndex = sourceIndex + count - 1;
-                var destinationEndIndex = destinationIndex + count - 1;
-                if (destinationIndex > sourceIndex && sourceEndIndex <= destinationEndIndex)
+                var overlapCount = sourceEndIndex - destinationIndex + 1;
+                count -= overlapCount;
+            }
+            else if (destinationIndex < sourceIndex && sourceIndex <= destinationEndIndex)
+            {
+                // copying backwards and overlapping
+                // copy the overlapping portion first, 1 at a time, forwards
+                var distance = destinationIndex - sourceIndex; // negative
+                for (long i = sourceIndex; i <= destinationEndIndex; i++)
                 {
-                    // copying forwards and overlapping
-                    // copy the overlapping portion first, 1 at a time, backwards
-                    var distance = destinationIndex - sourceIndex;
-                    for (long i = sourceEndIndex; i >= destinationIndex; i--)
-                    {
-                        var value = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
-                        Unsafe.Write(_ptrArray + (i + distance) * _sizeOfT, value);
-                    }
-                    var overlapCount = sourceEndIndex - destinationIndex + 1;
-                    count -= overlapCount;
+                    var value = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
+                    Unsafe.Write(_ptrArray + (i + distance) * _sizeOfT, value); // distance is negative
                 }
-                else if (destinationIndex < sourceIndex && sourceIndex <= destinationEndIndex)
-                {
-                    // copying backwards and overlapping
-                    // copy the overlapping portion first, 1 at a time, forwards
-                    var distance = destinationIndex - sourceIndex; // negative
-                    for (long i = sourceIndex; i <= destinationEndIndex; i++)
-                    {
-                        var value = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
-                        Unsafe.Write(_ptrArray + (i + distance) * _sizeOfT, value); // distance is negative
-                    }
-                    var overlapCount = sourceIndex - destinationIndex + 1;
-                    count -= overlapCount;
-                    sourceIndex += overlapCount;
-                    destinationIndex += overlapCount;
-                }
-                CopyBlock(sourceIndex, destinationIndex, count);
-                if (newCount > Count)
-                {
-                    // Increase Count to reflect the end of the copied values
-                    Count = newCount; // Set this last so readers won't access items before they are written
-                }
+                var overlapCount = sourceIndex - destinationIndex + 1;
+                count -= overlapCount;
+                sourceIndex += overlapCount;
+                destinationIndex += overlapCount;
+            }
+            CopyBlock(sourceIndex, destinationIndex, count);
+            if (newCount > Count)
+            {
+                // Increase Count to reflect the end of the copied values
+                Count = newCount; // Set this last so readers won't access items before they are written
             }
         }
 
@@ -1053,77 +989,75 @@ namespace BruSoftware.ListMmf
             {
                 throw new ArgumentNullException(nameof(collection));
             }
-            using (_locker.Lock())
+            using (_locker.Lock()) ;
+            if ((ulong)index > (ulong)Count)
             {
-                if ((ulong)index > (ulong)Count)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(collection));
-                }
+                throw new ArgumentOutOfRangeException(nameof(collection));
+            }
 
-                // TODO Handle IList<T> as in AddRange()
+            // TODO Handle IList<T> as in AddRange()
 
 
-                long count;
-                bool isThis;
-                switch (collection)
-                {
-                    case ICollection64<T> c64:
-                        count = c64.Count;
-                        isThis = this == c64;
-                        break;
-                    case ICollection<T> c:
-                        count = c.Count;
-                        isThis = false;
-                        break;
-                    default:
-                        using (IEnumerator<T> en = collection.GetEnumerator())
+            long count;
+            bool isThis;
+            switch (collection)
+            {
+                case ICollection64<T> c64:
+                    count = c64.Count;
+                    isThis = this == c64;
+                    break;
+                case ICollection<T> c:
+                    count = c.Count;
+                    isThis = false;
+                    break;
+                default:
+                    using (IEnumerator<T> en = collection.GetEnumerator())
+                    {
+                        while (en.MoveNext())
                         {
-                            while (en.MoveNext())
-                            {
-                                Insert(index++, en.Current);
-                            }
+                            Insert(index++, en.Current);
                         }
-                        return;
-                }
-                if (count > 0)
+                    }
+                    return;
+            }
+            if (count > 0)
+            {
+                if (Count + count > _capacity)
                 {
-                    if (Count + count > _capacity)
-                    {
-                        GrowCapacity(Count + count);
-                    }
-                    if (index < Count)
-                    {
-                        // Copy items starting at index to make room for the collection
-                        Copy(index, index + count, count);
-                    }
-
-                    // If we're inserting a List into itself, we want to be able to deal with that.
-                    if (isThis)
-                    {
-                        // Copy first part of _items to insert location
-                        Copy(0, index, index);
-
-                        //Array.Copy(_items, 0, _items, index, index);
-
-                        // Copy last part of _items back to inserted location
-                        Copy(index + count, index * 2, Count - index);
-
-                        //Array.Copy(_items, index + count, _items, index * 2, size - index);
-                    }
-                    else
-                    {
-                        // Copy the collection into the list beginning at index
-                        var destination = _ptrArray + index * _sizeOfT;
-                        foreach (var value in collection)
-                        {
-                            Unsafe.Write(destination, value);
-                            destination += _sizeOfT;
-                        }
-
-                        //c.CopyTo(_items, index);
-                    }
-                    Count += count;
+                    GrowCapacity(Count + count);
                 }
+                if (index < Count)
+                {
+                    // Copy items starting at index to make room for the collection
+                    Copy(index, index + count, count);
+                }
+
+                // If we're inserting a List into itself, we want to be able to deal with that.
+                if (isThis)
+                {
+                    // Copy first part of _items to insert location
+                    Copy(0, index, index);
+
+                    //Array.Copy(_items, 0, _items, index, index);
+
+                    // Copy last part of _items back to inserted location
+                    Copy(index + count, index * 2, Count - index);
+
+                    //Array.Copy(_items, index + count, _items, index * 2, size - index);
+                }
+                else
+                {
+                    // Copy the collection into the list beginning at index
+                    var destination = _ptrArray + index * _sizeOfT;
+                    foreach (var value in collection)
+                    {
+                        Unsafe.Write(destination, value);
+                        destination += _sizeOfT;
+                    }
+
+                    //c.CopyTo(_items, index);
+                }
+                Count += count;
             }
         }
 
@@ -1140,10 +1074,8 @@ namespace BruSoftware.ListMmf
         /// <returns></returns>
         public int LastIndexOf(T item)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //Contract.Ensures(Contract.Result<int>() >= -1);
             //Contract.Ensures(Contract.Result<int>() < Count);
@@ -1166,10 +1098,8 @@ namespace BruSoftware.ListMmf
         // 
         public int LastIndexOf(T item, int index)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if (index >= _size)
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
@@ -1190,10 +1120,8 @@ namespace BruSoftware.ListMmf
         // 
         public int LastIndexOf(T item, int index, int count)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if ((Count != 0) && (index < 0)) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -1225,10 +1153,8 @@ namespace BruSoftware.ListMmf
         // The complexity is O(n).   
         public int RemoveAll(Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -1265,10 +1191,8 @@ namespace BruSoftware.ListMmf
         // 
         public void RemoveRange(int index, int count)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -1296,10 +1220,8 @@ namespace BruSoftware.ListMmf
         // Reverses the items in this list.
         public void Reverse()
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //Reverse(0, Count);
         }
@@ -1314,10 +1236,8 @@ namespace BruSoftware.ListMmf
         // 
         public void Reverse(int index, int count)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -1338,20 +1258,16 @@ namespace BruSoftware.ListMmf
         // Array.Sort.
         public void Sort()
         {
-            using (_locker.Lock())
-            {
-                Sort(0, Count, null);
-            }
+            using (_locker.Lock()) ;
+            Sort(0, Count, null);
         }
 
         // Sorts the items in this list.  Uses Array.Sort with the
         // provided comparer.
         public void Sort(IComparer<T> comparer)
         {
-            using (_locker.Lock())
-            {
-                Sort(0, Count, comparer);
-            }
+            using (_locker.Lock()) ;
+            Sort(0, Count, comparer);
         }
 
         // Sorts the items in a section of this list. The sort compares the
@@ -1364,10 +1280,8 @@ namespace BruSoftware.ListMmf
         // 
         public void Sort(long index, long count, IComparer<T> comparer)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if (index < 0) {
             //    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -1387,10 +1301,8 @@ namespace BruSoftware.ListMmf
 
         public void Sort(Comparison<T> comparison)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( comparison == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -1415,15 +1327,13 @@ namespace BruSoftware.ListMmf
             {
                 throw new NotSupportedException("ToArray() is not possible when Count is higher than int.MaxValue");
             }
-            using (_locker.Lock())
+            using (_locker.Lock()) ;
+            var result = new T[Count];
+            for (int i = 0; i < Count; i++)
             {
-                var result = new T[Count];
-                for (int i = 0; i < Count; i++)
-                {
-                    result[i] = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
-                }
-                return result;
+                result[i] = Unsafe.Read<T>(_ptrArray + i * _sizeOfT);
             }
+            return result;
         }
 
         /// <summary>
@@ -1439,15 +1349,13 @@ namespace BruSoftware.ListMmf
             {
                 throw new NotSupportedException("ToArray() is not possible when Count is higher than int.MaxValue");
             }
-            using (_locker.Lock())
+            using (_locker.Lock()) ;
+            var result = new List<T>((int)Count);
+            for (int i = 0; i < Count; i++)
             {
-                var result = new List<T>((int)Count);
-                for (int i = 0; i < Count; i++)
-                {
-                    result.Add(Unsafe.Read<T>(_ptrArray + i * _sizeOfT));
-                }
-                return result;
+                result.Add(Unsafe.Read<T>(_ptrArray + i * _sizeOfT));
             }
+            return result;
         }
 
 
@@ -1473,10 +1381,8 @@ namespace BruSoftware.ListMmf
 
         public bool TrueForAll(Predicate<T> match)
         {
-            using (_locker.Lock())
-            {
-                throw new NotImplementedException();
-            }
+            using (_locker.Lock()) ;
+            throw new NotImplementedException();
 
             //if( match == null) {
             //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -1547,18 +1453,17 @@ namespace BruSoftware.ListMmf
             {
                 throw new ListMmfException("A memory (not-persisted) ListMmf can NOT be expanded or truncated.");
             }
-            using (_locker.Lock())
-            {
-                // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
-                var capacityBytes = CapacityItemsToBytes(newCapacityItems, _headerReserveBytes);
-                _view?.Dispose();
-                _view = null;
-                _mmf?.Dispose();
-                _mmf = null;
-                _fileStream.SetLength(capacityBytes);
-                _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
-                ResetView();
-            }
+            using (_locker.Lock()) ;
+
+            // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
+            var capacityBytes = CapacityItemsToBytes(newCapacityItems, _headerReserveBytes);
+            _view?.Dispose();
+            _view = null;
+            _mmf?.Dispose();
+            _mmf = null;
+            _fileStream.SetLength(capacityBytes);
+            _mmf = MemoryMappedFile.CreateFromFile(_fileStream, _mapName, capacityBytes, _access, HandleInheritability.None, true);
+            ResetView();
         }
 
         private void SetLocking(bool noLocking)
@@ -1588,43 +1493,39 @@ namespace BruSoftware.ListMmf
         /// </summary>
         private void ResetView()
         {
-            using (_locker.Lock())
+            using (_locker.Lock()) ;
+            _view?.Dispose();
+            _view = _mmf.CreateViewAccessor(0, 0, _access);
+            if (_isFileBased && _fileStream.Length != CapacityBytes)
             {
-                _view?.Dispose();
-                _view = _mmf.CreateViewAccessor(0, 0, _access);
-                if (_isFileBased && _fileStream.Length != CapacityBytes)
-                {
-                    // Set the file length up to the view length so we don't write off the end
-                    _fileStream.SetLength(CapacityBytes);
-                }
-                ResetPointers();
-                _capacity = CapacityBytesToItems(CapacityBytes, _headerReserveBytes);
+                // Set the file length up to the view length so we don't write off the end
+                _fileStream.SetLength(CapacityBytes);
             }
+            ResetPointers();
+            _capacity = CapacityBytesToItems(CapacityBytes, _headerReserveBytes);
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                using (_locker.Lock())
+                using (_locker.Lock()) ;
+                _isDisposed = true;
+                if (_isFileBased)
                 {
-                    _isDisposed = true;
-                    if (_isFileBased)
-                    {
-                        TrimExcess();
-                    }
-                    _view?.Dispose();
-                    _view = null;
-                    _mmf.Dispose();
-                    _mmf = null;
-                    if (!_leaveOpen)
-                    {
-                        _fileStream?.Dispose();
-                        _fileStream = null;
-                    }
-                    _mutex?.Dispose();
-                    DisposeSemaphore();
+                    TrimExcess();
                 }
+                _view?.Dispose();
+                _view = null;
+                _mmf.Dispose();
+                _mmf = null;
+                if (!_leaveOpen)
+                {
+                    _fileStream?.Dispose();
+                    _fileStream = null;
+                }
+                _mutex?.Dispose();
+                DisposeSemaphore();
             }
             base.Dispose(disposing);
             GC.SuppressFinalize(this);

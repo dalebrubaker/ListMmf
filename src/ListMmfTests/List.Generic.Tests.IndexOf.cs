@@ -61,42 +61,30 @@ namespace System.Collections.Tests
                 int count = (int)sizes[0];
                 yield return new object[]
                 {
-                    IndexOfMethod.IndexOf_T,
-                    count,
-                    true
+                    IndexOfMethod.IndexOf_T, count, true
                 };
                 yield return new object[]
                 {
-                    IndexOfMethod.LastIndexOf_T,
-                    count,
-                    false
+                    IndexOfMethod.LastIndexOf_T, count, false
                 };
 
                 if (count > 0) // 0 is an invalid index for IndexOf when the count is 0.
                 {
                     yield return new object[]
                     {
-                        IndexOfMethod.IndexOf_T_int,
-                        count,
-                        true
+                        IndexOfMethod.IndexOf_T_int, count, true
                     };
                     yield return new object[]
                     {
-                        IndexOfMethod.LastIndexOf_T_int,
-                        count,
-                        false
+                        IndexOfMethod.LastIndexOf_T_int, count, false
                     };
                     yield return new object[]
                     {
-                        IndexOfMethod.IndexOf_T_int_int,
-                        count,
-                        true
+                        IndexOfMethod.IndexOf_T_int_int, count, true
                     };
                     yield return new object[]
                     {
-                        IndexOfMethod.LastIndexOf_T_int_int,
-                        count,
-                        false
+                        IndexOfMethod.LastIndexOf_T_int_int, count, false
                     };
                 }
             }

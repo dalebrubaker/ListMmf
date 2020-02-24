@@ -162,17 +162,8 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             Tuple<int, int>[] InvalidParameters =
             {
-                Tuple.Create(-1, -1),
-                Tuple.Create(-1, 0),
-                Tuple.Create(-1, 1),
-                Tuple.Create(-1, 2),
-                Tuple.Create(-2, 0),
-                Tuple.Create(int.MinValue, 0),
-                Tuple.Create(0, -1),
-                Tuple.Create(0, -2),
-                Tuple.Create(0, int.MinValue),
-                Tuple.Create(1, -1),
-                Tuple.Create(2, -1)
+                Tuple.Create(-1, -1), Tuple.Create(-1, 0), Tuple.Create(-1, 1), Tuple.Create(-1, 2), Tuple.Create(-2, 0), Tuple.Create(int.MinValue, 0), Tuple.Create(0, -1),
+                Tuple.Create(0, -2), Tuple.Create(0, int.MinValue), Tuple.Create(1, -1), Tuple.Create(2, -1)
             };
 
             Assert.All(InvalidParameters, invalidSet =>
@@ -188,9 +179,7 @@ namespace System.Collections.Tests
             List<T> list = GenericListFactory(count);
             Tuple<int, int>[] InvalidParameters =
             {
-                Tuple.Create(count, 1),
-                Tuple.Create(count + 1, 0),
-                Tuple.Create(int.MaxValue, 0)
+                Tuple.Create(count, 1), Tuple.Create(count + 1, 0), Tuple.Create(int.MaxValue, 0)
             };
 
             Assert.All(InvalidParameters, invalidSet =>

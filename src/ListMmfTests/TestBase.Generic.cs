@@ -47,70 +47,38 @@ namespace System.Collections.Tests
                     int count = (int)collectionSizeArray[0];
                     yield return new object[]
                     {
-                        enumerableType,
-                        count,
-                        0,
-                        0,
-                        0
+                        enumerableType, count, 0, 0, 0
                     }; // Empty Enumerable
                     yield return new object[]
                     {
-                        enumerableType,
-                        count,
-                        count + 1,
-                        0,
-                        0
+                        enumerableType, count, count + 1, 0, 0
                     }; // Enumerable that is 1 larger
 
                     if (count >= 1)
                     {
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count,
-                            0,
-                            0
+                            enumerableType, count, count, 0, 0
                         }; // Enumerable of the same size
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count - 1,
-                            0,
-                            0
+                            enumerableType, count, count - 1, 0, 0
                         }; // Enumerable that is 1 smaller
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count,
-                            1,
-                            0
+                            enumerableType, count, count, 1, 0
                         }; // Enumerable of the same size with 1 matching element
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count + 1,
-                            1,
-                            0
+                            enumerableType, count, count + 1, 1, 0
                         }; // Enumerable that is 1 longer with 1 matching element
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count,
-                            count,
-                            0
+                            enumerableType, count, count, count, 0
                         }; // Enumerable with all items matching
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count + 1,
-                            count,
-                            0
+                            enumerableType, count, count + 1, count, 0
                         }; // Enumerable with all items matching plus one extra
                     }
 
@@ -118,44 +86,24 @@ namespace System.Collections.Tests
                     {
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count - 1,
-                            1,
-                            0
+                            enumerableType, count, count - 1, 1, 0
                         }; // Enumerable that is 1 smaller with 1 matching element
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count + 2,
-                            2,
-                            0
+                            enumerableType, count, count + 2, 2, 0
                         }; // Enumerable that is 2 longer with 2 matching element
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count - 1,
-                            count - 1,
-                            0
+                            enumerableType, count, count - 1, count - 1, 0
                         }; // Enumerable with all items matching minus one
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count,
-                            2,
-                            0
+                            enumerableType, count, count, 2, 0
                         }; // Enumerable of the same size with 2 matching element
                         if (enumerableType == EnumerableType.List || enumerableType == EnumerableType.Queue)
                             yield return new object[]
                             {
-                                enumerableType,
-                                count,
-                                count,
-                                0,
-                                1
+                                enumerableType, count, count, 0, 1
                             }; // Enumerable with 1 element duplicated
                     }
 
@@ -164,19 +112,11 @@ namespace System.Collections.Tests
                         if (enumerableType == EnumerableType.List || enumerableType == EnumerableType.Queue)
                             yield return new object[]
                             {
-                                enumerableType,
-                                count,
-                                count,
-                                0,
-                                1
+                                enumerableType, count, count, 0, 1
                             }; // Enumerable with all items duplicated
                         yield return new object[]
                         {
-                            enumerableType,
-                            count,
-                            count - 1,
-                            2,
-                            0
+                            enumerableType, count, count - 1, 2, 0
                         }; // Enumerable that is 1 smaller with 2 matching items
                     }
                 }
