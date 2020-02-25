@@ -7,7 +7,7 @@
       <LangVersion>8</LangVersion>
     <Company>BruSoftware, LLC</Company>
     <Description>Array&lt;T&gt; on Memory Mapped Files</Description>
-    <Copyright>Dale A. Brubaker</Copyright>
+      <Copyright>Copyright © Dale A. Brubaker 2020</Copyright>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <RepositoryUrl>https://github.com/dalebrubaker/ArrayMmf</RepositoryUrl>
     <ApplicationIcon />

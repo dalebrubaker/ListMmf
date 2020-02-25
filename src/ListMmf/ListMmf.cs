@@ -77,7 +77,7 @@ namespace BruSoftware.ListMmf
         /// <summary>
         /// The capacity in bytes. Note that for persisted MMFs, the ByteLength can exceed _fileStream.Length, so writes to that region may be going to never-never-land.
         /// </summary>
-        public long CapacityBytes => (long)_view.SafeMemoryMappedViewHandle.ByteLength;
+        internal long CapacityBytes => (long)_view.SafeMemoryMappedViewHandle.ByteLength;
 
         public bool IsReadOnly { get; }
 
@@ -354,7 +354,7 @@ namespace BruSoftware.ListMmf
             }
             Count = currentCount; // Set this last so readers won't access items before they are written
         }
-
+        
         /// <summary>
         /// Adds the items of the given IReadOnlyList64 to the end of this array.
         /// If required, the capacity of this array is increased before adding the new items.
@@ -1358,7 +1358,6 @@ namespace BruSoftware.ListMmf
             return result;
         }
 
-
         /// <summary>
         /// Sets the capacity of this list to the size of the list. This method can
         /// be used to minimize a list's memory overhead once it is known that no
@@ -1397,21 +1396,6 @@ namespace BruSoftware.ListMmf
             //return true;
         }
 
-        // Ensures that the capacity of this list is at least the given minimum
-        // value. If the correct capacity of the list is less than min, the
-        // capacity is increased to twice the current capacity or to min,
-        // whichever is larger.
-        private void EnsureCapacity(long minCapacityItems)
-        {
-            if (IsReadOnly || minCapacityItems <= _capacity)
-            {
-                // nothing to do
-                return;
-            }
-
-            GrowCapacity(minCapacityItems);
-        }
-
         /// <summary>
         /// Grows the capacity of this list to at least the given minCapacityItems.
         /// If the correct capacity is less than minCapacityItems, the
@@ -1432,7 +1416,6 @@ namespace BruSoftware.ListMmf
             var newCapacityItems = Math.Max(_capacity + extraCapacity, minCapacityItems);
             ResetCapacity(newCapacityItems);
         }
-
 
         /// <summary>
         /// Reset Capacity to newCapacityItems
