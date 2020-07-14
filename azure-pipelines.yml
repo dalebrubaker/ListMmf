@@ -31,3 +31,5 @@ steps:
   inputs:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+    runTestsInIsolation: true
+    otherConsoleOptions: '/Platform:x64'
