@@ -5,12 +5,19 @@ using System.Text;
 using System.Threading.Tasks;
 using NLog;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace ListMmfTests
 {
     public class LoggingTest
     {
         private static readonly ILogger s_logger = LogManager.GetCurrentClassLogger();
+
+        public LoggingTest(ITestOutputHelper output)
+        {
+            output.WriteLine("Here is a test output from LoggingTest.ctor");
+        }
+
 
         [Fact]
         public void Fails_Test()
