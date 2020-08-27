@@ -27,7 +27,7 @@ namespace ListMmfTests
                 File.Delete(fileName);
             }
             const int capacityItems = 10;
-            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityItems: capacityItems))
+            using (var listMmf = ListMmf<long>.CreateFromFile(fileName, capacityItems: capacityItems, mapName:"MyMap"))
             {
                 listMmf.Capacity.Should().Be(511, "Capacity is rounded up to the 4096 page size used in a view, reduced by header size and the Count location.");
             }

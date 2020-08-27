@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ContentModelStore">
-    <e p="C:\Users\dale\.Rider2019.3\config\scratches" t="IncludeRecursive" />
-    <e p="C:\Users\dale\.Rider2019.3\system\extResources" t="IncludeRecursive" />
-    <e p="C:\Users\dale\.Rider2019.3\system\resharper-host\local\Transient\ReSharperHost\v193\SolutionCaches\_ListMmf.2062573565.00" t="ExcludeRecursive" />
-    <e p="D:\GitDev\ListMmf\LICENSE.txt" t="Include" />
-    <e p="D:\GitDev\ListMmf\README.md" t="Include" />
-    <e p="D:\GitDev\ListMmf\src" t="IncludeFlat">
+    <e p="C:\GitDev\ListMmf\LICENSE.txt" t="Include" />
+    <e p="C:\GitDev\ListMmf\README.md" t="Include" />
+    <e p="C:\GitDev\ListMmf\src" t="IncludeFlat">
       <e p=".editorconfig" t="Include" />
       <e p="ListMmf" t="IncludeRecursive">
         <e p="AssemblyInfo.cs" t="Include" />
@@ -105,9 +102,14 @@
       <e p="Solution Items" t="Include" />
       <e p="SolutionFolder" t="Include" />
     </e>
-    <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.abstractions.dll" t="Include" />
-    <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.reporters.net452.dll" t="Include" />
-    <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.utility.net452.dll" t="Include" />
-    <e p="D:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.visualstudio.testadapter.dll" t="Include" />
+    <e p="C:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.abstractions.dll" t="Include" />
+    <e p="C:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.reporters.net452.dll" t="Include" />
+    <e p="C:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.utility.net452.dll" t="Include" />
+    <e p="C:\nuget\packages\xunit.runner.visualstudio\2.4.1\build\_common\xunit.runner.visualstudio.testadapter.dll" t="Include" />
+    <e p="C:\Users\dale\AppData\local\JetBrains\Rider2020.1\extResources" t="IncludeRecursive" />
+    <e p="C:\Users\dale\AppData\local\JetBrains\Rider2020.1\resharper-host\local\Transient\ReSharperHost\v201\SolutionCaches\_ListMmf.-48716804.00" t="ExcludeRecursive" />
+    <e p="C:\Users\dale\AppData\Roaming\JetBrains\Rider2020.1\consoles\db" t="IncludeRecursive" />
+    <e p="C:\Users\dale\AppData\Roaming\JetBrains\Rider2020.1\extensions" t="IncludeRecursive" />
+    <e p="C:\Users\dale\AppData\Roaming\JetBrains\Rider2020.1\scratches" t="IncludeRecursive" />
   </component>
 </project>

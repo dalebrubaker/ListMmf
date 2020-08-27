@@ -4,10 +4,10 @@
     <content url="file://$MODULE_DIR$/../../../LICENSE.txt" />
     <content url="file://$MODULE_DIR$/../../../README.md" />
     <content url="file://$MODULE_DIR$/../.." />
-    <content url="file://D:/nuget/packages/xunit.runner.visualstudio/2.4.1/build/_common/xunit.abstractions.dll" />
-    <content url="file://D:/nuget/packages/xunit.runner.visualstudio/2.4.1/build/_common/xunit.runner.reporters.net452.dll" />
-    <content url="file://D:/nuget/packages/xunit.runner.visualstudio/2.4.1/build/_common/xunit.runner.utility.net452.dll" />
-    <content url="file://D:/nuget/packages/xunit.runner.visualstudio/2.4.1/build/_common/xunit.runner.visualstudio.testadapter.dll" />
+    <content url="file://$MODULE_DIR$/../../../../../nuget/packages/xunit.runner.visualstudio/2.4.1/build/_common/xunit.abstractions.dll" />
+    <content url="file://$MODULE_DIR$/../../../../../nuget/packages/xunit.runner.visualstudio/2.4.1/build/_common/xunit.runner.reporters.net452.dll" />
+    <content url="file://$MODULE_DIR$/../../../../../nuget/packages/xunit.runner.visualstudio/2.4.1/build/_common/xunit.runner.utility.net452.dll" />
+    <content url="file://$MODULE_DIR$/../../../../../nuget/packages/xunit.runner.visualstudio/2.4.1/build/_common/xunit.runner.visualstudio.testadapter.dll" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
