@@ -9,21 +9,24 @@ namespace ListMmfBenchmarks
 {
     public unsafe class BenchmarkRandomReads
     {
-        private FileStream _fs;
+        private long* _basePointerInt64;
         private BinaryReader _br;
-        private int[] _testIndexes;
+        private FileStream _fs;
         private MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _mmva;
-        private long* _basePointerInt64;
+        private int[] _testIndexes;
+
+        [Params(1000000, 10000000)]
+        private int NumTests { get; } = 1000000;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
-            if (!Environment.Is64BitOperatingSystem)
-                throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 9.91 GB of longs
-            const int numTests = 10000000;
+            if (!Environment.Is64BitProcess)
+            {
+                throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
+            const string testFilePath = @"C:\_HugeArray\Timestamps.btd"; // 9.91 GB of longs
             _fs = new FileStream(testFilePath, FileMode.Open);
             _br = new BinaryReader(_fs);
             var count = (int)(_fs.Length / 8);
@@ -31,8 +34,8 @@ namespace ListMmfBenchmarks
             //_fs.Dispose();
             Console.WriteLine($"{count:N0} longs are in {testFilePath}");
             var random = new Random(1);
-            _testIndexes = new int[numTests];
-            for (int i = 0; i < numTests; i++)
+            _testIndexes = new int[NumTests];
+            for (var i = 0; i < NumTests; i++)
             {
                 var index = random.Next(0, count);
                 _testIndexes[i] = index;
@@ -77,7 +80,7 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 10.93 ms
+        ///     10.93 ms
         /// </summary>
         //Benchmark]
         public void Sleep10()
@@ -86,13 +89,13 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 687 ms for 100000 random accesses, 6.87 for 1 million
+        ///     687 ms for 100000 random accesses, 6.87 for 1 million
         /// </summary>
         [Benchmark]
         public long ReadRandomFileStream()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
                 _fs.Seek(index * 8, SeekOrigin.Begin);
@@ -102,13 +105,13 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 14.64 ms for 100000 random accesses, 149 ms for 1 million
+        ///     14.64 ms for 100000 random accesses, 149 ms for 1 million
         /// </summary>
-        [Benchmark]
+        //[Benchmark]
         public long ReadRandomMemoryMapped()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
                 value = _mmva.ReadInt64(index * 8);
@@ -117,13 +120,13 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 16 ms for 1 million, 157.1  ms for 10 million
+        ///     16 ms for 1 million, 157.1  ms for 10 million
         /// </summary>
-        [Benchmark]
+        //[Benchmark]
         public long ReadRandomMemoryMappedUnsafePointer()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -134,14 +137,14 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 16.56 ms for 1 million vs 17.05 for unsafe pointer
-        /// 154.9 ms for 10 million vs 157.1 for unsafe pointer
+        ///     16.56 ms for 1 million vs 17.05 for unsafe pointer
+        ///     154.9 ms for 10 million vs 157.1 for unsafe pointer
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGeneric()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -153,14 +156,14 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 150 ms for 1 million vs 16 for ReadRandomMemoryMappedUnsafeGeneric
-        /// 1554 ms for 10 million vs 162 for ReadRandomMemoryMappedUnsafeGeneric
+        ///     150 ms for 1 million vs 16 for ReadRandomMemoryMappedUnsafeGeneric
+        ///     1554 ms for 10 million vs 162 for ReadRandomMemoryMappedUnsafeGeneric
         /// </summary>
-        [Benchmark]
+        //[Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericReAcquirePointer()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
                 byte* pointer = null;
@@ -174,7 +177,9 @@ namespace ListMmfBenchmarks
                 finally
                 {
                     if (pointer != null)
+                    {
                         _mmva.SafeMemoryMappedViewHandle.ReleasePointer();
+                    }
                 }
                 _basePointerInt64 = (long*)pointer;
 

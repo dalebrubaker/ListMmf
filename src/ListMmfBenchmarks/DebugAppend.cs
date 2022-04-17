@@ -8,19 +8,20 @@ namespace ListMmfBenchmarks
 {
     public unsafe class DebugAppend
     {
-        private MemoryMappedFile _mmf;
-        private MemoryMappedViewAccessor _mmva;
         private long* _basePointerInt64;
         private FileStream _fs;
+        private MemoryMappedFile _mmf;
+        private MemoryMappedViewAccessor _mmva;
         private string _testFilePath;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
-            if (!Environment.Is64BitOperatingSystem)
-                throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            _testFilePath = @"D:\_HugeArray\TestApppend.dat";
+            if (!Environment.Is64BitProcess)
+            {
+                throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
+            _testFilePath = @"C:\_HugeArray\TestApppend.dat";
             CreateMmf(1000);
         }
 
@@ -52,12 +53,14 @@ namespace ListMmfBenchmarks
             }
             finally
             {
-                if (pointer != null) safeBuffer.ReleasePointer();
+                if (pointer != null)
+                {
+                    safeBuffer.ReleasePointer();
+                }
             }
             pointer += mmva.PointerOffset;
             return pointer;
         }
-
 
         [GlobalCleanup]
         public void GlobalCleanup()
@@ -67,9 +70,8 @@ namespace ListMmfBenchmarks
             _fs.Dispose();
         }
 
-
         /// <summary>
-        /// Read: 154.9 ms for 10 million vs 157.1 for unsafe pointer
+        ///     Read: 154.9 ms for 10 million vs 157.1 for unsafe pointer
         /// </summary>
         [Benchmark]
         public void Append()
@@ -78,7 +80,6 @@ namespace ListMmfBenchmarks
             var index = length / 8 - 1; // this is index of longs, not byte
             Unsafe.Write(_basePointerInt64 + index, index);
             var value = Unsafe.Read<long>(_basePointerInt64 + index);
-
 
             // This doesn't work!_fs.SetLength(2000 * 8);
             //var length2 = _fs.Length;

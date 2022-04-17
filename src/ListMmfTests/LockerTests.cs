@@ -34,7 +34,7 @@ namespace ListMmfTests
             }
 
             var tasks = new Task[10];
-            for (int i = 0; i < tasks.Length; i++)
+            for (var i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = Task.Run(AddValueWithLock);
             }
@@ -50,14 +50,14 @@ namespace ListMmfTests
             }
 
             tasks = new Task[10];
-            for (int i = 0; i < tasks.Length; i++)
+            for (var i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = Task.Run(AddValueNoLock);
             }
             Task.WaitAll(tasks);
             var elapseNoLock = (valuesNoLock[valuesNoLock.Count - 1] - valuesNoLock[0]).TotalMilliseconds;
             elapseWithLock.Should().BeGreaterThan(90, "With locks they happen serially");
-            elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
+            elapseNoLock.Should().BeLessThan(20, "Without locks they are nearly simultaneous.");
         }
 
         [Fact]
@@ -78,7 +78,7 @@ namespace ListMmfTests
             }
 
             var tasks = new Task[10];
-            for (int i = 0; i < tasks.Length; i++)
+            for (var i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = Task.Run(AddValueWithLock);
             }
@@ -97,14 +97,14 @@ namespace ListMmfTests
             }
 
             tasks = new Task[10];
-            for (int i = 0; i < tasks.Length; i++)
+            for (var i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = Task.Run(AddValueNoLock);
             }
             Task.WaitAll(tasks);
             var elapseNoLock = (valuesNoLock[valuesNoLock.Count - 1] - valuesNoLock[0]).TotalMilliseconds;
             elapseWithLock.Should().BeGreaterThan(90, "With locks they happen serially");
-            elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
+            elapseNoLock.Should().BeLessThan(20, "Without locks they are nearly simultaneous.");
         }
 
         [Fact]
@@ -125,7 +125,7 @@ namespace ListMmfTests
             }
 
             var tasks = new Task[10];
-            for (int i = 0; i < tasks.Length; i++)
+            for (var i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = Task.Run(AddValueWithLock);
             }
@@ -144,14 +144,14 @@ namespace ListMmfTests
             }
 
             tasks = new Task[10];
-            for (int i = 0; i < tasks.Length; i++)
+            for (var i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = Task.Run(AddValueNoLock);
             }
             Task.WaitAll(tasks);
             var elapseNoLock = (valuesNoLock[valuesNoLock.Count - 1] - valuesNoLock[0]).TotalMilliseconds;
             elapseWithLock.Should().BeGreaterThan(90, "With locks they happen serially");
-            elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
+            elapseNoLock.Should().BeLessThan(20, "Without locks they are nearly simultaneous.");
         }
 
         [Fact]
@@ -172,7 +172,7 @@ namespace ListMmfTests
             }
 
             var tasks = new Task[10];
-            for (int i = 0; i < tasks.Length; i++)
+            for (var i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = Task.Run(AddValueWithLock);
             }
@@ -191,14 +191,14 @@ namespace ListMmfTests
             }
 
             tasks = new Task[10];
-            for (int i = 0; i < tasks.Length; i++)
+            for (var i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = Task.Run(AddValueNoLock);
             }
             Task.WaitAll(tasks);
             var elapseNoLock = (valuesNoLock[valuesNoLock.Count - 1] - valuesNoLock[0]).TotalMilliseconds;
             elapseWithLock.Should().BeGreaterThan(90, "With locks they happen serially");
-            elapseNoLock.Should().BeLessThan(10, "Without locks they are nearly simultaneous.");
+            elapseNoLock.Should().BeLessThan(20, "Without locks they are nearly simultaneous.");
         }
 
         [Fact]
@@ -253,9 +253,13 @@ namespace ListMmfTests
                     }
                 }
 
-                Task.Run(DoLock1);
+                await Task.Run(DoLock1);
                 await Task.Delay(10);
                 isBlocking.Should().BeFalse("Locker.Lock() made it through both locks because it is the same thread.");
+
+                // Avoid compiler warnings
+                isCancelled.Should().BeFalse();
+                isTimedOut.Should().BeFalse();
             }
         }
 
@@ -311,9 +315,13 @@ namespace ListMmfTests
                     }
                 }
 
-                Task.Run(DoLock1);
+                await Task.Run(DoLock1);
                 await Task.Delay(10);
                 isBlocking.Should().BeFalse("Locker.Lock() made it through both locks because it is the same thread.");
+
+                // Avoid compiler warnings
+                isCancelled.Should().BeFalse();
+                isTimedOut.Should().BeFalse();
             }
         }
     }

@@ -10,26 +10,31 @@ namespace ListMmfBenchmarks
 {
     public unsafe class BenchmarkLocker
     {
-        private FileStream _fs;
+        private readonly object _lock = new object();
+        private long* _basePointerInt64;
         private BinaryReader _br;
-        private int[] _testIndexes;
+        private FileStream _fs;
+        private Locker _lockerLock;
+        private Locker _lockerMutex;
+        private Locker _lockerNoLock;
+        private Locker _lockerSemaphore;
         private MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _mmva;
-        private long* _basePointerInt64;
-        private Locker _lockerNoLock;
-        private readonly object _lock = new object();
-        private Locker _lockerLock;
         private Mutex _mutex;
-        private Locker _lockerMutex;
-        private Locker _lockerSemaphore;
         private Semaphore _semaphore;
+        private int[] _testIndexes;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
             if (!Environment.Is64BitOperatingSystem)
+            {
                 throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
+            if (!Environment.Is64BitProcess)
+            {
+                throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
             _lockerNoLock = new Locker();
             _lockerLock = new Locker(_lock);
             _mutex = new Mutex(false, "Test");
@@ -44,17 +49,17 @@ namespace ListMmfBenchmarks
                 throw new ArgumentException($"{systemWideSemaphoreName} semaphore already exists", nameof(systemWideSemaphoreName));
             }
             _lockerSemaphore = new Locker(_semaphore);
-            const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 11.0 GB of longs
-            const int numTests = 1000000;
-            _fs = new FileStream(testFilePath, FileMode.Open);
+            const string TestFilePath = @"C:\_HugeArray\Timestamps.btd"; // 11.0 GB of longs
+            const int NumTests = 1000000;
+            _fs = new FileStream(TestFilePath, FileMode.Open);
             _br = new BinaryReader(_fs);
             var count = (int)(_fs.Length / 8);
 
             //_fs.Dispose();
-            Console.WriteLine($"{count:N0} longs are in {testFilePath}");
+            Console.WriteLine($"{count:N0} longs are in {TestFilePath}");
             var random = new Random(1);
-            _testIndexes = new int[numTests];
-            for (int i = 0; i < numTests; i++)
+            _testIndexes = new int[NumTests];
+            for (var i = 0; i < NumTests; i++)
             {
                 var index = random.Next(0, count);
                 _testIndexes[i] = index;
@@ -101,14 +106,14 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 373 ms for 10 million
-        /// Another day, 3.5 ms for 100,000, 37 ms for 1 million,
+        ///     373 ms for 10 million
+        ///     Another day, 3.5 ms for 100,000, 37 ms for 1 million,
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGeneric()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -123,7 +128,7 @@ namespace ListMmfBenchmarks
         public long ReadRandomMemoryMappedUnsafeGenericLockerNull()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -141,7 +146,7 @@ namespace ListMmfBenchmarks
         public long ReadRandomMemoryMappedUnsafeGenericLockerLock()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -159,7 +164,7 @@ namespace ListMmfBenchmarks
         public long ReadRandomMemoryMappedUnsafeGenericLockerMutex()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -177,7 +182,7 @@ namespace ListMmfBenchmarks
         public long ReadRandomMemoryMappedUnsafeGenericLockerSemaphore()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 

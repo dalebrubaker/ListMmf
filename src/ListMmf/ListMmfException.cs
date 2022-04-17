@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.Serialization;
 
 namespace BruSoftware.ListMmf
 {
@@ -18,11 +17,6 @@ namespace BruSoftware.ListMmf
         public ListMmfException(string message, Exception inner)
             : base(message, inner)
         {
-        }
-
-        protected ListMmfException(SerializationInfo serializationInfo, StreamingContext streamingContext)
-        {
-            throw new NotImplementedException();
         }
     }
 }

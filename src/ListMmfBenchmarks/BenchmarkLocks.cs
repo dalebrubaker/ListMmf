@@ -10,31 +10,36 @@ namespace ListMmfBenchmarks
     //[SimpleJob(RunStrategy.ColdStart, targetCount: 5)]
     public unsafe class BenchmarkLocks
     {
-        private FileStream _fs;
+        private readonly object _lock = new object();
+        private long* _basePointerInt64;
         private BinaryReader _br;
-        private int[] _testIndexes;
+        private FileStream _fs;
         private MemoryMappedFile _mmf;
         private MemoryMappedViewAccessor _mmva;
-        private long* _basePointerInt64;
-        private readonly object _lock = new object();
+        private int[] _testIndexes;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
             if (!Environment.Is64BitOperatingSystem)
+            {
                 throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 9.91 GB of longs
-            const int numTests = 10000000;
-            _fs = new FileStream(testFilePath, FileMode.Open);
+            }
+            if (!Environment.Is64BitProcess)
+            {
+                throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
+            const string TestFilePath = @"C:\_HugeArray\Timestamps.btd"; // 9.91 GB of longs
+            const int NumTests = 10000000;
+            _fs = new FileStream(TestFilePath, FileMode.Open);
             _br = new BinaryReader(_fs);
             var count = (int)(_fs.Length / 8);
 
             //_fs.Dispose();
-            Console.WriteLine($"{count:N0} longs are in {testFilePath}");
+            Console.WriteLine($"{count:N0} longs are in {TestFilePath}");
             var random = new Random(1);
-            _testIndexes = new int[numTests];
-            for (int i = 0; i < numTests; i++)
+            _testIndexes = new int[NumTests];
+            for (var i = 0; i < NumTests; i++)
             {
                 var index = random.Next(0, count);
                 _testIndexes[i] = index;
@@ -78,14 +83,14 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 16.56 ms for 1 million vs 17.05 for unsafe pointer
-        /// 154.9 ms for 10 million vs 157.1 for unsafe pointer
+        ///     16.56 ms for 1 million vs 17.05 for unsafe pointer
+        ///     154.9 ms for 10 million vs 157.1 for unsafe pointer
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGeneric()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -96,15 +101,14 @@ namespace ListMmfBenchmarks
             return value;
         }
 
-
         /// <summary>
-        /// 565 ms for 10 million 
+        ///     565 ms for 10 million
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericWithLock()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -119,13 +123,13 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 406 ms for 10 million 
+        ///     406 ms for 10 million
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericWithMonitor()
         {
             var value = 0L;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -139,7 +143,7 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 416 ms for 10 million 
+        ///     416 ms for 10 million
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericWithMonitorActions()
@@ -147,7 +151,7 @@ namespace ListMmfBenchmarks
             var value = 0L;
             var actionEnter = new Action(() => Monitor.Enter(_lock));
             var actionExit = new Action(() => Monitor.Exit(_lock));
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -161,7 +165,7 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 174 ms for 10 million 
+        ///     174 ms for 10 million
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericWithNullActions()
@@ -169,7 +173,7 @@ namespace ListMmfBenchmarks
             var value = 0L;
             Action actionEnter = null;
             Action actionExit = null;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -188,9 +192,9 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 256 ms for 10 million vs 173 for null actions.
-        /// So Release optimization didn't make the NoOp() go away
-        /// Adding AggressiveInlining did not help.
+        ///     256 ms for 10 million vs 173 for null actions.
+        ///     So Release optimization didn't make the NoOp() go away
+        ///     Adding AggressiveInlining did not help.
         /// </summary>
         [Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericWithNoOpActions()
@@ -198,7 +202,7 @@ namespace ListMmfBenchmarks
             var value = 0L;
             Action actionEnter = NoOp;
             Action actionExit = NoOp;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
 
@@ -212,7 +216,7 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 8795 ms for 10 million 
+        ///     8795 ms for 10 million
         /// </summary>
         //[Benchmark]
         public long ReadRandomMemoryMappedUnsafeGenericWithNamedMutex()
@@ -220,7 +224,7 @@ namespace ListMmfBenchmarks
             var value = 0L;
             using (var mut = new Mutex(false, "Test"))
             {
-                for (int i = 0; i < _testIndexes.Length; i++)
+                for (var i = 0; i < _testIndexes.Length; i++)
                 {
                     var index = _testIndexes[i];
                     mut.WaitOne();

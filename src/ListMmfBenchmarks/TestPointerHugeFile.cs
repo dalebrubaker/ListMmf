@@ -10,13 +10,14 @@ namespace ListMmfBenchmarks
     {
         public void WriteRead()
         {
-            if (!Environment.Is64BitOperatingSystem)
-                throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            const string testFilePath = @"D:\_HugeArray\TestWriteRead.btd"; // 9.91 GB of longs
-            long count = (long)int.MaxValue * 2;
+            if (!Environment.Is64BitProcess)
+            {
+                throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
+            const string TestFilePath = @"C:\_HugeArray\TestWriteRead.btd"; // 9.91 GB of longs
+            var count = (long)int.MaxValue * 2;
 
-            var mmf = MemoryMappedFile.CreateFromFile(testFilePath, FileMode.Create, null, count * 8, MemoryMappedFileAccess.ReadWrite);
+            var mmf = MemoryMappedFile.CreateFromFile(TestFilePath, FileMode.Create, null, count * 8, MemoryMappedFileAccess.ReadWrite);
 
             //_mmf = MemoryMappedFile.CreateFromFile(testFilePath, FileMode.Open,null, 0, MemoryMappedFileAccess.Read);
             //_mmva = _mmf.CreateViewAccessor(0, count * 8, MemoryMappedFileAccess.Read);

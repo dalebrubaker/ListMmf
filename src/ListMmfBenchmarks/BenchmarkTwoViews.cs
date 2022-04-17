@@ -8,23 +8,24 @@ namespace ListMmfBenchmarks
 {
     public unsafe class BenchmarkTwoViews
     {
-        private FileStream _fs;
-        private BinaryReader _br;
-        private int[] _testIndexes;
-        private MemoryMappedFile _mmf;
-        private MemoryMappedViewAccessor _mmvaMain;
-        private MemoryMappedViewAccessor _mmvaHeader;
-        private long* _basePointerMainInt64;
-        private long* _basePointerHeaderInt64;
         private readonly object _lock = new object();
+        private long* _basePointerHeaderInt64;
+        private long* _basePointerMainInt64;
+        private BinaryReader _br;
+        private FileStream _fs;
+        private MemoryMappedFile _mmf;
+        private MemoryMappedViewAccessor _mmvaHeader;
+        private MemoryMappedViewAccessor _mmvaMain;
+        private int[] _testIndexes;
 
         [GlobalSetup]
         public void GlobalSetup()
         {
-            if (!Environment.Is64BitOperatingSystem)
-                throw new Exception("Not supported on 32-bit operating system. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            if (!Environment.Is64BitProcess) throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
-            const string testFilePath = @"D:\_HugeArray\Timestamps.btd"; // 9.91 GB of longs
+            if (!Environment.Is64BitProcess)
+            {
+                throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            }
+            const string testFilePath = @"C:\_HugeArray\Timestamps.btd"; // 9.91 GB of longs
             const int numTests = 10000000;
             _fs = new FileStream(testFilePath, FileMode.Open);
             _br = new BinaryReader(_fs);
@@ -34,7 +35,7 @@ namespace ListMmfBenchmarks
             Console.WriteLine($"{count:N0} longs are in {testFilePath}");
             var random = new Random(1);
             _testIndexes = new int[numTests];
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = random.Next(0, count);
                 _testIndexes[i] = index;
@@ -66,15 +67,14 @@ namespace ListMmfBenchmarks
             _mmf.Dispose();
         }
 
-
         /// <summary>
-        /// 150.9 ms for 10 million. No difference to have a second small view for a header
+        ///     150.9 ms for 10 million. No difference to have a second small view for a header
         /// </summary>
         [Benchmark]
         public (long value, long length) ReadRandomMemoryMappedUnsafeGenericOneView()
         {
             long value = 0, length = 0;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
                 value = Unsafe.Read<long>(_basePointerMainInt64 + index);
@@ -84,13 +84,13 @@ namespace ListMmfBenchmarks
         }
 
         /// <summary>
-        /// 151.3 ms for 10 million. No difference to have a second small view for a header
+        ///     151.3 ms for 10 million. No difference to have a second small view for a header
         /// </summary>
         [Benchmark]
         public (long value, long length) ReadRandomMemoryMappedUnsafeGenericTwoViews()
         {
             long value = 0, length = 0;
-            for (int i = 0; i < _testIndexes.Length; i++)
+            for (var i = 0; i < _testIndexes.Length; i++)
             {
                 var index = _testIndexes[i];
                 value = Unsafe.Read<long>(_basePointerMainInt64 + index);

@@ -1,6 +1,11 @@
-﻿namespace BruSoftware.ListMmf
+﻿using System;
+
+namespace BruSoftware.ListMmf
 {
     public class ListMmfIdentifier
+#if DEBUG
+        : IComparable<ListMmfIdentifier>
+#endif
     {
 #if DEBUG
         public string Name { get; }
@@ -10,6 +15,11 @@
         {
             Name = name;
             InstanceId = instanceId;
+        }
+
+        public int CompareTo(ListMmfIdentifier other)
+        {
+            return InstanceId.CompareTo(other.InstanceId);
         }
 
         public override string ToString()
