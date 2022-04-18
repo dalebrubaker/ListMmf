@@ -1,23 +1,22 @@
 ﻿using System;
 
 // ReSharper disable once CheckNamespace
-namespace BruSoftware.ListMmf
+namespace BruSoftware.ListMmf;
+
+[Serializable]
+public class OutOfOrderException : Exception
 {
-    [Serializable]
-    public class OutOfOrderException : Exception
+    public OutOfOrderException()
     {
-        public OutOfOrderException()
-        {
-        }
+    }
 
-        public OutOfOrderException(string message)
-            : base(message)
-        {
-        }
+    public OutOfOrderException(string message)
+        : base(message)
+    {
+    }
 
-        public OutOfOrderException(string message, Exception inner)
-            : base(message, inner)
-        {
-        }
+    public OutOfOrderException(string message, Exception inner)
+        : base(message, inner)
+    {
     }
 }

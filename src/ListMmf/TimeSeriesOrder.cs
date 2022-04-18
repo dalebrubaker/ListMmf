@@ -1,9 +1,8 @@
-﻿namespace BruSoftware.ListMmf
+﻿namespace BruSoftware.ListMmf;
+
+public enum TimeSeriesOrder
 {
-    public enum TimeSeriesOrder
-    {
-        None,
-        Ascending,
-        AscendingOrEqual
-    }
+    None,
+    Ascending,
+    AscendingOrEqual
 }

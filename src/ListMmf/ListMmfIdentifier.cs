@@ -1,31 +1,30 @@
 ﻿using System;
 
-namespace BruSoftware.ListMmf
+namespace BruSoftware.ListMmf;
+
+public class ListMmfIdentifier
+#if DEBUG
+    : IComparable<ListMmfIdentifier>
+#endif
 {
-    public class ListMmfIdentifier
 #if DEBUG
-        : IComparable<ListMmfIdentifier>
-#endif
+    public string Name { get; }
+    public int InstanceId { get; }
+
+    public ListMmfIdentifier(string name, int instanceId)
     {
-#if DEBUG
-        public string Name { get; }
-        public int InstanceId { get; }
-
-        public ListMmfIdentifier(string name, int instanceId)
-        {
-            Name = name;
-            InstanceId = instanceId;
-        }
-
-        public int CompareTo(ListMmfIdentifier other)
-        {
-            return InstanceId.CompareTo(other.InstanceId);
-        }
-
-        public override string ToString()
-        {
-            return $"#{InstanceId} {Name}";
-        }
-#endif
+        Name = name;
+        InstanceId = instanceId;
     }
+
+    public int CompareTo(ListMmfIdentifier other)
+    {
+        return InstanceId.CompareTo(other.InstanceId);
+    }
+
+    public override string ToString()
+    {
+        return $"#{InstanceId} {Name}";
+    }
+#endif
 }

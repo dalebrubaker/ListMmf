@@ -46,16 +46,16 @@ that is being written.
 
 Unless you set noLocking, the following happens:
 
--   Sizeof(T) \> 8 – named semaphore with count of 1 (not Mutex to avoid thread
-    affinity)
+- Sizeof(T) \> 8 – named semaphore with count of 1 (not Mutex to avoid thread
+  affinity)
 
--   Sizeof(T) \<= 8
+- Sizeof(T) \<= 8
 
-    -   IsReadOnly – no locking. It is not clear to me whether this is okay for
-        a size of T that doesn’t naturally align, e.g. 3, 5 or 7.
+    - IsReadOnly – no locking. It is not clear to me whether this is okay for
+      a size of T that doesn’t naturally align, e.g. 3, 5 or 7.
 
-    -   Not IsReadOnly – lock (Monitor) to avoid in-process attempts to read
-        while Add() is extending (closing and reopening) the MMF
+    - Not IsReadOnly – lock (Monitor) to avoid in-process attempts to read
+      while Add() is extending (closing and reopening) the MMF
 
 Interesting References
 ======================

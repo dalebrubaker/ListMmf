@@ -1,11 +1,10 @@
 ﻿using System.Collections.Generic;
 
 // ReSharper disable once CheckNamespace
-namespace BruSoftware.ListMmf
+namespace BruSoftware.ListMmf;
+
+public interface IReadOnlyList64<out T> : IEnumerable<T>
 {
-    public interface IReadOnlyList64<out T> : IEnumerable<T>
-    {
-        T this[long index] { get; }
-        long Count { get; }
-    }
+    T this[long index] { get; }
+    long Count { get; }
 }

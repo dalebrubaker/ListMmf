@@ -1,38 +1,37 @@
 ﻿using System;
 
-namespace BruSoftware.ListMmf
+namespace BruSoftware.ListMmf;
+
+public class TrackerId
+#if DEBUG
+    : IComparable<TrackerId>
+#endif
 {
-    public class TrackerId
-#if DEBUG
-        : IComparable<TrackerId>
-#endif
+    private TrackerId(int id)
     {
-        private TrackerId(int id)
-        {
-            Id = id;
-        }
+        Id = id;
+    }
 
-        public int Id { get; }
+    public int Id { get; }
 
 #if DEBUG
-        public string Name { get; }
-        public string StackTrace { get; }
+    public string Name { get; }
+    public string StackTrace { get; }
 
-        public TrackerId(int id, string name, string stackTrace) : this(id)
-        {
-            Name = name;
-            StackTrace = stackTrace;
-        }
-
-        public int CompareTo(TrackerId other)
-        {
-            return Id.CompareTo(other.Id);
-        }
-
-        public override string ToString()
-        {
-            return $"#{Id} {Name}";
-        }
-#endif
+    public TrackerId(int id, string name, string stackTrace) : this(id)
+    {
+        Name = name;
+        StackTrace = stackTrace;
     }
+
+    public int CompareTo(TrackerId other)
+    {
+        return Id.CompareTo(other.Id);
+    }
+
+    public override string ToString()
+    {
+        return $"#{Id} {Name}";
+    }
+#endif
 }
