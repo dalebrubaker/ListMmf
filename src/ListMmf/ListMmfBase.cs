@@ -322,7 +322,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         }
         catch (ReadWriteNotAvailableException)
         {
-            //Logger.ConditionalDebug($"Ignoring {exrw.Message} for {Path}");
+            //Logger.Debug($"Ignoring {exrw.Message} for {Path}");
         }
         catch (Exception)
         {
@@ -521,7 +521,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             catch (Exception)
             {
                 // Ignore -- some reader may have this file open
-                //Logger.Warn($"Unable to shrink to {capacityBytes:N0} from {_fileStream.Length:N0} for {this}");
+                //Logger.Warning($"Unable to shrink to {capacityBytes:N0} from {_fileStream.Length:N0} for {this}");
             }
         }
         if (capacityBytes != 0 && capacityBytes < _fileStream.Length)
