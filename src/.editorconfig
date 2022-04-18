@@ -339,7 +339,7 @@ indent_style=tab
 indent_size=tab
 tab_width=4
 
-[*.{cs,vb,xaml,xamlx,xoml}]
+[*.{vb,xaml,xamlx,xoml}]
 indent_style=space
 indent_size=4
 tab_width=4
