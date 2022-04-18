@@ -9,8 +9,8 @@
 		<Copyright>Copyright © Dale A. Brubaker 2022</Copyright>
 		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 		<RepositoryUrl>https://github.com/dalebrubaker/ListMmf</RepositoryUrl>
-		<ApplicationIcon/>
-		<StartupObject/>
+		<ApplicationIcon />
+		<StartupObject />
 		<AssemblyName>ListMmf</AssemblyName>
 		<RootNamespace>BruSoftware.ListMmf</RootNamespace>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -23,11 +23,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="DotNetCross.Memory.Unsafe" Version="0.3.1"/>
-		<PackageReference Include="NLog" Version="4.7.15"/>
-		<PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.7.0"/>
-		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.7.1"/>
-		<PackageReference Include="xunit" Version="2.4.1"/>
+		<PackageReference Include="DotNetCross.Memory.Unsafe" Version="0.3.1" />
+		<PackageReference Include="NLog" Version="4.7.15" />
+		<PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.7.0" />
+		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.7.1" />
+		<PackageReference Include="xunit" Version="2.4.1" />
 	</ItemGroup>
 
 </Project>
