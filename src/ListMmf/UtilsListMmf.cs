@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.IO.MemoryMappedFiles;
-using NLog;
 
 namespace BruSoftware.ListMmf
 {
@@ -12,27 +11,6 @@ namespace BruSoftware.ListMmf
     {
         // We use unspecified/local, NOT Utc internally. It is just too slow to continually convert to local time
         private static readonly DateTime s_unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
-
-        private static readonly Logger s_logger = LogManager.GetCurrentClassLogger();
-
-        public static DirectoryInfo MyDirectoryCreateDirectory(string path)
-        {
-            if (path == @"C:\BruTrader21Data\Data\ES\1T" || path.StartsWith(@"C:\BruTrader21Data\Data\ES\MES#"))
-            {
-                throw new ListMmfException("Why? Bad data in a chart?");
-            }
-            if (path.EndsWith("1Tk"))
-            {
-                throw new ListMmfException("Why? Bad data in a chart?");
-            }
-            if (path.EndsWith("1Tk,BrkNvr"))
-            {
-                throw new ListMmfException("Why? Bad data in a chart?");
-            }
-
-            //s_logger.ConditionalDebug($"Creating directory={path}");
-            return Directory.CreateDirectory(path);
-        }
 
         public static FileStream CreateFileStreamFromPath(string path, MemoryMappedFileAccess access)
         {
@@ -53,7 +31,7 @@ namespace BruSoftware.ListMmf
                 var directory = Path.GetDirectoryName(path);
                 if (!Directory.Exists(directory) && !string.IsNullOrEmpty(directory))
                 {
-                    MyDirectoryCreateDirectory(directory);
+                    Directory.CreateDirectory(directory);
                 }
             }
             var result = new FileStream(path, fileMode, fileAccess, fileShare);

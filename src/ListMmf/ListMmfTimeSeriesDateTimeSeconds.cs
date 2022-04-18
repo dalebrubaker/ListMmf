@@ -252,7 +252,6 @@ namespace BruSoftware.ListMmf
                 {
                     var lastBarTimestamp = currValueSeconds.FromUnixSecondsToDateTime();
                     var message = $"{value:yyyyMMdd.HHmmss} must not be less than the last bar timestamp {lastBarTimestamp:yyyyMMdd.HHmmss} for {this}";
-                    Logger.Error(message);
                     throw new OutOfOrderException(message);
                 }
                 UnsafeWriteNoLock(count - 1, seconds);
@@ -335,7 +334,6 @@ namespace BruSoftware.ListMmf
                     if (seconds == 0)
                     {
                         var msg = $"Why are we reading MinValue for {Path}? This can happen on corrupted data during machine crash, don't know why.";
-                        Logger.Error(msg);
                         throw new ListMmfException(msg);
                     }
                     var result = seconds.FromUnixSecondsToDateTime();
@@ -383,7 +381,6 @@ namespace BruSoftware.ListMmf
                 var msg = $"{dateTime:yyyyMMdd.HHmmss.fffffff} cannot be "
                           + $"earlier than the value {prevDateTime:yyyyMMdd.HHmmss.fffffff} "
                           + $"at {index:N0} for {this}";
-                Logger.Error(msg);
                 throw new OutOfOrderException(msg);
             }
         }
@@ -401,7 +398,6 @@ namespace BruSoftware.ListMmf
                 var msg = $"{dateTime:yyyyMMdd.HHmmss.fffffff} cannot be "
                           + $"earlier or equal to the value {prevDateTime:yyyyMMdd.HHmmss.fffffff} "
                           + $"at {index:N0} for {this}";
-                Logger.Error(msg);
                 throw new OutOfOrderException(msg);
             }
         }
@@ -416,7 +412,6 @@ namespace BruSoftware.ListMmf
             if (item < prevValue)
             {
                 var message = $"{item:yyyyMMdd.HHmmss} cannot be earlier than the value {prevValue:yyyyMMdd.HHmmss} at {prevIndex:N0} for {this}";
-                Logger.Error(message);
                 throw new OutOfOrderException(message);
             }
         }
@@ -432,7 +427,6 @@ namespace BruSoftware.ListMmf
             {
                 var message = $"{item:yyyyMMdd.HHmmss.fffffff} cannot be "
                               + $"earlier or equal to the value {prevValue:yyyyMMdd.HHmmss.fffffff} at {prevIndex:N0} for {this}";
-                Logger.Error(message);
                 throw new OutOfOrderException(message);
             }
         }

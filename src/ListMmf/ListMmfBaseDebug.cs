@@ -1,16 +1,14 @@
 ﻿using System;
-using NLog;
 
 namespace BruSoftware.ListMmf
 {
     /// <summary>
     /// This base class is to assist debugging.
-    /// It helps determin what ListMmf files have not been disposed when they should have been.
+    /// It helps determine what ListMmf files have not been disposed when they should have been.
     /// </summary>
     public class ListMmfBaseDebug : IDisposable
     {
-        protected static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        public static readonly Tracker Tracker = new Tracker();
+        public static readonly Tracker Tracker;
         protected TrackerId TrackerId { get; }
 
         protected int InstanceId => TrackerId?.Id ?? 0;

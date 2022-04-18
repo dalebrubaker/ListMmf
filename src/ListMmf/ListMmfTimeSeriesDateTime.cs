@@ -226,7 +226,6 @@ namespace BruSoftware.ListMmf
                 {
                     var lastBarTimestamp = new DateTime(currValueTicks);
                     var message = $"{value:yyyyMMdd.HHmmss} must not be less than the last bar timestamp {lastBarTimestamp:yyyyMMdd.HHmmss} for {this}";
-                    Logger.Error(message);
                     throw new OutOfOrderException(message);
                 }
                 UnsafeWriteNoLock(count - 1, value.Ticks);
@@ -306,7 +305,6 @@ namespace BruSoftware.ListMmf
                     if (result.Ticks == 0)
                     {
                         var msg = $"Why are we reading MinValue for {Path}? This can happen on corrupted data during machine crash, don't know why.";
-                        Logger.Error(msg);
                         throw new ListMmfException(msg);
                     }
                     return result;
@@ -345,7 +343,6 @@ namespace BruSoftware.ListMmf
                 var dateTime = new DateTime(ticks);
                 var prevDateTime = new DateTime(prevValueTicks);
                 var msg = $"{dateTime:yyyyMMdd.HHmmss.fffffff} cannot be " + $"earlier than the value {prevDateTime:yyyyMMdd.HHmmss.fffffff} " + $"at {index:N0} for {this}";
-                Logger.Error(msg);
                 throw new OutOfOrderException(msg);
             }
         }

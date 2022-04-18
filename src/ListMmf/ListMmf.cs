@@ -178,7 +178,6 @@ namespace BruSoftware.ListMmf
                     if ((ulong)index >= (uint)count)
                     {
                         var msg = $"index={index:N0} but maximum index is {count - 1:N0}";
-                        Logger.Error(msg);
                         // Perhaps the file was truncated. Allow the user to handle ListMmfTruncatedException
                         throw new ListMmfTruncatedException(msg);
                     }

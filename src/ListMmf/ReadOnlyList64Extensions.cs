@@ -139,9 +139,7 @@ namespace BruSoftware.ListMmf
             while (lo <= hi)
             {
                 var i = lo + ((hi - lo) >> 1);
-
-                //s_logger.ConditionalDebug($"lo={lo} hi={hi} i={i} value={value}");
-                int order;
+               int order;
                 var arrayValue = array[i];
                 if (arrayValue == null)
                 {
@@ -153,24 +151,17 @@ namespace BruSoftware.ListMmf
                 }
                 if (order == 0)
                 {
-                    //s_logger.ConditionalDebug($"found i={i} arrayValue={arrayValue}");
                     return i;
                 }
                 if (order < 0)
                 {
                     lo = i + 1;
-
-                    //s_logger.ConditionalDebug($"lo={lo} arrayValue={arrayValue}");
                 }
                 else
                 {
                     hi = i - 1;
-
-                    //s_logger.ConditionalDebug($"hi={hi} arrayValue={arrayValue}");
                 }
             }
-
-            //s_logger.ConditionalDebug($"Not found, returning ~lo={~lo}");
             return ~lo;
         }
 
