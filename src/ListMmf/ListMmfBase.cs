@@ -5,7 +5,6 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Security;
-using DotNetCross.Memory;
 using NLog;
 using Unsafe = System.Runtime.CompilerServices.Unsafe;
 
