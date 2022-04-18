@@ -633,14 +633,12 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             //     var msg = $"AccessViolationException when index={index:N0} and maximum index is {count - 1:N0}\n{ex.Message} for {this}"
             //               + $"\n{Environment.StackTrace}";
             //     Logger.Error(ex, msg);
-            //     LogManager.Flush();
             //     throw;
             // }
             // catch (Exception ex)
             // {
             //     var msg = $"index={index:N0} but maximum index is {count - 1:N0}\n{ex.Message} for {this}" + $"\n{Environment.StackTrace}";
             //     Logger.Error(ex, msg);
-            //     LogManager.Flush();
             //     throw;
             // }
 #else
@@ -682,7 +680,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         // catch (Exception ex)
         // {
         //     Logger.Error(ex, $"{ex.Message} index={index:N0} _access={_access} Capacity={Capacity:N0} Count={Count:N0} for {this}");
-        //     LogManager.Flush();
+        //     Log.CloseAndFlush();
         //     Environment.Exit(1);
         // }
     }
