@@ -1,5 +1,5 @@
 ListMmf
-=======
+=
 
 List\<T\> using Memory Mapped Files (MMFs).
 
@@ -7,19 +7,19 @@ Support IList64\<T\>, similar to IList\<T\> but using Int64 values wherever
 possible. (For example, copying into an array uses Int32 because the maximum
 array length is Int32.MaxValue.)
 
-This class can only be run in a 64-bit process.
+This library can only be run in a 64-bit process, a design choice to avoid locking issues with values 8 bytes or smaller. (Reads and writes on a 64-bit processor are atomic when the size is 8 bytes or smaller.) Unsafe reads and writes are used, using System.Runtime.CompilerServices.Unsafe. Structures larger than 8 bytes could have threading issues, depending on your design choices.
 
 View
-----
+-
 
 There is only one view of the entire file (which could be a persisted File or
 could be a non-persisted Memory-based MMF).
 
 Header
-------
+-
 
-The first headerReserveBytes (if any) are reserved by use by the creator of
-ListMmf. ListMmf requires this to be evenly divisible by 8 (in case alignment
+The first headerReserveBytes (if any) are reserved by use by the creator of the
+ListMmf instance. ListMmf requires this to be evenly divisible by 8 (in case alignment
 matters).
 
 The next 8 bytes are a long value of the array Count.
@@ -31,34 +31,16 @@ The List\<T\> Version field is NOT included. Slowing every write down seems a
 very poor trade-off for the very minimal benefit of throwing an “Enumeration
 modified” error during enumeration.
 
-Locking
-=======
+SmallestInt and SmallestEnum
+=
+The Smallest... classes support storage of integers in minimal bit-widths, from a bit array (1-bit width) to byte sizes from 1 to 8 and both unsigned and unsigned (except 8-byte unsigned). Internally each list element is an Int64, so the change only affects disk usage, not memory usage. But this also dramatically affects read/write performance, as there are dramatically fewer bytes to transfer in so many cases.
 
-Thread safety is optional and acts like the SynchronizedCollection\<T\> class in
-.Net Framework (not included in .Net Core).
+A "smallest" file can start out at a default size (SmallestInt64ListMmf.WidthBits), then the file will be automatically upgraded when a value is added that is too large or too small to fit in that width. For example, the Dow Jones Industrial Average (DJIA) currently fits in a UInt16(unsigned 2-byte). When it hits 65,536 the file would be upgraded to a 3-byte size, UInt24AsInt64. The file will have to increase to 4 bytes when the DJIA hits 16,777,215. 
 
-Locking can be slow, and it is can be turned of with the noLocking constructor
-parameter. This is useful when your design ensures that no writing and reading
-can be done simultaneously in the same part of a file. For example, only one
-writer is allowed on your system, it only does appends, and it sets the Length
-field after it writes. This means a read can never be reading the same location
-that is being written.
-
-Unless you set noLocking, the following happens:
-
-- Sizeof(T) \> 8 – named semaphore with count of 1 (not Mutex to avoid thread
-  affinity)
-
-- Sizeof(T) \<= 8
-
-    - IsReadOnly – no locking. It is not clear to me whether this is okay for
-      a size of T that doesn’t naturally align, e.g. 3, 5 or 7.
-
-    - Not IsReadOnly – lock (Monitor) to avoid in-process attempts to read
-      while Add() is extending (closing and reopening) the MMF
+Many times floating-precision number can be handled internally as integers. For example S&P Futures have a tick size of 0.25, so the integer can be stored as the price divided by the tick size (being careful about the conversion). This approach provides all the inherent speed and accuracy benefits of integers compared to floating point numbers.
 
 Interesting References
-======================
+=
 
 <https://devblogs.microsoft.com/oldnewthing/20151218-00/?p=92672>
 
