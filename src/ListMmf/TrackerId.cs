@@ -7,7 +7,7 @@ public class TrackerId
     : IComparable<TrackerId>
 #endif
 {
-    private TrackerId(int id)
+    public TrackerId(int id)
     {
         Id = id;
     }
