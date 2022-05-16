@@ -84,7 +84,7 @@ public static class UtilsListMmf
     {
         if (dateTime == DateTime.MinValue)
         {
-            return 0;
+            return int.MinValue;
         }
         var longResult = (long)(dateTime - s_unixEpoch).TotalSeconds;
         if (longResult > int.MaxValue)
