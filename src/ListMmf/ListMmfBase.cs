@@ -316,7 +316,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             if (_access == MemoryMappedFileAccess.ReadWrite)
             {
                 // Assume this exception is because the user checked to see if ReadWrite was available
-                throw new ReadWriteNotAvailableException();
+                throw new ReadWriteNotAvailableException(_accessName);
             }
             throw;
         }
