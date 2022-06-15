@@ -72,11 +72,11 @@ public class ListMmfBitArrayTests
     public void And_ShouldWork()
     {
         const int TestSize = 1000000;
-        var path = nameof(And_ShouldWork);
+        const string Path = nameof(And_ShouldWork);
         var path2 = nameof(And_ShouldWork) + 2;
-        if (File.Exists(path))
+        if (File.Exists(Path))
         {
-            File.Delete(path);
+            File.Delete(Path);
         }
         if (File.Exists(path2))
         {
@@ -88,7 +88,7 @@ public class ListMmfBitArrayTests
             var value = i % 2 != 0;
             bitArray.Set(i, value);
         }
-        using (var listBTBitArray1 = new ListMmfBitArray(path, TestSize, MemoryMappedFileAccess.ReadWrite))
+        using (var listBTBitArray1 = new ListMmfBitArray(Path, TestSize, MemoryMappedFileAccess.ReadWrite))
         {
             using var listBTBitArray2 = new ListMmfBitArray(path2, TestSize, MemoryMappedFileAccess.ReadWrite);
             for (var i = 0; i < TestSize; i++)
@@ -107,7 +107,7 @@ public class ListMmfBitArrayTests
                 listBTBitArray1[i].Should().Be(false);
             }
         }
-        File.Delete(path);
+        File.Delete(Path);
         File.Delete(path2);
     }
 
