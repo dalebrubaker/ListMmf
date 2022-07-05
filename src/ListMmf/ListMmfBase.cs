@@ -316,13 +316,13 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             if (_access == MemoryMappedFileAccess.ReadWrite)
             {
                 // Assume this exception is because the user checked to see if ReadWrite was available
-                throw new ReadWriteNotAvailableException();
+                throw new ReadWriteNotAvailableException(_accessName);
             }
             throw;
         }
         catch (ReadWriteNotAvailableException)
         {
-            //Logger.ConditionalDebug($"Ignoring {exrw.Message} for {Path}");
+            //Logger.Debug($"Ignoring {exrw.Message} for {Path}");
         }
         catch (Exception)
         {
@@ -521,7 +521,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             catch (Exception)
             {
                 // Ignore -- some reader may have this file open
-                //Logger.Warn($"Unable to shrink to {capacityBytes:N0} from {_fileStream.Length:N0} for {this}");
+                //Logger.Warning($"Unable to shrink to {capacityBytes:N0} from {_fileStream.Length:N0} for {this}");
             }
         }
         if (capacityBytes != 0 && capacityBytes < _fileStream.Length)
@@ -633,14 +633,12 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             //     var msg = $"AccessViolationException when index={index:N0} and maximum index is {count - 1:N0}\n{ex.Message} for {this}"
             //               + $"\n{Environment.StackTrace}";
             //     Logger.Error(ex, msg);
-            //     LogManager.Flush();
             //     throw;
             // }
             // catch (Exception ex)
             // {
             //     var msg = $"index={index:N0} but maximum index is {count - 1:N0}\n{ex.Message} for {this}" + $"\n{Environment.StackTrace}";
             //     Logger.Error(ex, msg);
-            //     LogManager.Flush();
             //     throw;
             // }
 #else
@@ -682,7 +680,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         // catch (Exception ex)
         // {
         //     Logger.Error(ex, $"{ex.Message} index={index:N0} _access={_access} Capacity={Capacity:N0} Count={Count:N0} for {this}");
-        //     LogManager.Flush();
+        //     Log.CloseAndFlush();
         //     Environment.Exit(1);
         // }
     }

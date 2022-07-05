@@ -66,7 +66,7 @@ public static class UtilsListMmf
     /// <param name="unixSeconds">time in seconds since Epoch</param>
     public static DateTime FromUnixSecondsToDateTime(this int unixSeconds)
     {
-        if (unixSeconds == 0 || unixSeconds == int.MinValue)
+        if (unixSeconds == int.MinValue)
         {
             return DateTime.MinValue;
         }
@@ -84,7 +84,7 @@ public static class UtilsListMmf
     {
         if (dateTime == DateTime.MinValue)
         {
-            return 0;
+            return int.MinValue;
         }
         var longResult = (long)(dateTime - s_unixEpoch).TotalSeconds;
         if (longResult > int.MaxValue)
