@@ -8,7 +8,7 @@ namespace BruSoftware.ListMmf;
 /// </summary>
 public class ListMmfBaseDebug : IDisposable
 {
-    public static readonly Tracker Tracker = new ();
+    public static readonly Tracker Tracker = new();
 
     protected ListMmfBaseDebug(string name)
     {
