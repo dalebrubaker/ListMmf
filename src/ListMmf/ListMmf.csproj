@@ -9,11 +9,12 @@
 		<Copyright>Copyright © Dale A. Brubaker 2022</Copyright>
 		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 		<RepositoryUrl>https://github.com/dalebrubaker/ListMmf</RepositoryUrl>
-		<ApplicationIcon/>
-		<StartupObject/>
+		<ApplicationIcon />
+		<StartupObject />
 		<AssemblyName>ListMmf</AssemblyName>
 		<RootNamespace>BruSoftware.ListMmf</RootNamespace>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Platforms>AnyCPU;x64</Platforms>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -23,8 +24,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0"/>
-		<PackageReference Include="xunit" Version="2.4.1"/>
+		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+		<PackageReference Include="xunit" Version="2.4.1" />
 	</ItemGroup>
 
 </Project>
