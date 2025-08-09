@@ -56,6 +56,9 @@ jobs:
     - name: Pack
       run: dotnet pack src/ListMmf/ListMmf.csproj --configuration Release --output ./artifacts
     
+    - name: Publish to NuGet
+      run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+    
     - name: Upload NuGet package
       uses: actions/upload-artifact@v4
       with:
