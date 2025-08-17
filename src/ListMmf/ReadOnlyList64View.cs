@@ -13,6 +13,7 @@ public class ReadOnlyList64View<T> : IReadOnlyList64<T>
     private readonly bool _isCountFixed;
     private readonly IReadOnlyList64<T> _list;
     private readonly long _lowerBound;
+    private long _count;
 
     /// <summary>
     /// Show a view of an IReadOnlyList64 consisting of Count elements starting at lowerBound
@@ -29,9 +30,9 @@ public class ReadOnlyList64View<T> : IReadOnlyList64<T>
     {
         _list = list ?? throw new ArgumentNullException(nameof(list));
         _lowerBound = lowerBound;
-        Count = count;
+        _count = count;
         _isCountFixed = count != long.MaxValue;
-        if (Count < 0)
+        if (_count < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(count), "Count can't be set to negative");
         }
@@ -44,12 +45,12 @@ public class ReadOnlyList64View<T> : IReadOnlyList64<T>
     {
         get
         {
-            if (_isCountFixed && field + _lowerBound > _list.Count)
+            if (_isCountFixed && _count + _lowerBound > _list.Count)
             {
                 // Maybe file was truncated?
-                field = _list.Count - _lowerBound;
+                _count = _list.Count - _lowerBound;
             }
-            var result = _isCountFixed ? field : _list.Count - _lowerBound;
+            var result = _isCountFixed ? _count : _list.Count - _lowerBound;
             return result;
         }
     }

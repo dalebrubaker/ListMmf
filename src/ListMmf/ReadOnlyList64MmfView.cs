@@ -13,6 +13,7 @@ public class ReadOnlyList64MmfView<T> : IReadOnlyList64Mmf<T>
     private readonly bool _isCountFixed;
     private readonly IReadOnlyList64Mmf<T> _list;
     private readonly long _lowerBound;
+    private long _count;
 
     /// <summary>
     /// Show a view of an IReadOnlyList64 consisting of Count elements starting at lowerBound
@@ -29,14 +30,14 @@ public class ReadOnlyList64MmfView<T> : IReadOnlyList64Mmf<T>
     {
         _list = list ?? throw new ArgumentNullException(nameof(list));
         _lowerBound = lowerBound;
-        Count = count;
+        _count = count;
         _isCountFixed = count != long.MaxValue;
     }
 
     /// <summary>
     /// Return the number of list elements starting at _lowerBound, possibly stopped at _countOverride.
     /// </summary>
-    public long Count => _isCountFixed ? field : _list.Count - _lowerBound;
+    public long Count => _isCountFixed ? _count : _list.Count - _lowerBound;
 
     /// <summary>
     /// Gets a value at index in this segment of the underlying list.
