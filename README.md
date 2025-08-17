@@ -13,6 +13,7 @@ High-performance memory-mapped file implementation of .NET's `IList<T>` interfac
 - **Time Series Support**: Specialized implementations for DateTime-based series
 - **Variable-Width Storage**: Optimized storage for different integer sizes (Int24, Int40, Int48, Int56)
 - **Bit Array Support**: Efficient storage for boolean arrays
+- **SourceLink Enabled**: Debug into library source directly from consuming applications
 
 ## Installation
 

@@ -1,6 +1,9 @@
 ﻿// ReSharper disable once CheckNamespace
 namespace BruSoftware.ListMmf;
 
+/// <summary>
+/// Provides progress reporting and cancellation support for long-running operations.
+/// </summary>
 public interface IProgressReport
 {
     /// <summary>

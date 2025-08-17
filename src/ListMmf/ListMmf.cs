@@ -5,6 +5,10 @@ using System.IO;
 
 namespace BruSoftware.ListMmf;
 
+/// <summary>
+/// Provides a memory-mapped implementation of <see cref="IListMmf{T}"/> for unmanaged value types.
+/// </summary>
+/// <typeparam name="T">The value type stored in the list.</typeparam>
 public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf<T> where T : struct
 {
     /// <summary>
@@ -12,6 +16,13 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     /// </summary>
     private const int MyHeaderBytes = 0;
 
+    /// <summary>
+    /// Initializes a new instance for derived types.
+    /// </summary>
+    /// <param name="path">The file path backing the list.</param>
+    /// <param name="capacityItems">The initial capacity in items.</param>
+    /// <param name="dataType">The data type stored in the list.</param>
+    /// <param name="parentHeaderBytes">Header bytes used by the parent class.</param>
     protected ListMmf(string path, long capacityItems, DataType dataType, long parentHeaderBytes)
         : base(path, capacityItems, parentHeaderBytes + MyHeaderBytes)
     {
