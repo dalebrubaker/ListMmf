@@ -4,8 +4,16 @@ using System.Collections.Generic;
 // ReSharper disable once CheckNamespace
 namespace BruSoftware.ListMmf;
 
+/// <summary>
+/// Represents a mutable list stored in a memory-mapped file.
+/// </summary>
+/// <typeparam name="T">The type of items stored in the list.</typeparam>
 public interface IListMmf<T> : IListMmf, IEnumerable<T>
 {
+    /// <summary>
+    /// Gets the element at the specified index.
+    /// </summary>
+    /// <param name="index">The zero-based index of the element to retrieve.</param>
     T this[long index] { get; }
 
     /// <summary>
@@ -32,8 +40,14 @@ public interface IListMmf<T> : IListMmf, IEnumerable<T>
     void SetLast(T value);
 }
 
+/// <summary>
+/// Defines common functionality for memory-mapped lists.
+/// </summary>
 public interface IListMmf : IDisposable
 {
+    /// <summary>
+    /// Gets the number of elements in the list.
+    /// </summary>
     long Count { get; }
 
     /// <summary>
