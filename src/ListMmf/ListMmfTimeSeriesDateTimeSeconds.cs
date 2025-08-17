@@ -30,7 +30,7 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     /// <param name="path">The path to open ReadWrite</param>
     /// <param name="timeSeriesOrder"></param>
     /// <param name="capacity">
-    /// The number of bits to initialize the list.
+    /// The number of items to initialize the list.
     /// If 0, will be set to some default amount for a new file. Is ignored for an existing one.
     /// </param>
     /// <param name="parentHeaderBytes"></param>
@@ -68,7 +68,7 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     /// <param name="path">The path to open ReadWrite</param>
     /// <param name="timeSeriesOrder"></param>
     /// <param name="capacity">
-    /// The number of bits to initialize the list.
+    /// The number of items to initialize the list.
     /// If 0, will be set to some default amount for a new file. Is ignored for an existing one.
     /// </param>
     public ListMmfTimeSeriesDateTimeSeconds(string path, TimeSeriesOrder timeSeriesOrder, long capacity = 0)
