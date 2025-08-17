@@ -19,7 +19,7 @@ public unsafe class DebugAppend
     {
         if (!Environment.Is64BitProcess)
         {
-            throw new Exception("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            throw new PlatformNotSupportedException("Requires a 64-bit process (x64 or ARM64).");
         }
         _testFilePath = @"C:\_HugeArray\TestApppend.dat";
         CreateMmf(1000);

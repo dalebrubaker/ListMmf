@@ -12,8 +12,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13] # macos-13 is Intel x64, macos-latest is ARM64
-        dotnet-version: ['9.0.x']
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            dotnet-version: '9.0.x'
+          - os: windows-latest
+            arch: x64
+            dotnet-version: '9.0.x'
+          - os: macos-14
+            arch: arm64
+            dotnet-version: '9.0.x'
 
     steps:
     - uses: actions/checkout@v4
@@ -30,13 +38,13 @@ jobs:
       run: dotnet build --no-restore --configuration Release
     
     - name: Test
-      run: dotnet test --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      run: dotnet test src/ListMmfTests/ListMmfTests.csproj --arch ${{ matrix.arch }} --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results-${{ matrix.os }}-${{ matrix.dotnet-version }}
+        name: test-results-${{ matrix.os }}-${{ matrix.arch }}
         path: '**/test-results.trx'
 
 
@@ -62,5 +70,5 @@ jobs:
     - name: Upload NuGet package
       uses: actions/upload-artifact@v4
       with:
-        name: nuget-package
-        path: ./artifacts/*.nupkg
+          name: nuget-package
+          path: ./artifacts/*.nupkg
