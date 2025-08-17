@@ -199,7 +199,7 @@ public class ListMmfTests
     [Fact]
     public void AddRange_ShouldWork()
     {
-        const string FileName = $"{nameof(Truncate_ShouldWork)}";
+        const string FileName = $"{nameof(AddRange_ShouldWork)}";
         if (File.Exists(FileName))
         {
             File.Delete(FileName);
