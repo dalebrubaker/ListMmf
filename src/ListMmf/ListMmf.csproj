@@ -8,7 +8,8 @@
 		<AssemblyName>ListMmf</AssemblyName>
 		<RootNamespace>BruSoftware.ListMmf</RootNamespace>
                 <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-                <Platforms>x64</Platforms>
+                <PlatformTarget>AnyCPU</PlatformTarget>
+                <Prefer32Bit>false</Prefer32Bit>
                 <Configurations>Debug;Release;Mixed</Configurations>
                 <GenerateDocumentationFile>true</GenerateDocumentationFile>
                 <PublishRepositoryUrl>true</PublishRepositoryUrl>

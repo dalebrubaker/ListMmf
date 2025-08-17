@@ -141,7 +141,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         }
         if (!Environment.Is64BitProcess)
         {
-            throw new ListMmfException("Not supported on 32-bit process. Must be 64-bit for atomic operations on structures of size <= 8 bytes.");
+            throw new PlatformNotSupportedException("Requires a 64-bit process (x64 or ARM64).");
         }
         _width = Unsafe.SizeOf<T>();
         _access = MemoryMappedFileAccess.ReadWrite;
