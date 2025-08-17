@@ -109,8 +109,6 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
             default:
                 using (var en = collection.GetEnumerator())
                 {
-                    // Do inline Add
-                    Add(en.Current);
                     while (en.MoveNext())
                     {
                         if (currentCount + 1 > _capacity)
