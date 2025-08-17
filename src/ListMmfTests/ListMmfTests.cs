@@ -215,6 +215,34 @@ public class ListMmfTests
     }
 
     [Fact]
+    public void AddRange_Span_ShouldAppendInOrder()
+    {
+        const string FileName = $"{nameof(AddRange_Span_ShouldAppendInOrder)}";
+        if (File.Exists(FileName))
+        {
+            File.Delete(FileName);
+        }
+
+        using (var list = new TestListMmf<long>(FileName, DataType.Int64))
+        {
+            list.Add(1);
+            list.Add(2);
+
+            var additional = new long[] { 3, 4, 5 }.AsSpan();
+            list.AddRange(additional);
+
+            list.Count.Should().Be(5);
+            list[0].Should().Be(1);
+            list[1].Should().Be(2);
+            list[2].Should().Be(3);
+            list[3].Should().Be(4);
+            list[4].Should().Be(5);
+        }
+
+        File.Delete(FileName);
+    }
+
+    [Fact]
     public void Ctor_SecondWriterThrows()
     {
         const string FileName = $"{nameof(Ctor_SecondWriterThrows)}";
