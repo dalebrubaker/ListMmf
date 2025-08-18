@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [ main, master, develop ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, master, develop ]
   workflow_dispatch:
@@ -60,9 +62,23 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '9.0.x'
+
+    - name: Compute package version from tag
+      id: ver
+      shell: bash
+      run: |
+        echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
+        VERSION_NO_V="${GITHUB_REF_NAME#v}"
+        echo "Resolved package version: $VERSION_NO_V"
+        echo "version=$VERSION_NO_V" >> "$GITHUB_OUTPUT"
     
     - name: Pack
-      run: dotnet pack src/ListMmf/ListMmf.csproj --configuration Release --output ./artifacts
+      run: |
+        dotnet pack src/ListMmf/ListMmf.csproj \
+          --configuration Release \
+          -p:PackageVersion=${{ steps.ver.outputs.version }} \
+          -p:Version=${{ steps.ver.outputs.version }} \
+          --output ./artifacts
     
     - name: Publish to NuGet
       run: dotnet nuget push ./artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
