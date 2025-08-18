@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using BruSoftware.ListMmf;
 using FluentAssertions;
-using NLog;
 using Xunit;
 
 namespace ListMmfTests;

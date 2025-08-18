@@ -25,9 +25,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// </summary>
     private const int PageSize = 4096;
 
-#if LOGGING
-    private static readonly Logger s_logger = LogManager.GetCurrentClassLogger();
-#endif
+    // Logging removed: previously used NLog under conditional compilation.
 
     private readonly MemoryMappedFileAccess _access;
 
@@ -346,9 +344,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
 
                 // Delete the stale lock file
                 File.Delete(lockPath);
-#if LOGGING
-                s_logger.Info($"Cleaned up stale lock file: {lockPath}");
-#endif
+                // Stale lock cleanup occurred.
             }
             catch (IOException)
             {

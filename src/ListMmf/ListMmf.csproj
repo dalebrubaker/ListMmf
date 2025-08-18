@@ -44,8 +44,6 @@
 	</ItemGroup>
 
         <ItemGroup>
-                <PackageReference Include="NLog" Version="5.4.0"/>
-                <PackageReference Include="NLog.Schema" Version="5.4.0"/>
                 <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
         </ItemGroup>
 
