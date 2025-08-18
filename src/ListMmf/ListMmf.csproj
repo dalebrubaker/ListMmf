@@ -12,6 +12,7 @@
                 <Prefer32Bit>false</Prefer32Bit>
                 <Configurations>Debug;Release;Mixed</Configurations>
                 <GenerateDocumentationFile>true</GenerateDocumentationFile>
+                <NoWarn>$(NoWarn);CS1591;CS1572;CS1573</NoWarn>
                 <PublishRepositoryUrl>true</PublishRepositoryUrl>
                 <EmbedUntrackedSources>true</EmbedUntrackedSources>
 		
@@ -45,7 +46,7 @@
         <ItemGroup>
                 <PackageReference Include="NLog" Version="5.4.0"/>
                 <PackageReference Include="NLog.Schema" Version="5.4.0"/>
-                <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.2.0" PrivateAssets="All"/>
+                <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
         </ItemGroup>
 
 </Project>
