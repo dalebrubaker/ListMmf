@@ -18,7 +18,7 @@
 		
 		<!-- NuGet Package Metadata -->
 		<PackageId>BruSoftware.ListMmf</PackageId>
-		<Version>1.0.2</Version>
+		<Version>1.0.4</Version>
 		<Authors>Dale A. Brubaker</Authors>
 		<Description>High-performance memory-mapped file implementation of .NET's IList&lt;T&gt; interface for inter-process communication and large data handling</Description>
 		<Copyright>Copyright © Dale A. Brubaker 2022-2025</Copyright>
@@ -44,9 +44,8 @@
 	</ItemGroup>
 
         <ItemGroup>
-                <PackageReference Include="NLog" Version="5.4.0"/>
-                <PackageReference Include="NLog.Schema" Version="5.4.0"/>
                 <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+                <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
         </ItemGroup>
 
 </Project>
