@@ -45,6 +45,7 @@
 
         <ItemGroup>
                 <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+                <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
         </ItemGroup>
 
 </Project>

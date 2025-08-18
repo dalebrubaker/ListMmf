@@ -6,6 +6,8 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Security;
 using BruSoftware.ListMmf.Exceptions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace BruSoftware.ListMmf;
 
@@ -126,8 +128,11 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// </param>
     /// <param name="parentHeaderBytes"></param>
     /// <exception cref="ListMmfException"></exception>
-    protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes) : base(path)
+    private readonly ILogger _logger;
+
+    protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes, ILogger logger = null) : base(path)
     {
+        _logger = logger ?? (ILogger)NullLogger.Instance;
         if (parentHeaderBytes % 8 != 0)
         {
             // Not sure this is a necessary limitation
@@ -345,6 +350,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
                 // Delete the stale lock file
                 File.Delete(lockPath);
                 // Stale lock cleanup occurred.
+                _logger.LogInformation("Cleaned up stale lock file: {LockPath}", lockPath);
             }
             catch (IOException)
             {

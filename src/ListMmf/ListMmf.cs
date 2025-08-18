@@ -23,8 +23,8 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     /// <param name="capacityItems">The initial capacity in items.</param>
     /// <param name="dataType">The data type stored in the list.</param>
     /// <param name="parentHeaderBytes">Header bytes used by the parent class.</param>
-    protected ListMmf(string path, long capacityItems, DataType dataType, long parentHeaderBytes)
-        : base(path, capacityItems, parentHeaderBytes + MyHeaderBytes)
+    protected ListMmf(string path, long capacityItems, DataType dataType, long parentHeaderBytes, Microsoft.Extensions.Logging.ILogger logger = null)
+        : base(path, capacityItems, parentHeaderBytes + MyHeaderBytes, logger)
     {
         ResetView();
         Version = 0;
@@ -45,8 +45,8 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     /// <exception cref="ArgumentOutOfRangeException"></exception>
     /// <exception cref="IOException">Another Writer is open on this path</exception>
     /// <exception cref="ListMmfException"></exception>
-    public ListMmf(string path, DataType dataType, long capacityItems = 0)
-        : this(path, capacityItems, dataType, 0)
+    public ListMmf(string path, DataType dataType, long capacityItems = 0, Microsoft.Extensions.Logging.ILogger logger = null)
+        : this(path, capacityItems, dataType, 0, logger)
     {
         ResetView();
     }
