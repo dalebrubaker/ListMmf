@@ -21,14 +21,24 @@ public class ReadOnlyList64Mmf<T>(IReadOnlyList64Mmf<T> list) : IReadOnlyList64M
         return _list.ReadUnchecked(index);
     }
 
+    public ReadOnlySpan<T> AsSpan(long start, int length)
+    {
+        return _list.AsSpan(start, length);
+    }
+
+    public ReadOnlySpan<T> AsSpan(long start)
+    {
+        return _list.AsSpan(start);
+    }
+
     public ReadOnlySpan<T> GetRange(long start, int length)
     {
-        return _list.GetRange(start, length);
+        return _list.AsSpan(start, length);
     }
 
     public ReadOnlySpan<T> GetRange(long start)
     {
-        return _list.GetRange(start);
+        return _list.AsSpan(start);
     }
 
     public override string ToString()

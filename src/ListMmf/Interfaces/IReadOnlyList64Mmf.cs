@@ -19,23 +19,46 @@ public interface IReadOnlyList64Mmf<T> : IReadOnlyList64<T>
     T ReadUnchecked(long index);
 
     /// <summary>
-    /// Gets a read-only span representing a range of elements starting at the specified index.
-    /// This provides zero-copy access to the underlying memory-mapped data when possible,
-    /// or efficient bulk conversion for wrapper implementations.
+    /// Provides the primary zero-copy slicing API for the memory-mapped list.
+    /// Implementations should return a span view over the requested range without allocating
+    /// whenever the underlying storage permits it.
     /// </summary>
-    /// <param name="start">The zero-based starting index of the range</param>
-    /// <param name="length">The number of elements in the range</param>
-    /// <returns>A ReadOnlySpan containing the specified range of elements</returns>
-    /// <exception cref="ArgumentOutOfRangeException">If start or length is invalid</exception>
+    /// <param name="start">The zero-based starting index of the range.</param>
+    /// <param name="length">The number of elements in the range.</param>
+    /// <returns>A read-only span covering the requested range.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">If <paramref name="start"/> or <paramref name="length"/> is invalid.</exception>
+    ReadOnlySpan<T> AsSpan(long start, int length)
+    {
+        return GetRange(start, length);
+    }
+
+    /// <summary>
+    /// Provides the primary zero-copy slicing API for the memory-mapped list.
+    /// Implementations should return a span view from the requested start index to the end
+    /// of the list without allocating whenever possible.
+    /// </summary>
+    /// <param name="start">The zero-based starting index.</param>
+    /// <returns>A read-only span from <paramref name="start"/> to the end of the list.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">If <paramref name="start"/> is invalid.</exception>
+    ReadOnlySpan<T> AsSpan(long start)
+    {
+        return GetRange(start);
+    }
+
+    /// <summary>
+    /// Legacy alias retained for backward compatibility. Prefer <see cref="AsSpan(long,int)"/>.
+    /// </summary>
+    /// <remarks>This method will remain for existing callers but new code should use the AsSpan overloads.</remarks>
+    /// <param name="start">The zero-based starting index of the range.</param>
+    /// <param name="length">The number of elements in the range.</param>
+    /// <returns>A read-only span covering the requested range.</returns>
     ReadOnlySpan<T> GetRange(long start, int length);
 
     /// <summary>
-    /// Gets a read-only span from the specified start index to the end of the list.
-    /// This provides zero-copy access to the underlying memory-mapped data when possible,
-    /// or efficient bulk conversion for wrapper implementations.
+    /// Legacy alias retained for backward compatibility. Prefer <see cref="AsSpan(long)"/>.
     /// </summary>
-    /// <param name="start">The zero-based starting index</param>
-    /// <returns>A ReadOnlySpan from start to the end of the list</returns>
-    /// <exception cref="ArgumentOutOfRangeException">If start is invalid</exception>
+    /// <remarks>This method will remain for existing callers but new code should use the AsSpan overloads.</remarks>
+    /// <param name="start">The zero-based starting index.</param>
+    /// <returns>A read-only span from <paramref name="start"/> to the end of the list.</returns>
     ReadOnlySpan<T> GetRange(long start);
 }

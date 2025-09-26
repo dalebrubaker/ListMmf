@@ -56,6 +56,51 @@ public class SpanSupportTests : IDisposable
     }
 
     [Fact]
+    public void AsSpan_Alias_ReturnsSameData()
+    {
+        // Arrange
+        var path = GetTempFilePath("test_asspan_alias.mmf");
+        using var list = new ListMmf<int>(path, DataType.Int32);
+
+        var testData = new[] { 1, 2, 3, 4, 5 };
+        foreach (var item in testData)
+        {
+            list.Add(item);
+        }
+
+        // Act
+        var getRangeSpan = list.GetRange(1, 3);
+        var aliasSpan = list.AsSpan(1, 3);
+
+        // Assert
+        Assert.Equal(getRangeSpan.ToArray(), aliasSpan.ToArray());
+    }
+
+    [Fact]
+    public void AsSpan_InterfaceExtension_UsesImplementation()
+    {
+        // Arrange
+        var path = GetTempFilePath("test_asspan_interface.mmf");
+        using var list = new ListMmf<int>(path, DataType.Int32);
+
+        var testData = new[] { 10, 20, 30, 40 };
+        foreach (var item in testData)
+        {
+            list.Add(item);
+        }
+
+        IReadOnlyList64Mmf<int> asInterface = list;
+
+        // Act
+        var spanFromAlias = asInterface.AsSpan(0, 2);
+
+        // Assert
+        Assert.Equal(2, spanFromAlias.Length);
+        Assert.Equal(10, spanFromAlias[0]);
+        Assert.Equal(20, spanFromAlias[1]);
+    }
+
+    [Fact]
     public void GetRange_StartToEnd_ReturnsCorrectSpan()
     {
         // Arrange

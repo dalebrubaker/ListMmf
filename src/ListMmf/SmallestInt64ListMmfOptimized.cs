@@ -100,8 +100,8 @@ public static class SmallestInt64ListMmfOptimized
         {
             var remainingCount = Math.Min(chunkSize, count - startIndex);
 
-            // Read chunk of values using GetRange for much better performance
-            var sourceSpan = source.GetRange(startIndex, (int)remainingCount);
+            // Read chunk of values using AsSpan for much better performance
+            var sourceSpan = source.AsSpan(startIndex, (int)remainingCount);
             sourceSpan.CopyTo(values.AsSpan(0, (int)remainingCount));
 
             // Bulk add the chunk (much more efficient than individual Add() calls)

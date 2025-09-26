@@ -275,7 +275,7 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     /// <returns>A Span&lt;DateTime&gt; representing the requested range</returns>
     /// <exception cref="ArgumentOutOfRangeException">If start or length is invalid</exception>
     /// <exception cref="ListMmfOnlyInt32SupportedException">If length exceeds int.MaxValue</exception>
-    public new Span<DateTime> GetRange(long start, int length)
+    public new Span<DateTime> AsSpan(long start, int length)
     {
         // Bounds validation
         var count = Count;
@@ -298,7 +298,7 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
         }
 
         // Use bulk read of underlying Unix seconds data for better performance
-        var secondsSpan = base.GetRange(start, length);
+        var secondsSpan = base.AsSpan(start, length);
         var result = new DateTime[length];
 
         // Convert Unix seconds to DateTime in bulk
@@ -318,7 +318,7 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     /// <returns>A Span&lt;DateTime&gt; representing elements from start to the end</returns>
     /// <exception cref="ArgumentOutOfRangeException">If start is invalid</exception>
     /// <exception cref="ListMmfOnlyInt32SupportedException">If the resulting length exceeds int.MaxValue</exception>
-    public new Span<DateTime> GetRange(long start)
+    public new Span<DateTime> AsSpan(long start)
     {
         var count = Count;
         var length = count - start;
@@ -327,18 +327,38 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
             throw new ListMmfOnlyInt32SupportedException(length);
         }
 
-        return GetRange(start, (int)length);
+        return AsSpan(start, (int)length);
+    }
+
+    public new Span<DateTime> GetRange(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    public new Span<DateTime> GetRange(long start)
+    {
+        return AsSpan(start);
     }
 
     // Explicit interface implementations for ReadOnlySpan return type
     ReadOnlySpan<DateTime> IReadOnlyList64Mmf<DateTime>.GetRange(long start, int length)
     {
-        return GetRange(start, length);
+        return AsSpan(start, length);
     }
 
     ReadOnlySpan<DateTime> IReadOnlyList64Mmf<DateTime>.GetRange(long start)
     {
-        return GetRange(start);
+        return AsSpan(start);
+    }
+
+    ReadOnlySpan<DateTime> IReadOnlyList64Mmf<DateTime>.AsSpan(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    ReadOnlySpan<DateTime> IReadOnlyList64Mmf<DateTime>.AsSpan(long start)
+    {
+        return AsSpan(start);
     }
 
     /// <summary>
@@ -456,7 +476,7 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
             var startIndex = remaining - currentChunkSize;
 
             // Get a chunk of underlying Unix seconds data
-            var chunk = base.GetRange(startIndex, currentChunkSize);
+            var chunk = base.AsSpan(startIndex, currentChunkSize);
 
             // Search backwards within this chunk
             for (var i = chunk.Length - 1; i >= 0; i--)
@@ -496,7 +516,7 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
             var startIndex = remaining - currentChunkSize;
 
             // Get a chunk of underlying Unix seconds data
-            var chunk = base.GetRange(startIndex, currentChunkSize);
+            var chunk = base.AsSpan(startIndex, currentChunkSize);
 
             // Search backwards within this chunk
             for (var i = chunk.Length - 1; i >= 0; i--)
