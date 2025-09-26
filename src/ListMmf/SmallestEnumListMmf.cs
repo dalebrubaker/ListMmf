@@ -136,10 +136,10 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
         return result;
     }
 
-    public ReadOnlySpan<T> GetRange(long start, int length)
+    public ReadOnlySpan<T> AsSpan(long start, int length)
     {
         // Get the underlying long data in bulk and convert to enum
-        var longSpan = _smallestInt64ListMmf.GetRange(start, length);
+        var longSpan = _smallestInt64ListMmf.AsSpan(start, length);
         var result = new T[length];
         for (int i = 0; i < length; i++)
         {
@@ -149,7 +149,7 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
         return result;
     }
 
-    public ReadOnlySpan<T> GetRange(long start)
+    public ReadOnlySpan<T> AsSpan(long start)
     {
         var count = Count;
         if (start < 0 || start >= count)
@@ -157,7 +157,17 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
             throw new ArgumentOutOfRangeException(nameof(start));
         }
         var length = (int)(count - start);
-        return GetRange(start, length);
+        return AsSpan(start, length);
+    }
+
+    public ReadOnlySpan<T> GetRange(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    public ReadOnlySpan<T> GetRange(long start)
+    {
+        return AsSpan(start);
     }
 
     public override string ToString()

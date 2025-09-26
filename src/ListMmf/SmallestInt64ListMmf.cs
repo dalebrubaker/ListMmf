@@ -299,15 +299,15 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         }
     }
 
-    public ReadOnlySpan<long> GetRange(long start, int length)
+    public ReadOnlySpan<long> AsSpan(long start, int length)
     {
         lock (_lock)
         {
-            return _underlying.GetRange(start, length);
+            return _underlying.AsSpan(start, length);
         }
     }
 
-    public ReadOnlySpan<long> GetRange(long start)
+    public ReadOnlySpan<long> AsSpan(long start)
     {
         lock (_lock)
         {
@@ -317,8 +317,18 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
                 throw new ArgumentOutOfRangeException(nameof(start));
             }
             var length = (int)(count - start);
-            return _underlying.GetRange(start, length);
+            return _underlying.AsSpan(start, length);
         }
+    }
+
+    public ReadOnlySpan<long> GetRange(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    public ReadOnlySpan<long> GetRange(long start)
+    {
+        return AsSpan(start);
     }
 
     private void UpgradeIfRequired(long value)
@@ -839,12 +849,12 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             return _funcReadUnchecked(index);
         }
 
-        public ReadOnlySpan<long> GetRange(long start, int length)
+        public ReadOnlySpan<long> AsSpan(long start, int length)
         {
             return _funcGetRange(start, length);
         }
 
-        public ReadOnlySpan<long> GetRange(long start)
+        public ReadOnlySpan<long> AsSpan(long start)
         {
             var count = Count;
             if (start < 0 || start >= count)
@@ -853,6 +863,16 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             }
             var length = (int)(count - start);
             return _funcGetRange(start, length);
+        }
+
+        public ReadOnlySpan<long> GetRange(long start, int length)
+        {
+            return AsSpan(start, length);
+        }
+
+        public ReadOnlySpan<long> GetRange(long start)
+        {
+            return AsSpan(start);
         }
 
         private void SetEmptyArray()
@@ -879,7 +899,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -912,7 +932,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -945,7 +965,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -976,7 +996,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             };
             _funcIndexer = x => list[x];
             _funcReadUnchecked = x => list.ReadUnchecked(x);
-            _funcGetRange = (start, length) => list.GetRange(start, length); // Direct access - no conversion needed
+            _funcGetRange = (start, length) => list.AsSpan(start, length); // Direct access - no conversion needed
             _actionAddRange = x =>
             {
                 var range = x.Select(y => y);
@@ -1010,7 +1030,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             };
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1047,7 +1067,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1080,7 +1100,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1113,7 +1133,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1146,7 +1166,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1179,7 +1199,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1212,7 +1232,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1245,7 +1265,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1278,7 +1298,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {
@@ -1311,7 +1331,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _funcReadUnchecked = x => list.ReadUnchecked(x);
             _funcGetRange = (start, length) =>
             {
-                var sourceSpan = list.GetRange(start, length);
+                var sourceSpan = list.AsSpan(start, length);
                 var result = new long[length];
                 for (var i = 0; i < length; i++)
                 {

@@ -469,7 +469,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// <returns>A Span&lt;bool&gt; representing the requested range</returns>
     /// <exception cref="ArgumentOutOfRangeException">If start or length is invalid</exception>
     /// <exception cref="ListMmfOnlyInt32SupportedException">If length exceeds int.MaxValue</exception>
-    public new Span<bool> GetRange(long start, int length)
+    public new Span<bool> AsSpan(long start, int length)
     {
         // Bounds validation
         var count = Length;
@@ -503,7 +503,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// <returns>A Span&lt;bool&gt; representing bits from start to the end</returns>
     /// <exception cref="ArgumentOutOfRangeException">If start is invalid</exception>
     /// <exception cref="ListMmfOnlyInt32SupportedException">If the resulting length exceeds int.MaxValue</exception>
-    public new Span<bool> GetRange(long start)
+    public new Span<bool> AsSpan(long start)
     {
         var count = Length;
         var length = count - start;
@@ -512,18 +512,38 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
             throw new ListMmfOnlyInt32SupportedException(length);
         }
 
-        return GetRange(start, (int)length);
+        return AsSpan(start, (int)length);
+    }
+
+    public new Span<bool> GetRange(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    public new Span<bool> GetRange(long start)
+    {
+        return AsSpan(start);
     }
 
     // Explicit interface implementations for ReadOnlySpan return type
     ReadOnlySpan<bool> IReadOnlyList64Mmf<bool>.GetRange(long start, int length)
     {
-        return GetRange(start, length);
+        return AsSpan(start, length);
     }
 
     ReadOnlySpan<bool> IReadOnlyList64Mmf<bool>.GetRange(long start)
     {
-        return GetRange(start);
+        return AsSpan(start);
+    }
+
+    ReadOnlySpan<bool> IReadOnlyList64Mmf<bool>.AsSpan(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    ReadOnlySpan<bool> IReadOnlyList64Mmf<bool>.AsSpan(long start)
+    {
+        return AsSpan(start);
     }
 
     /// <summary>

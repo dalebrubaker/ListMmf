@@ -59,10 +59,10 @@ public class ReadOnlyList64MmfIntFromLong : IReadOnlyList64Mmf<int>
         return (int)_list.ReadUnchecked(index);
     }
 
-    public ReadOnlySpan<int> GetRange(long start, int length)
+    public ReadOnlySpan<int> AsSpan(long start, int length)
     {
         // Get the underlying data in bulk and convert
-        var longSpan = _list.GetRange(start, length);
+        var longSpan = _list.AsSpan(start, length);
         var result = new int[length];
         for (int i = 0; i < length; i++)
         {
@@ -71,7 +71,7 @@ public class ReadOnlyList64MmfIntFromLong : IReadOnlyList64Mmf<int>
         return result;
     }
 
-    public ReadOnlySpan<int> GetRange(long start)
+    public ReadOnlySpan<int> AsSpan(long start)
     {
         var count = Count;
         if (start < 0 || start >= count)
@@ -79,7 +79,17 @@ public class ReadOnlyList64MmfIntFromLong : IReadOnlyList64Mmf<int>
             throw new ArgumentOutOfRangeException(nameof(start));
         }
         var length = (int)(count - start);
-        return GetRange(start, length);
+        return AsSpan(start, length);
+    }
+
+    public ReadOnlySpan<int> GetRange(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    public ReadOnlySpan<int> GetRange(long start)
+    {
+        return AsSpan(start);
     }
 
     public override string ToString()

@@ -707,7 +707,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <returns>A ReadOnlySpan&lt;T&gt; representing the requested range</returns>
     /// <exception cref="ArgumentOutOfRangeException">If start or length is invalid</exception>
     /// <exception cref="ListMmfOnlyInt32SupportedException">If length exceeds int.MaxValue</exception>
-    public ReadOnlySpan<T> GetRange(long start, int length)
+    public ReadOnlySpan<T> AsSpan(long start, int length)
     {
         // Bounds validation
         var count = Count;
@@ -737,7 +737,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <returns>A ReadOnlySpan&lt;T&gt; representing elements from start to the end</returns>
     /// <exception cref="ArgumentOutOfRangeException">If start is invalid</exception>
     /// <exception cref="ListMmfOnlyInt32SupportedException">If the resulting length exceeds int.MaxValue</exception>
-    public ReadOnlySpan<T> GetRange(long start)
+    public ReadOnlySpan<T> AsSpan(long start)
     {
         var count = Count;
         var length = count - start;
@@ -746,7 +746,28 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             throw new ListMmfOnlyInt32SupportedException(length);
         }
 
-        return GetRange(start, (int)length);
+        return AsSpan(start, (int)length);
+    }
+
+    /// <summary>
+    /// Legacy alias retained for backward compatibility. Prefer <see cref="AsSpan(long,int)"/>.
+    /// </summary>
+    /// <param name="start">The starting index (inclusive)</param>
+    /// <param name="length">The number of elements to include in the span</param>
+    /// <returns>A ReadOnlySpan&lt;T&gt; representing the requested range</returns>
+    public ReadOnlySpan<T> GetRange(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    /// <summary>
+    /// Legacy alias retained for backward compatibility. Prefer <see cref="AsSpan(long)"/>.
+    /// </summary>
+    /// <param name="start">The starting index (inclusive)</param>
+    /// <returns>A ReadOnlySpan&lt;T&gt; representing elements from start to the end</returns>
+    public ReadOnlySpan<T> GetRange(long start)
+    {
+        return AsSpan(start);
     }
 
     /// <summary>

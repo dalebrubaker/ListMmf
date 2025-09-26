@@ -68,6 +68,34 @@ public static class ReadOnlyList64Extensions
     }
 
     /// <summary>
+    /// Provides a span view over a portion of the list without allocating.
+    /// Alias for <see cref="IReadOnlyList64Mmf{T}.AsSpan(long,int)"/> to align with .NET span naming conventions.
+    /// </summary>
+    public static ReadOnlySpan<T> AsSpan<T>(this IReadOnlyList64Mmf<T> list, long start, int length)
+    {
+        if (list == null)
+        {
+            throw new ArgumentNullException(nameof(list));
+        }
+
+        return list.AsSpan(start, length);
+    }
+
+    /// <summary>
+    /// Provides a span view from the specified start index to the end without allocating.
+    /// Alias for <see cref="IReadOnlyList64Mmf{T}.AsSpan(long)"/>.
+    /// </summary>
+    public static ReadOnlySpan<T> AsSpan<T>(this IReadOnlyList64Mmf<T> list, long start)
+    {
+        if (list == null)
+        {
+            throw new ArgumentNullException(nameof(list));
+        }
+
+        return list.AsSpan(start);
+    }
+
+    /// <summary>
     /// Convert an array or list of double to an array of floats.
     /// </summary>
     /// <param name="values"></param>

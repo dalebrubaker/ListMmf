@@ -70,7 +70,7 @@ public class ReadOnlyList64MmfView<T> : IReadOnlyList64Mmf<T>
         return _list.ReadUnchecked(absoluteIndex);
     }
 
-    public ReadOnlySpan<T> GetRange(long start, int length)
+    public ReadOnlySpan<T> AsSpan(long start, int length)
     {
         // Adjust for the view's lower bound and get range from underlying list
         var absoluteStart = _lowerBound + start;
@@ -78,18 +78,29 @@ public class ReadOnlyList64MmfView<T> : IReadOnlyList64Mmf<T>
         {
             throw new ArgumentOutOfRangeException(nameof(start));
         }
-        return _list.GetRange(absoluteStart, length);
+        return _list.AsSpan(absoluteStart, length);
     }
 
-    public ReadOnlySpan<T> GetRange(long start)
+    public ReadOnlySpan<T> AsSpan(long start)
     {
         var count = Count;
         if (start < 0 || start >= count)
         {
             throw new ArgumentOutOfRangeException(nameof(start));
         }
+
         var length = (int)(count - start);
-        return GetRange(start, length);
+        return AsSpan(start, length);
+    }
+
+    public ReadOnlySpan<T> GetRange(long start, int length)
+    {
+        return AsSpan(start, length);
+    }
+
+    public ReadOnlySpan<T> GetRange(long start)
+    {
+        return AsSpan(start);
     }
 
     public override string ToString()

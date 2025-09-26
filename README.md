@@ -45,6 +45,18 @@ var sharedList = new ListMmf<int>("shared-list");
 Console.WriteLine(sharedList.Count);  // 3
 ```
 
+### Zero-Copy Span Access
+
+```csharp
+// Inspect a window of data without allocating new arrays
+ReadOnlySpan<int> recent = sharedList.AsSpan(start: 1, length: 2);
+Console.WriteLine(recent[0]);
+```
+
+> [!NOTE]
+> Legacy callers can continue to use `GetRange` but the method now forwards to `AsSpan` internally.
+> Prefer the `AsSpan` overloads for new code so the zero-copy semantics are obvious at call sites.
+
 ### Time Series Data
 
 ```csharp

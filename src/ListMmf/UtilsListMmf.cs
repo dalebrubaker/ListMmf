@@ -266,7 +266,7 @@ public static class UtilsListMmf
             var remainingCount = Math.Min(chunkSize, source.Count - startIndex);
 
             // Read chunk using GetRange for better performance (like BulkCopyValues)
-            var sourceSpan = source.GetRange(startIndex, (int)remainingCount);
+            var sourceSpan = source.AsSpan(startIndex, (int)remainingCount);
             sourceSpan.CopyTo(values.AsSpan(0, (int)remainingCount));
 
             // Bulk add the chunk (much more efficient than individual Add() calls)
@@ -292,7 +292,7 @@ public static class UtilsListMmf
             var remainingCount = Math.Min(chunkSize, source.Count - startIndex);
 
             // Read chunk using GetRange for better performance
-            var sourceSpan = source.GetRange(startIndex, (int)remainingCount);
+            var sourceSpan = source.AsSpan(startIndex, (int)remainingCount);
             sourceSpan.CopyTo(values.AsSpan(0, (int)remainingCount));
 
             // Bulk add the chunk
