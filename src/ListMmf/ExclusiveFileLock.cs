@@ -137,8 +137,8 @@ public sealed class ExclusiveFileLock : IDisposable
                     locker._dataFileStream = new FileStream(
                         locker.DataFilePath,
                         FileMode.OpenOrCreate,
-                        FileAccess.Read,
-                        FileShare.Read);
+                        FileAccess.ReadWrite,
+                        FileShare.ReadWrite);
                 }
 
                 return locker;
@@ -176,8 +176,8 @@ public sealed class ExclusiveFileLock : IDisposable
                         locker._dataFileStream = new FileStream(
                             locker.DataFilePath,
                             FileMode.OpenOrCreate,
-                            FileAccess.Read,
-                            FileShare.Read);
+                            FileAccess.ReadWrite,
+                            FileShare.ReadWrite);
                     }
 
                     return locker;
