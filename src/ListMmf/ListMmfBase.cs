@@ -58,18 +58,8 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     protected long _capacity;
 
     private FileStream _fileStream;
-    private FileStream _lockFileStream;
+    private readonly ExclusiveFileLock _exclusiveFileLock;
     private Func<long> _funcGetCount;
-
-    /// <summary>
-    /// Platform-specific file locking action (null for Windows, POSIX implementation for POSIX systems)
-    /// </summary>
-    private readonly Action<string> _actionLockFile;
-
-    /// <summary>
-    /// Platform-specific file unlocking action (null for Windows, POSIX implementation for POSIX systems)
-    /// </summary>
-    private readonly Action<string> _actionUnlockFile;
 
     protected bool _isDisposed;
 
@@ -153,20 +143,6 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         Path = path;
         _parentHeaderBytes = parentHeaderBytes;
 
-        // Assign platform-specific locking behavior
-        if (IsPosixPlatform())
-        {
-            // POSIX systems (macOS, Linux, BSD variants, etc.) use lock file approach
-            _actionLockFile = PosixLockFile;
-            _actionUnlockFile = PosixUnlockFile;
-        }
-        else
-        {
-            // Windows uses native FileShare behavior, no lock files needed
-            _actionLockFile = null;
-            _actionUnlockFile = null;
-        }
-
         // We want to write at least 1 page
         var fi = new FileInfo(path);
         long capacityBytes;
@@ -186,6 +162,16 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
                 }
             }
             capacityBytes = CapacityItemsToBytes(capacityItems); // rounds up to PageSize, so we don't write off the end
+        }
+
+        // Acquire lock before creating MMF (can't await in unsafe context)
+        try
+        {
+            _exclusiveFileLock = ExclusiveFileLock.AcquireAsync(Path).GetAwaiter().GetResult();
+        }
+        catch (TimeoutException ex)
+        {
+            throw new IOException($"Cannot open '{Path}' for writing. The file is already open by another writer.", ex);
         }
         CreateMmf(capacityBytes);
     }
@@ -318,87 +304,6 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         return 0;
     }
 
-    /// <summary>
-    /// Determines if running on a POSIX-compliant platform (macOS, Linux, BSD variants, etc.)
-    /// </summary>
-    /// <returns>True for POSIX systems, false for Windows</returns>
-    private static bool IsPosixPlatform()
-    {
-        return Environment.OSVersion.Platform != PlatformID.Win32NT;
-    }
-
-    /// <summary>
-    /// POSIX-specific file locking implementation using lock files
-    /// </summary>
-    /// <param name="path">Path to the data file to lock</param>
-    private void PosixLockFile(string path)
-    {
-        var lockPath = path + UtilsListMmf.LockFileExtension;
-
-        // Check if lock file exists and try to clean it up if it's stale
-        if (File.Exists(lockPath))
-        {
-            try
-            {
-                // Try to open the lock file with write access - if another process has it locked, this will fail
-                using (var testStream = new FileStream(lockPath, FileMode.Open, FileAccess.Write, FileShare.None))
-                {
-                    // If we can open it, it's a stale lock from a crashed process
-                    testStream.Close();
-                }
-
-                // Delete the stale lock file
-                File.Delete(lockPath);
-                // Stale lock cleanup occurred.
-                _logger.LogInformation("Cleaned up stale lock file: {LockPath}", lockPath);
-            }
-            catch (IOException)
-            {
-                // Lock file is truly in use by another process
-                throw new IOException($"Cannot open '{path}' for writing. The file is already open by another writer.");
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Lock file is truly in use by another process with exclusive access
-                throw new IOException($"Cannot open '{path}' for writing. The file is already open by another writer.");
-            }
-        }
-
-        try
-        {
-            // Try to create lock file exclusively
-            _lockFileStream = new FileStream(lockPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        }
-        catch (IOException ex)
-        {
-            // Lock file was just created by another process after we checked
-            throw new IOException($"Cannot open '{path}' for writing. The file is already open by another writer.", ex);
-        }
-    }
-
-    /// <summary>
-    /// POSIX-specific file unlocking implementation - cleanup lock files
-    /// </summary>
-    /// <param name="path">Path to the data file to unlock</param>
-    private void PosixUnlockFile(string path)
-    {
-        if (_lockFileStream != null)
-        {
-            _lockFileStream.Dispose();
-            _lockFileStream = null;
-
-            var lockPath = path + UtilsListMmf.LockFileExtension;
-            try
-            {
-                File.Delete(lockPath);
-            }
-            catch
-            {
-                // Best effort cleanup - file might already be deleted or in use
-            }
-        }
-    }
-
     private long GetCountWriter()
     {
         var count = Unsafe.Read<long>(_ptrCount);
@@ -409,13 +314,8 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         try
         {
-            // Apply platform-specific locking (POSIX lock files or Windows native behavior)
-            _actionLockFile?.Invoke(Path);
-
-            // Create the file stream with standard FileShare behavior
             _fileStream = UtilsListMmf.CreateFileStreamFromPath(Path, _access);
 
-            // mapName must always be NULL! We can't use it when we are doing reader/writer using FileStream
             if (_fileStream.Length == 0 && capacityBytes <= 0)
             {
                 _fileStream.SetLength(PageSize); // We want to write at least 1 page
@@ -428,7 +328,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             Tracker.Deregister(TrackerId);
             // Clean up any resources that were acquired
             _fileStream?.Dispose();
-            _actionUnlockFile?.Invoke(Path);
+            _exclusiveFileLock?.Dispose();
             throw; // Let IOException bubble up - file access conflicts should fail fast
         }
         catch (Exception)
@@ -436,7 +336,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             Tracker.Deregister(TrackerId);
             // Clean up any resources that were acquired
             _fileStream?.Dispose();
-            _actionUnlockFile?.Invoke(Path);
+            _exclusiveFileLock?.Dispose();
             throw;
         }
     }
@@ -902,7 +802,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             // Release platform-specific locks if we were writing
             if (_access == MemoryMappedFileAccess.ReadWrite)
             {
-                _actionUnlockFile?.Invoke(Path);
+                _exclusiveFileLock?.Dispose();
             }
 
             base.Dispose(true);
