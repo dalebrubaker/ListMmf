@@ -529,4 +529,79 @@ public class SmallestInt64Tests : IDisposable
         var checkLast2 = smallest[smallest.Count - 1];
         checkLast2.Should().Be(0);
     }
+    
+    
+    [Fact]
+    public void GetHeaderInfo_Test()
+    {
+        using var smallest = new SmallestInt64ListMmf(DataType.SByte, TestPath);
+        smallest.DataType.Should().Be(DataType.SByte);
+        smallest.WidthBits.Should().Be(8, "sbyte");
+        smallest.Add(1);
+        var (version, dataType, count) = UtilsListMmf.GetHeaderInfo(TestPath);
+        version.Should().Be(0);
+        dataType.Should().Be(DataType.SByte);
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public void GetHeaderInfoBitArray_Test()
+    {
+        using var smallest = new SmallestInt64ListMmf(DataType.Bit, TestPath);
+        smallest.DataType.Should().Be(DataType.Bit);
+        smallest.WidthBits.Should().Be(1, "BitArray");
+        smallest.Add(1);
+        var (version, dataType, count) = UtilsListMmf.GetHeaderInfo(TestPath);
+        version.Should().Be(0);
+        dataType.Should().Be(DataType.Bit);
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public void UpgradeSByteToInt32_Test()
+    {
+        using var list = new SmallestInt64ListMmf(DataType.SByte, TestPath);
+        list.DataType.Should().Be(DataType.SByte);
+        list.WidthBits.Should().Be(8, "sbyte");
+        list.Add(1);
+
+        var (_, dataType, _) = UtilsListMmf.GetHeaderInfo(TestPath);
+        dataType.Should().Be(DataType.SByte);
+
+        list.Add(sbyte.MaxValue + 1);
+        var (_, dataType2, _) = UtilsListMmf.GetHeaderInfo(TestPath);
+        dataType2.Should().Be(DataType.Byte);
+    }
+
+    [Fact]
+    public void UpgradeBitArrayToInt32_Test()
+    {
+        using var list = new SmallestInt64ListMmf(DataType.Bit, TestPath);
+        list.DataType.Should().Be(DataType.Bit);
+        list.WidthBits.Should().Be(1, "bit");
+        list.Add(1);
+
+        var (_, dataType, _) = UtilsListMmf.GetHeaderInfo(TestPath);
+        dataType.Should().Be(DataType.Bit);
+
+        list.Add(10);
+        var (_, dataType2, _) = UtilsListMmf.GetHeaderInfo(TestPath);
+        dataType2.Should().Be(DataType.Byte);
+    }
+
+    [Fact]
+    public void AutoUpgradeInt16ToInt32_Test()
+    {
+        // ReSharper disable once UseObjectOrCollectionInitializer
+        using var smallest = new SmallestInt64ListMmf(DataType.Int16, TestPath);
+        smallest.Add(52);
+        var path = smallest.Path;
+        File.Exists(path).Should().BeTrue();
+        smallest.DataType.Should().Be(DataType.Int16);
+        smallest.Add(int.MinValue);
+        smallest.DataType.Should().Be(DataType.Int32);
+        smallest.Count.Should().Be(2);
+        smallest[0].Should().Be(52);
+        smallest[1].Should().Be(int.MinValue);
+    }
 }

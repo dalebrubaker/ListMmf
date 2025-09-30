@@ -13,7 +13,7 @@ namespace BruSoftware.ListMmf;
 
 /// <summary>
 /// This is the class from which inheritors should derive, NOT ListMmf which exposes more public methods than necessary
-/// File access is ALWAYS MemoryMappedFileAccess.ReadWrite. ReadOnly access is not supported. Multi-thread access is not supported. 
+/// MemoryMappedFileAccess is ALWAYS MemoryMappedFileAccess.ReadWrite. ReadOnly access is not supported. Multi-thread access is not supported. 
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct

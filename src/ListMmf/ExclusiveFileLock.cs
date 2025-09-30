@@ -88,14 +88,13 @@ public sealed class ExclusiveFileLock : IDisposable
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var fileShare = alsoLockDataFile ? FileShare.None : FileShare.Read;
             try
             {
                 locker._dataFileStream = new FileStream(
                     locker.DataFilePath,
                     FileMode.OpenOrCreate,
                     FileAccess.ReadWrite,
-                   fileShare);
+                    FileShare.Read);
 
                 return locker;
             }
