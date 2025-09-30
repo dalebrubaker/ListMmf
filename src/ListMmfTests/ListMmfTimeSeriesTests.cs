@@ -131,7 +131,7 @@ public class ListMmfTimeSeriesTests
         var date5 = new DateTime(2005, 1, 1);
         var date6 = new DateTime(2006, 1, 1);
 
-        const string Path = nameof(GetLowerBound_ShouldWork);
+        const string Path = nameof(GetUpperBound_ShouldWork);
         if (File.Exists(Path))
         {
             File.Delete(Path);
