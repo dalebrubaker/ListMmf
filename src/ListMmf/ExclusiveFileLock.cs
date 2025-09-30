@@ -88,7 +88,7 @@ public sealed class ExclusiveFileLock : IDisposable
                     locker.DataFilePath,
                     FileMode.OpenOrCreate,
                     FileAccess.ReadWrite,
-                    FileShare.None);
+                    FileShare.Read);
 
                 return locker;
             }
