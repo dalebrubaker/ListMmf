@@ -1,4 +1,4 @@
-﻿//#define LOGGING
+//#define LOGGING
 
 using System;
 using System.IO;
@@ -13,6 +13,7 @@ namespace BruSoftware.ListMmf;
 
 /// <summary>
 /// This is the class from which inheritors should derive, NOT ListMmf which exposes more public methods than necessary
+/// File access is ALWAYS MemoryMappedFileAccess.ReadWrite. ReadOnly access is not supported. Multi-thread access is not supported. 
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
@@ -28,8 +29,6 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     private const int PageSize = 4096;
 
     // Logging removed: previously used NLog under conditional compilation.
-
-    private readonly MemoryMappedFileAccess _access;
 
     /// <summary>
     /// Reader {Name} or Writer {Name}
@@ -122,22 +121,14 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
 
     protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes, ILogger logger = null) : base(path)
     {
-        _logger = logger ?? (ILogger)NullLogger.Instance;
+        _logger = logger ?? NullLogger.Instance;
         if (parentHeaderBytes % 8 != 0)
-        {
             // Not sure this is a necessary limitation
             throw new ListMmfException($"{nameof(parentHeaderBytes)} is required to be a multiple of 8 bytes.");
-        }
-        if (path == null)
-        {
-            throw new ArgumentNullException(nameof(path));
-        }
+        if (path == null) throw new ArgumentNullException(nameof(path));
         if (!Environment.Is64BitProcess)
-        {
             throw new PlatformNotSupportedException("Requires a 64-bit process (x64 or ARM64).");
-        }
         _width = Unsafe.SizeOf<T>();
-        _access = MemoryMappedFileAccess.ReadWrite;
         _funcGetCount = GetCountWriter;
         _accessName = "Writer " + path;
         Path = path;
@@ -155,24 +146,23 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         {
             // The file doesn't exist
             if (!Directory.Exists(fi.DirectoryName))
-            {
                 if (fi.DirectoryName != null)
-                {
                     Directory.CreateDirectory(fi.DirectoryName);
-                }
-            }
+
             capacityBytes = CapacityItemsToBytes(capacityItems); // rounds up to PageSize, so we don't write off the end
         }
 
         // Acquire lock before creating MMF (can't await in unsafe context)
         try
-        {
-            _exclusiveFileLock = ExclusiveFileLock.AcquireAsync(Path).GetAwaiter().GetResult();
+        { 
+            // We only allow MemoryMappedFileAccess.ReadWrite, in order to void thread locks. Multi-threaded access is not supported
+            _exclusiveFileLock = ExclusiveFileLock.AcquireAsync(Path, alsoLockDataFile: true).GetAwaiter().GetResult();
         }
         catch (TimeoutException ex)
         {
             throw new IOException($"Cannot open '{Path}' for writing. The file is already open by another writer.", ex);
         }
+
         CreateMmf(capacityBytes);
     }
 
@@ -255,19 +245,13 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         set
         {
             if (value == _capacity)
-            {
                 // no change
                 return;
-            }
             if (value < _capacity)
-            {
                 // Trim the extra down to make just enough room for Count
                 ResetCapacity(value);
-            }
             else
-            {
                 GrowCapacity(value);
-            }
         }
     }
 
@@ -314,14 +298,13 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         try
         {
-            _fileStream = UtilsListMmf.CreateFileStreamFromPath(Path, _access);
+            _fileStream = _exclusiveFileLock.DataFileStream;
 
             if (_fileStream.Length == 0 && capacityBytes <= 0)
-            {
                 _fileStream.SetLength(PageSize); // We want to write at least 1 page
-            }
 
-            _mmf = MemoryMappedFile.CreateFromFile(_fileStream, null, capacityBytes, _access, HandleInheritability.None, true);
+            _mmf = MemoryMappedFile.CreateFromFile(_fileStream, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
+                HandleInheritability.None, true);
         }
         catch (IOException)
         {
@@ -356,6 +339,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             {
                 // Best effort - view might already be disposed
             }
+
             _pointerAcquired = false;
             _basePointerView = null;
         }
@@ -370,10 +354,8 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         // Check if ResetPointers has been disallowed
         if (_isResetPointersDisallowed)
-        {
             throw new ResetPointersDisallowedException(
                 $"ResetPointers is not allowed after DisallowResetPointers() has been called on {Path ?? "this ListMmf"}");
-        }
 
         // Note: Don't release pointer here - it should have been released before the view was disposed
         // Reset the flag since any old pointer is now invalid
@@ -381,10 +363,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         _basePointerView = null;
 
         // First set BasePointerByte
-        if (_view == null)
-        {
-            throw new ListMmfException("Why?");
-        }
+        if (_view == null) throw new ListMmfException("Why?");
         var safeBuffer = _view.SafeMemoryMappedViewHandle;
         //RuntimeHelpers.PrepareConstrainedRegions();
         _basePointerView = null;
@@ -417,16 +396,10 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     public void TrimExcess()
     {
         // Skip trimming if ResetPointers is disallowed
-        if (_isResetPointersDisallowed)
-        {
-            return;
-        }
+        if (_isResetPointersDisallowed) return;
 
         var threshold = (long)(Capacity * 0.9);
-        if (Count < threshold)
-        {
-            Capacity = Count;
-        }
+        if (Count < threshold) Capacity = Count;
     }
 
     /// <summary>
@@ -437,23 +410,18 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         // Release pointer before disposing the view
         ReleasePointerIfAcquired();
         _view?.Dispose();
-        _view = _mmf?.CreateViewAccessor(0, 0, _access);
+        _view = _mmf?.CreateViewAccessor(0, 0, MemoryMappedFileAccess.ReadWrite);
         if (_fileStream.Length != CapacityBytes)
-        {
             // Set the file length up to the view length so we don't write off the end
             _fileStream.SetLength(CapacityBytes);
-        }
         var totalHeaderBytes = ResetPointers();
         if (totalHeaderBytes != _parentHeaderBytes + HeaderBytesBase)
-        {
-            throw new ListMmfException($"{nameof(ResetPointers)} returns {totalHeaderBytes} but expected {_parentHeaderBytes + HeaderBytesBase}");
-        }
+            throw new ListMmfException(
+                $"{nameof(ResetPointers)} returns {totalHeaderBytes} but expected {_parentHeaderBytes + HeaderBytesBase}");
         _capacity = (CapacityBytes - _parentHeaderBytes - HeaderBytesBase)
                     / _width; // for the header fields just before the beginning of the array
         if (_capacity < Count)
-        {
             throw new ListMmfException($"_capacity={_capacity:N0} cannot be less than Count={Count:N0} for {this}");
-        }
     }
 
     /// <summary>
@@ -467,16 +435,12 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         // Check if ResetPointers has been disallowed
         if (_isResetPointersDisallowed)
-        {
             throw new ResetPointersDisallowedException(
                 $"ResetPointers is not allowed after DisallowResetPointers() has been called on {Path ?? "this ListMmf"}");
-        }
 
         if (minCapacityItems <= _capacity)
-        {
             // nothing to do
             return;
-        }
 
         // Grow by the smaller of Capacity (doubling file size) or 1 GB (we don't want to double a 500 GB file)
         var extraCapacity = Math.Min(Capacity, 1024 * 1024 * 1024);
@@ -498,17 +462,13 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     protected void ResetCapacity(long newCapacityItems)
     {
         if (newCapacityItems < Count)
-        {
             throw new ListMmfException($"newCapacityItems={newCapacityItems} cannot be less than Count={Count}");
-        }
 
         // Note that this method is called by TrimExcess() to shrink Capacity (but not below Count)
         var capacityBytes = CapacityItemsToBytes(newCapacityItems);
         if (capacityBytes == CapacityBytes)
-        {
             // No change, so no need to reset
             return;
-        }
         ResetMmfAndView(capacityBytes, newCapacityItems);
     }
 
@@ -530,7 +490,6 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         _mmf?.Dispose();
         _mmf = null;
         if (capacityBytes != 0 && capacityBytes < fi.Length)
-        {
             // We want to shorten (Truncate) the file
             try
             {
@@ -541,13 +500,12 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
                 // Ignore -- some reader may have this file open
                 //s_logger.Warn("Unable to shrink to {CapacityBytes:N0} from {FileLength:N0} for {This}", capacityBytes, _fileStream.Length, this);
             }
-        }
+
         if (capacityBytes != 0 && capacityBytes < _fileStream.Length)
-        {
             // We can't open a file for ReadWrite with a smaller capacity, except 0
             capacityBytes = _fileStream.Length;
-        }
-        _mmf = MemoryMappedFile.CreateFromFile(_fileStream, null, capacityBytes, _access, HandleInheritability.None, true);
+        _mmf = MemoryMappedFile.CreateFromFile(_fileStream, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
+            HandleInheritability.None, true);
         ResetView();
     }
 
@@ -563,10 +521,8 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
                      + HeaderBytesBase; // for the header fields just before the beginning of the array
         var intoPage = result % PageSize;
         if (intoPage > 0)
-        {
             // Round up to the next page
             result += PageSize - intoPage;
-        }
         return result;
     }
 
@@ -612,17 +568,11 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         // Bounds validation
         var count = Count;
         if (start < 0 || start > count)
-        {
             throw new ArgumentOutOfRangeException(nameof(start), $"start={start} must be >= 0 and <= Count={count}");
-        }
-        if (length < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(length), "length must be >= 0");
-        }
+        if (length < 0) throw new ArgumentOutOfRangeException(nameof(length), "length must be >= 0");
         if (start + length > count)
-        {
-            throw new ArgumentOutOfRangeException(nameof(length), $"start + length ({start + length}) exceeds Count={count}");
-        }
+            throw new ArgumentOutOfRangeException(nameof(length),
+                $"start + length ({start + length}) exceeds Count={count}");
 
         // Create span from existing pointer arithmetic
         return new ReadOnlySpan<T>(_ptrArray + start * _width, length);
@@ -641,10 +591,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         var count = Count;
         var length = count - start;
-        if (length > int.MaxValue)
-        {
-            throw new ListMmfOnlyInt32SupportedException(length);
-        }
+        if (length > int.MaxValue) throw new ListMmfOnlyInt32SupportedException(length);
 
         return AsSpan(start, (int)length);
     }
@@ -714,18 +661,11 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         // }
         var count = Count;
         if (newCount >= count)
-        {
             // nothing to do
             return;
-        }
-        if (newCount < 0)
-        {
-            throw new ArgumentException("Truncate new length cannot be negative");
-        }
+        if (newCount < 0) throw new ArgumentException("Truncate new length cannot be negative");
         if (newCount > _capacity)
-        {
             throw new ListMmfException($"Truncate new length {newCount} cannot be greater than Capacity {_capacity}");
-        }
 
         // Change Count first so readers won't use a wrong value
         Count = newCount;
@@ -737,14 +677,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         var count = Count;
         if (newCount > count)
-        {
             throw new ListMmfException($"TruncateBeginning {newCount} must not be greater than Count={count}");
-        }
 
-        if (newCount == count)
-        {
-            return; // No-op optimization
-        }
+        if (newCount == count) return; // No-op optimization
 
         var beginIndex = count - newCount;
         var chunkSize = Math.Max(1, newCount / 100); // 1% chunks for progress reporting
@@ -782,10 +717,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         if (disposing && !_isDisposed)
         {
             // Only trim if ResetPointers is allowed
-            if (!_isResetPointersDisallowed)
-            {
-                TrimExcess();
-            }
+            if (!_isResetPointersDisallowed) TrimExcess();
             _funcGetCount = GetCountDisposed;
             _isDisposed = true;
 
@@ -799,11 +731,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             _fileStream?.Dispose();
             _fileStream = null;
 
-            // Release platform-specific locks if we were writing
-            if (_access == MemoryMappedFileAccess.ReadWrite)
-            {
-                _exclusiveFileLock?.Dispose();
-            }
+            _exclusiveFileLock?.Dispose();
 
             base.Dispose(true);
             // GC.Collect();

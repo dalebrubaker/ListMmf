@@ -19,8 +19,8 @@ namespace BruSoftware.ListMmf;
 public sealed class ExclusiveFileLock : IDisposable
 {
     private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-    private FileStream _lockStream;
-    private FileStream _dataLockStream;
+    private FileStream _lockFileStream; // This is the lock on the .lock file
+    private FileStream _dataFileStream; // This is the lock on the data file
 
     private ExclusiveFileLock(string dataFilePath)
     {
@@ -28,7 +28,12 @@ public sealed class ExclusiveFileLock : IDisposable
         LockFilePath = IsWindows ? null : dataFilePath + ".lock";
     }
 
-    public string DataFilePath { get; }
+    /// <summary>
+    /// The file that was created by <see cref="AcquireAsync"/>
+    /// </summary>
+    public FileStream DataFileStream => _dataFileStream;
+
+    public string DataFilePath { get; } 
     public string LockFilePath { get; }
     public Guid LockId { get; private set; }
     public int OwnerPid { get; private set; }
@@ -76,19 +81,21 @@ public sealed class ExclusiveFileLock : IDisposable
         TimeSpan pollInterval,
         bool alsoLockDataFile,
         CancellationToken cancellationToken)
-    {
+    { 
+        timeout = TimeSpan.Zero; // For Windows, we don't retry because we aren't using .lock files
         var deadline = DateTime.UtcNow + timeout;
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var fileShare = alsoLockDataFile ? FileShare.None : FileShare.Read;
             try
             {
-                locker._dataLockStream = new FileStream(
+                locker._dataFileStream = new FileStream(
                     locker.DataFilePath,
                     FileMode.OpenOrCreate,
                     FileAccess.ReadWrite,
-                    FileShare.Read);
+                   fileShare);
 
                 return locker;
             }
@@ -117,7 +124,7 @@ public sealed class ExclusiveFileLock : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                locker._lockStream = new FileStream(
+                locker._lockFileStream = new FileStream(
                     locker.LockFilePath,
                     FileMode.CreateNew,
                     FileAccess.ReadWrite,
@@ -127,7 +134,7 @@ public sealed class ExclusiveFileLock : IDisposable
 
                 if (alsoLockDataFile)
                 {
-                    locker._dataLockStream = new FileStream(
+                    locker._dataFileStream = new FileStream(
                         locker.DataFilePath,
                         FileMode.OpenOrCreate,
                         FileAccess.Read,
@@ -162,11 +169,11 @@ public sealed class ExclusiveFileLock : IDisposable
 
                     existing.SetLength(0);
                     await WriteMetadataAsync(existing, locker, cancellationToken).ConfigureAwait(false);
-                    locker._lockStream = existing;
+                    locker._lockFileStream = existing;
 
                     if (alsoLockDataFile)
                     {
-                        locker._dataLockStream = new FileStream(
+                        locker._dataFileStream = new FileStream(
                             locker.DataFilePath,
                             FileMode.OpenOrCreate,
                             FileAccess.Read,
@@ -193,8 +200,8 @@ public sealed class ExclusiveFileLock : IDisposable
     {
         try
         {
-            _dataLockStream?.Dispose();
-            _dataLockStream = null;
+            _dataFileStream?.Dispose();
+            _dataFileStream = null;
         }
         catch { }
 
@@ -202,8 +209,8 @@ public sealed class ExclusiveFileLock : IDisposable
         {
             try
             {
-                _lockStream?.Dispose();
-                _lockStream = null;
+                _lockFileStream?.Dispose();
+                _lockFileStream = null;
             }
             catch { }
 
@@ -220,11 +227,11 @@ public sealed class ExclusiveFileLock : IDisposable
 
     private async Task WriteMetadataAsync(CancellationToken ct)
     {
-        if (_lockStream == null)
+        if (_lockFileStream == null)
         {
             throw new InvalidOperationException("Lock stream is null");
         }
-        await WriteMetadataAsync(_lockStream, this, ct).ConfigureAwait(false);
+        await WriteMetadataAsync(_lockFileStream, this, ct).ConfigureAwait(false);
     }
 
     private static async Task WriteMetadataAsync(FileStream stream, ExclusiveFileLock owner, CancellationToken ct)
