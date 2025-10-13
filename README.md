@@ -125,6 +125,36 @@ optimizedList.Add(10000000);  // Auto-upgrades to Int32 (4 bytes)
 
 See [BEST-PRACTICES.md](BEST-PRACTICES.md#when-to-use-listmmf-vs-smallestint) for detailed comparison.
 
+### Fast Int64 conversion for odd-byte files (no SmallestInt*)
+
+Odd-byte structs such as `UInt24AsInt64` and `Int40AsInt64` expose zero-copy spans, but expanding them to full 64-bit integers previously required extra allocations or the SmallestInt wrappers. New extension methods keep conversions allocation-conscious:
+
+```csharp
+using BruSoftware.ListMmf;
+
+using var list = new ListMmf<UInt40AsInt64>("ticks.u40.mmf", DataType.UInt40AsInt64);
+
+// Reuse a caller-owned buffer when iterating through large files
+var chunkSize = 1_024;
+var buffer = GC.AllocateUninitializedArray<long>(chunkSize);
+long position = 0;
+
+while (position < list.Count)
+{
+    var toRead = (int)Math.Min(chunkSize, list.Count - position);
+    list.CopyAsInt64(position, buffer.AsSpan(0, toRead));
+    Process(buffer.AsSpan(0, toRead));
+    position += toRead;
+}
+
+// Pool-backed helper returns IMemoryOwner<long> trimmed to your requested length
+using var owner = list.RentAsInt64(start: 0, length: chunkSize);
+var span = owner.Memory.Span;
+Consume(span);
+```
+
+These helpers work with `ListMmf<T>` writers and `IReadOnlyList64Mmf<T>` readers for all supported odd-byte types (24/40/48/56-bit, signed and unsigned). They expand values to `long` without per-element allocations and are ideal when you need repeated analysis passes. For one-off whole-file conversions, continue to use `ListMmfWidthConverter`.
+
 ## Advanced Features
 
 ### Read-Only Views
