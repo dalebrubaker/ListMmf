@@ -23,29 +23,27 @@ public readonly struct UInt56AsInt64
         {
             throw new ArgumentException($"Value must be less than {MaxValue}", nameof(value));
         }
-        var bytes = BitConverter.GetBytes(value);
-        _byte0 = bytes[0];
-        _byte1 = bytes[1];
-        _byte2 = bytes[2];
-        _byte3 = bytes[3];
-        _byte4 = bytes[4];
-        _byte5 = bytes[5];
-        _byte6 = bytes[6];
+        _byte0 = (byte)(value & 0xFF);
+        _byte1 = (byte)((value >> 8) & 0xFF);
+        _byte2 = (byte)((value >> 16) & 0xFF);
+        _byte3 = (byte)((value >> 24) & 0xFF);
+        _byte4 = (byte)((value >> 32) & 0xFF);
+        _byte5 = (byte)((value >> 40) & 0xFF);
+        _byte6 = (byte)((value >> 48) & 0xFF);
     }
 
     private long Value
     {
         get
         {
-            var bytes = new byte[8];
-            bytes[0] = _byte0;
-            bytes[1] = _byte1;
-            bytes[2] = _byte2;
-            bytes[3] = _byte3;
-            bytes[4] = _byte4;
-            bytes[5] = _byte5;
-            bytes[6] = _byte6;
-            return BitConverter.ToInt64(bytes, 0);
+            long v = (long)_byte0
+                     | ((long)_byte1 << 8)
+                     | ((long)_byte2 << 16)
+                     | ((long)_byte3 << 24)
+                     | ((long)_byte4 << 32)
+                     | ((long)_byte5 << 40)
+                     | ((long)_byte6 << 48);
+            return v;
         }
     }
 
