@@ -100,5 +100,5 @@ public interface IListMmf : IDisposable
     /// </summary>
     /// <param name="newCount"></param>
     /// <param name="progress"></param>
-    void TruncateBeginning(long newCount, IProgress<long> progress = null);
+    void TruncateBeginning(long newCount, IProgress<long>? progress = null);
 }

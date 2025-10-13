@@ -18,9 +18,9 @@ public class ListMmfTimeSeriesDateTime : ListMmfBase<long>, IReadOnlyList64Mmf<D
     /// </summary>
     private const int MyHeaderBytes = 0;
 
-    private readonly Action<long, DateTime> _throwIfEarlierThanPreviousAction;
+    private readonly Action<long, DateTime>? _throwIfEarlierThanPreviousAction;
 
-    private readonly Action<int, long, long> _throwIfEarlierThanPreviousTicksAction;
+    private readonly Action<int, long, long>? _throwIfEarlierThanPreviousTicksAction;
 
     /// <summary>
     /// Open a Writer on path

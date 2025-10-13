@@ -3,6 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
 		<LangVersion>preview</LangVersion>
+		<Nullable>enable</Nullable>
                 <IsPackable>false</IsPackable>
                 <PlatformTarget>AnyCPU</PlatformTarget>
                 <Prefer32Bit>false</Prefer32Bit>

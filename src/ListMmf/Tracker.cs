@@ -18,7 +18,7 @@ public class Tracker
     private readonly Dictionary<int, TrackerId> _trackerIdsById = new();
 #endif
 
-    public TrackerId Register(string name, string stackTrace = null)
+    public TrackerId Register(string name, string? stackTrace = null)
     {
         lock (_lock)
         {

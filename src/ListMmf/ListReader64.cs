@@ -7,7 +7,7 @@ namespace BruSoftware.ListMmf;
 [Serializable]
 public class ListReader64<T> : IReadOnlyList64<T>
 {
-    private static IReadOnlyList64<T> s_empty;
+    private static IReadOnlyList64<T>? s_empty;
     private readonly IList<T> _array;
     private readonly int _beginIndex;
     private readonly int _count;
@@ -73,9 +73,7 @@ public class ListReader64<T> : IReadOnlyList64<T>
         {
             _list = list;
             _index = 0;
-#pragma warning disable 8601
-            Current = default;
-#pragma warning restore 8601
+            Current = default!;
         }
 
         public void Dispose()
@@ -101,13 +99,13 @@ public class ListReader64<T> : IReadOnlyList64<T>
         private bool MoveNextRare()
         {
             _index = _list.Count + 1;
-            Current = default;
+            Current = default!;
             return false;
         }
 
         public T Current { get; private set; }
 
-        object IEnumerator.Current
+        object? IEnumerator.Current
         {
             get
             {
@@ -122,7 +120,7 @@ public class ListReader64<T> : IReadOnlyList64<T>
         void IEnumerator.Reset()
         {
             _index = _list._beginIndex;
-            Current = default;
+            Current = default!;
         }
     }
 

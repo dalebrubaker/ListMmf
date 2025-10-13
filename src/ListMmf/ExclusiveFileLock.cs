@@ -19,8 +19,8 @@ namespace BruSoftware.ListMmf;
 public sealed class ExclusiveFileLock : IDisposable
 {
     private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-    private FileStream _lockFileStream; // This is the lock on the .lock file
-    private FileStream _dataFileStream; // This is the lock on the data file
+    private FileStream? _lockFileStream; // This is the lock on the .lock file
+    private FileStream? _dataFileStream; // This is the lock on the data file
 
     private ExclusiveFileLock(string dataFilePath)
     {
@@ -31,10 +31,10 @@ public sealed class ExclusiveFileLock : IDisposable
     /// <summary>
     /// The file that was created by <see cref="AcquireAsync"/>
     /// </summary>
-    public FileStream DataFileStream => _dataFileStream;
+    public FileStream DataFileStream => _dataFileStream!;
 
-    public string DataFilePath { get; } 
-    public string LockFilePath { get; }
+    public string DataFilePath { get; }
+    public string? LockFilePath { get; }
     public Guid LockId { get; private set; }
     public int OwnerPid { get; private set; }
     public DateTimeOffset OwnerPidStartTimeUtc { get; private set; }
@@ -124,7 +124,7 @@ public sealed class ExclusiveFileLock : IDisposable
             try
             {
                 locker._lockFileStream = new FileStream(
-                    locker.LockFilePath,
+                    locker.LockFilePath!,
                     FileMode.CreateNew,
                     FileAccess.ReadWrite,
                     FileShare.ReadWrite);
@@ -147,7 +147,7 @@ public sealed class ExclusiveFileLock : IDisposable
                 try
                 {
                     var existing = new FileStream(
-                        locker.LockFilePath,
+                        locker.LockFilePath!,
                         FileMode.Open,
                         FileAccess.ReadWrite,
                         FileShare.ReadWrite);
@@ -254,7 +254,7 @@ public sealed class ExclusiveFileLock : IDisposable
         stream.Flush(true);
     }
 
-    private static async Task<LockMetadata> ReadMetadataAsync(FileStream stream, CancellationToken ct)
+    private static async Task<LockMetadata?> ReadMetadataAsync(FileStream stream, CancellationToken ct)
     {
         try
         {
@@ -270,7 +270,7 @@ public sealed class ExclusiveFileLock : IDisposable
         }
     }
 
-    private static bool IsStale(LockMetadata meta)
+    private static bool IsStale(LockMetadata? meta)
     {
         if (meta == null)
         {

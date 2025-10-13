@@ -21,7 +21,7 @@ public static class SmallestInt64ListMmfOptimized
     /// <param name="dataTypeNew">Target data type after upgrade</param>
     /// <param name="name">Name for progress reporting</param>
     /// <param name="progress">Progress reporting interface</param>
-    public static void UpgradeOptimized(SmallestInt64ListMmf source, DataType dataTypeNew, string name, IProgressReport progress)
+    public static void UpgradeOptimized(SmallestInt64ListMmf source, DataType dataTypeNew, string name, IProgressReport? progress)
     {
         if (source == null)
         {
@@ -91,7 +91,7 @@ public static class SmallestInt64ListMmfOptimized
     /// Bulk copy values in chunks instead of individual Add() calls.
     /// This eliminates the overhead of capacity checks and individual writes.
     /// </summary>
-    private static void BulkCopyValues(SmallestInt64ListMmf source, SmallestInt64ListMmf destination, long count, IProgressReport progress)
+    private static void BulkCopyValues(SmallestInt64ListMmf source, SmallestInt64ListMmf destination, long count, IProgressReport? progress)
     {
         const int chunkSize = 10000; // Process in chunks to report progress
         var values = new long[chunkSize];

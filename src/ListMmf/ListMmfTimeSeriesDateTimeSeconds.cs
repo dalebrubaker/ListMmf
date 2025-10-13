@@ -18,9 +18,9 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     /// </summary>
     private const int MyHeaderBytes = 0;
 
-    private readonly Action<long, DateTime> _throwIfEarlierThanPreviousAction;
+    private readonly Action<long, DateTime>? _throwIfEarlierThanPreviousAction;
 
-    private readonly Action<int, long, long> _throwIfEarlierThanPreviousTicksAction;
+    private readonly Action<int, long, long>? _throwIfEarlierThanPreviousTicksAction;
     private readonly TimeSeriesOrder _timeSeriesOrder;
 
     // Search optimization fields

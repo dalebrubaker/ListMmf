@@ -56,7 +56,7 @@ public static class ListMmfWidthConverter
     /// This method opens the source file in ReadWrite mode (as per ListMmf design) and requires exclusive writer access.
     /// Run it when no writer is using the file.
     /// </remarks>
-    public static void ConvertOddByteFileToStandard(string sourcePath, string destinationPath = null, int chunkSize = 100_000)
+    public static void ConvertOddByteFileToStandard(string sourcePath, string? destinationPath = null, int chunkSize = 100_000)
     {
         var (version, dataType, count) = UtilsListMmf.GetHeaderInfo(sourcePath);
         if (count <= 0)

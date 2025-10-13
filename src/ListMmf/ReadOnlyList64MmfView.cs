@@ -120,7 +120,7 @@ public class ReadOnlyList64MmfView<T> : IReadOnlyList64Mmf<T>
         {
             _list = list;
             _index = 0;
-            Current = default;
+            Current = default!;
         }
 
         public void Dispose()
@@ -146,13 +146,13 @@ public class ReadOnlyList64MmfView<T> : IReadOnlyList64Mmf<T>
         private bool MoveNextRare()
         {
             _index = _list.Count + 1;
-            Current = default;
+            Current = default!;
             return false;
         }
 
         public T Current { get; private set; }
 
-        object IEnumerator.Current
+        object? IEnumerator.Current
         {
             get
             {
@@ -167,7 +167,7 @@ public class ReadOnlyList64MmfView<T> : IReadOnlyList64Mmf<T>
         void IEnumerator.Reset()
         {
             _index = 0;
-            Current = default;
+            Current = default!;
         }
     }
 

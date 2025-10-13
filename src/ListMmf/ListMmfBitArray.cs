@@ -199,7 +199,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
         }
     }
 
-    public new void TruncateBeginning(long newCount, IProgress<long> progress = null)
+    public new void TruncateBeginning(long newCount, IProgress<long>? progress = null)
     {
         var count = Length;
         if (newCount > count)

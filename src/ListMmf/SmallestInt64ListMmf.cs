@@ -83,17 +83,17 @@ namespace BruSoftware.ListMmf;
 /// </example>
 public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 {
-    public static EventHandler<string> MessageEvent;
+    public static EventHandler<string>? MessageEvent;
     private readonly DataType _dataTypeIfNewFile;
 
     private readonly object _lock = new();
     private readonly string _name;
-    private IProgressReport _progress;
+    private IProgressReport? _progress;
     private bool _isDisposed;
-    internal Underlying _underlying;
+    internal Underlying? _underlying;
 
     public SmallestInt64ListMmf(DataType dataTypeIfNewFile, string path, long capacityItems = 0L,
-        string name = "", IProgressReport progress = null)
+        string name = "", IProgressReport? progress = null)
     {
         Path = path;
         _dataTypeIfNewFile = dataTypeIfNewFile;
@@ -341,7 +341,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         }
     }
 
-    public void TruncateBeginning(long newCount, IProgress<long> progress = null)
+    public void TruncateBeginning(long newCount, IProgress<long>? progress = null)
     {
         lock (_lock)
         {
@@ -705,19 +705,19 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         public readonly long MaxValue;
         public readonly long MinValue;
-        private Action<long> _actionAdd;
-        private Action<IEnumerable<long>> _actionAddRange;
-        private Action<long> _actionSetLast;
-        private Func<object, long> _funcCastToLong;
-        private Func<IEnumerator> _funcGetEnumerator;
-        private Func<long, long> _funcIndexer;
-        private Func<long, long> _funcReadUnchecked;
-        private Func<long, int, ReadOnlySpan<long>> _funcGetRange;
+        private Action<long> _actionAdd = null!;
+        private Action<IEnumerable<long>> _actionAddRange = null!;
+        private Action<long> _actionSetLast = null!;
+        private Func<object, long> _funcCastToLong = null!;
+        private Func<IEnumerator>? _funcGetEnumerator = null!;
+        private Func<long, long> _funcIndexer = null!;
+        private Func<long, long> _funcReadUnchecked = null!;
+        private Func<long, int, ReadOnlySpan<long>> _funcGetRange = null!;
 
         /// <summary>
         /// The underlying list
         /// </summary>
-        private IListMmf _iListMmf;
+        private IListMmf _iListMmf = null!;
 
         public Underlying(DataType dataTypeIfNewFile, string path, long capacityItems = 0L)
         {
@@ -848,12 +848,12 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         public long Capacity
         {
             get => _iListMmf?.Capacity ?? 0;
-            set => _iListMmf.Capacity = value;
+            set => _iListMmf!.Capacity = value;
         }
 
         public void Truncate(long newCount)
         {
-            _iListMmf.Truncate(newCount);
+            _iListMmf!.Truncate(newCount);
         }
 
         public bool IsResetPointersDisallowed => _iListMmf?.IsResetPointersDisallowed ?? false;
@@ -863,12 +863,12 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _iListMmf?.DisallowResetPointers();
         }
 
-        public void TruncateBeginning(long newCount, IProgress<long> progress = null)
+        public void TruncateBeginning(long newCount, IProgress<long>? progress = null)
         {
-            _iListMmf.TruncateBeginning(newCount, progress);
+            _iListMmf!.TruncateBeginning(newCount, progress);
         }
 
-        public string Path => _iListMmf?.Path;
+        public string? Path => _iListMmf?.Path;
         public int WidthBits => _iListMmf?.WidthBits ?? 0;
         public int Version => _iListMmf?.Version ?? 0;
         public DataType DataType => _iListMmf?.DataType ?? DataType.AnyStruct;

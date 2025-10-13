@@ -4,6 +4,7 @@
 		<OutputType>Library</OutputType>
 		<TargetFramework>net9.0</TargetFramework>
 		<LangVersion>preview</LangVersion>
+		<Nullable>enable</Nullable>
 		<Company>BruSoftware</Company>
 		<AssemblyName>ListMmf</AssemblyName>
 		<RootNamespace>BruSoftware.ListMmf</RootNamespace>

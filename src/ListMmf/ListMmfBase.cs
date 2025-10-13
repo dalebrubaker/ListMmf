@@ -56,13 +56,13 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// </summary>
     protected long _capacity;
 
-    private FileStream _fileStream;
+    private FileStream? _fileStream;
     private readonly ExclusiveFileLock _exclusiveFileLock;
     private Func<long> _funcGetCount;
 
     protected bool _isDisposed;
 
-    private MemoryMappedFile _mmf;
+    private MemoryMappedFile? _mmf;
 
     /// <summary>
     /// This is the beginning of the Array, after the parentHeaderBytes and the MyHeaderBytes header for this array.
@@ -93,7 +93,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// </summary>
     private int* _ptrVersion;
 
-    private MemoryMappedViewAccessor _view;
+    private MemoryMappedViewAccessor? _view;
 
     /// <summary>
     /// Track whether we've acquired a pointer that needs to be released
@@ -119,7 +119,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <exception cref="ListMmfException"></exception>
     private readonly ILogger _logger;
 
-    protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes, ILogger logger = null) : base(path)
+    protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes, ILogger? logger = null) : base(path)
     {
         _logger = logger ?? NullLogger.Instance;
         if (parentHeaderBytes % 8 != 0)
@@ -411,7 +411,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         ReleasePointerIfAcquired();
         _view?.Dispose();
         _view = _mmf?.CreateViewAccessor(0, 0, MemoryMappedFileAccess.ReadWrite);
-        if (_fileStream.Length != CapacityBytes)
+        if (_fileStream!.Length != CapacityBytes)
             // Set the file length up to the view length so we don't write off the end
             _fileStream.SetLength(CapacityBytes);
         var totalHeaderBytes = ResetPointers();
@@ -493,7 +493,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             // We want to shorten (Truncate) the file
             try
             {
-                _fileStream.SetLength(capacityBytes);
+                _fileStream!.SetLength(capacityBytes);
             }
             catch (Exception)
             {
@@ -501,10 +501,10 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
                 //s_logger.Warn("Unable to shrink to {CapacityBytes:N0} from {FileLength:N0} for {This}", capacityBytes, _fileStream.Length, this);
             }
 
-        if (capacityBytes != 0 && capacityBytes < _fileStream.Length)
+        if (capacityBytes != 0 && capacityBytes < _fileStream!.Length)
             // We can't open a file for ReadWrite with a smaller capacity, except 0
             capacityBytes = _fileStream.Length;
-        _mmf = MemoryMappedFile.CreateFromFile(_fileStream, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
+        _mmf = MemoryMappedFile.CreateFromFile(_fileStream!, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
             HandleInheritability.None, true);
         ResetView();
     }
@@ -673,7 +673,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     }
 
     /// <inheritdoc cref="IListMmf{T}" />
-    public void TruncateBeginning(long newCount, IProgress<long> progress = null)
+    public void TruncateBeginning(long newCount, IProgress<long>? progress = null)
     {
         var count = Count;
         if (newCount > count)

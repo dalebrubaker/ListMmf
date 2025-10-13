@@ -60,7 +60,7 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
         _smallestInt64ListMmf?.DisallowResetPointers();
     }
 
-    public void TruncateBeginning(long newCount, IProgress<long> progress = null)
+    public void TruncateBeginning(long newCount, IProgress<long>? progress = null)
     {
         _smallestInt64ListMmf.TruncateBeginning(newCount, progress);
     }
