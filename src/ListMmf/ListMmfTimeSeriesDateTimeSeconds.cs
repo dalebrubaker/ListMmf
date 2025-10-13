@@ -715,11 +715,13 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
 
             if (posValue < valueSeconds)
             {
+                // Move low up; always ensure progress
                 low = pos + 1;
             }
             else
             {
-                high = pos;
+                // Move high down; ensure progress even when pos == high
+                high = pos == high ? high - 1 : pos;
             }
         }
 
@@ -806,11 +808,13 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
 
             if (!(valueSeconds < posValue))
             {
+                // Move low up; always ensure progress
                 low = pos + 1;
             }
             else
             {
-                high = pos;
+                // Move high down; ensure progress even when pos == high
+                high = pos == high ? high - 1 : pos;
             }
         }
 
