@@ -41,7 +41,7 @@ public sealed class ListMmfLongAdapterTests : IDisposable
             }
         }
 
-        using var adapter = (ListMmfLongAdapter<UInt24AsInt64>)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
+        using var adapter = (IListMmfLongAdapter<UInt24AsInt64>)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
         adapter.Count.Should().Be(initialValues.Length);
         adapter.AsSpan(0, initialValues.Length).ToArray().Should().Equal(initialValues);
 
@@ -50,10 +50,12 @@ public sealed class ListMmfLongAdapterTests : IDisposable
         adapter[adapter.Count - 1].Should().Be(highValue);
 
         var status = adapter.GetDataTypeUtilization();
-        status.ObservedMax.Should().Be(highValue);
+        var expectedObservedMax = Math.Max(highValue, UInt24AsInt64.MaxValue - 1);
+        status.ObservedMax.Should().Be(expectedObservedMax);
         status.ObservedMin.Should().Be(initialValues[0]);
         status.AllowedMax.Should().Be(UInt24AsInt64.MaxValue);
-        status.Utilization.Should().BeApproximately((double)highValue / UInt24AsInt64.MaxValue, 1e-9);
+        var expectedUtilization = (double)expectedObservedMax / UInt24AsInt64.MaxValue;
+        status.Utilization.Should().BeApproximately(expectedUtilization, 1e-9);
 
         adapter.Invoking(x => x.Add(UInt24AsInt64.MaxValue + 1))
             .Should().Throw<DataTypeOverflowException>()
@@ -70,7 +72,7 @@ public sealed class ListMmfLongAdapterTests : IDisposable
             writer.Add(new Int40AsInt64(100));
         }
 
-        using var adapter = (ListMmfLongAdapter<Int40AsInt64>)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
+        using var adapter = (IListMmfLongAdapter<Int40AsInt64>)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
         var triggered = false;
         adapter.ConfigureUtilizationWarning(0.5, _ => triggered = true);
 
@@ -79,6 +81,28 @@ public sealed class ListMmfLongAdapterTests : IDisposable
         triggered.Should().BeTrue();
     }
 
+    [Fact]
+    public void OverflowSuggestion_UsesExistingRange_WhenNegativesPresent()
+    {
+        // Arrange: create a signed Int24 file with negative values
+        var path = GetPath("signed-int24-overflow-suggestion.mmf");
+        using (var writer = new ListMmf<Int24AsInt64>(path, DataType.Int24AsInt64, 3))
+        {
+            writer.Add(new Int24AsInt64(-1));
+            writer.Add(new Int24AsInt64(-100));
+            writer.Add(new Int24AsInt64(0));
+        }
+
+        using var adapter = (IListMmfLongAdapter<Int24AsInt64>)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
+
+        // Act: attempt to add a value that exceeds Int24 max on the positive side
+        var overflow = Int24AsInt64.MaxValue + 1; // positive overflow
+        var act = () => adapter.Add(overflow);
+
+        // Assert: suggestion should NOT be an unsigned type; it should suggest a signed upgrade (Int32 here)
+        act.Should().Throw<DataTypeOverflowException>()
+            .Which.SuggestedDataType.Should().Be(DataType.Int32);
+    }
     [Fact]
     public void OpenExistingListMmf_ReturnsOddTypedList()
     {

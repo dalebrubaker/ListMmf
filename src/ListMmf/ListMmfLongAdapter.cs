@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace BruSoftware.ListMmf;
 
-public sealed class ListMmfLongAdapter<T> : IListMmf<long>, IReadOnlyList64Mmf<long>
+public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
     where T : struct
 {
     private const int ChunkSize = 4096;
@@ -40,10 +40,10 @@ public sealed class ListMmfLongAdapter<T> : IListMmf<long>, IReadOnlyList64Mmf<l
         }
         _dataType = dataType;
         _seriesName = seriesName;
-        (_minValue, _maxValue) = SmallestInt64ListMmf.GetMinMaxValues(dataType);
+        (_minValue, _maxValue) = DataTypeUtils.GetMinMaxValues(dataType);
     }
 
-    public long Count => _list.Count;
+    public long Count => _list.Count; 
 
     public long Capacity
     {
@@ -341,9 +341,17 @@ public sealed class ListMmfLongAdapter<T> : IListMmf<long>, IReadOnlyList64Mmf<l
     {
         if (value < _minValue || value > _maxValue)
         {
-            var suggested = SmallestInt64ListMmf.GetSmallestInt64DataType(
-                Math.Min(value, _observedInitialized ? _observedMin : value),
-                Math.Max(value, _observedInitialized ? _observedMax : value));
+            // Include existing value range before suggesting an upgrade.
+            // If we haven't initialized the observed range yet, scan once to avoid
+            // suggesting an unsigned type when the file already contains negatives.
+            if (!_observedInitialized)
+            {
+                EnsureObservedRange();
+            }
+
+            var combinedMin = _observedInitialized ? Math.Min(value, _observedMin) : value;
+            var combinedMax = _observedInitialized ? Math.Max(value, _observedMax) : value;
+            var suggested = DataTypeUtils.GetSmallestInt64DataType(combinedMin, combinedMax);
             throw new DataTypeOverflowException(Path, _dataType, value, suggested, _minValue, _maxValue, _seriesName);
         }
     }

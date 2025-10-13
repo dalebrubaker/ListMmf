@@ -128,7 +128,10 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         {
             lock (_lock)
             {
-                _underlying.Capacity = value;
+                if (_underlying != null)
+                {
+                    _underlying.Capacity = value;
+                }
             }
         }
     }
@@ -170,16 +173,21 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
-            return _underlying.GetEnumerator();
+            if (_underlying == null)
+            {
+                yield break;
+            }
+            var enumerator = _underlying.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                yield return enumerator.Current;
+            }
         }
     }
 
     IEnumerator IEnumerable.GetEnumerator()
     {
-        lock (_lock)
-        {
-            return _underlying.GetEnumerator();
-        }
+        return GetEnumerator();
     }
 
     public long this[long index]
@@ -188,7 +196,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         {
             lock (_lock)
             {
-                if (_isDisposed)
+                if (_isDisposed || _underlying == null)
                 {
                     // Can happen during shutdown
                     return 0;
@@ -202,12 +210,12 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
-            if (_isDisposed)
+            if (_isDisposed || _underlying == null)
             {
                 return;
             }
             UpgradeIfRequired(value);
-            if (!_isDisposed)
+            if (!_isDisposed && _underlying != null)
             {
                 _underlying.Add(value);
             }
@@ -218,6 +226,10 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
+            if (_underlying == null)
+            {
+                return;
+            }
             var minValue = _underlying.MinValue;
             var maxValue = _underlying.MaxValue;
             switch (collection)
@@ -309,8 +321,15 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
+            if (_underlying == null)
+            {
+                return;
+            }
             UpgradeIfRequired(value);
-            _underlying.SetLast(value);
+            if (_underlying != null)
+            {
+                _underlying.SetLast(value);
+            }
         }
     }
 
@@ -318,7 +337,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
-            _underlying.Truncate(newCount);
+            _underlying?.Truncate(newCount);
         }
     }
 
@@ -345,7 +364,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
-            _underlying.TruncateBeginning(newCount, progress);
+            _underlying?.TruncateBeginning(newCount, progress);
         }
     }
 
@@ -364,7 +383,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
-            return _underlying.ReadUnchecked(index);
+            return _underlying?.ReadUnchecked(index) ?? 0;
         }
     }
 
@@ -372,6 +391,10 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
+            if (_underlying == null)
+            {
+                return ReadOnlySpan<long>.Empty;
+            }
             return _underlying.AsSpan(start, length);
         }
     }
@@ -380,6 +403,10 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         lock (_lock)
         {
+            if (_underlying == null)
+            {
+                return ReadOnlySpan<long>.Empty;
+            }
             var count = Count;
             if (start < 0 || start >= count)
             {
@@ -485,7 +512,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
                 return;
             }
 
-            var dataTypeNew = GetSmallestInt64DataType(minValueRequired, maxValueRequired);
+            var dataTypeNew = DataTypeUtils.GetSmallestInt64DataType(minValueRequired, maxValueRequired);
 
             SmallestInt64ListMmfOptimized.UpgradeOptimized(this, dataTypeNew, _name, _progress);
 
@@ -500,191 +527,39 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         var dataType = _dataTypeIfNewFile;
         if (_dataTypeIfNewFile == DataType.AnyStruct)
         {
-            dataType = GetSmallestInt64DataType(minValueRequired, maxValueRequired);
+            dataType = DataTypeUtils.GetSmallestInt64DataType(minValueRequired, maxValueRequired);
         }
         else
         {
-            var (minValue, maxValue) = GetMinMaxValues(_dataTypeIfNewFile);
+            var (minValue, maxValue) = DataTypeUtils.GetMinMaxValues(_dataTypeIfNewFile);
             if (minValueRequired < minValue || maxValueRequired > maxValue)
             {
-                dataType = GetSmallestInt64DataType(minValueRequired, maxValueRequired);
+                dataType = DataTypeUtils.GetSmallestInt64DataType(minValueRequired, maxValueRequired);
             }
         }
         _underlying = new Underlying(dataType, Path);
     }
 
+    /// <summary>
+    /// Gets the minimum and maximum values that can be stored in the specified DataType.
+    /// </summary>
+    /// <remarks>This method is deprecated. Use <see cref="DataTypeUtils.GetMinMaxValues"/> instead.</remarks>
+    [Obsolete("Use DataTypeUtils.GetMinMaxValues instead")]
     public static (long minValue, long maxValue) GetMinMaxValues(DataType dataType)
     {
-        switch (dataType)
-        {
-            case DataType.AnyStruct:
-                throw new NotSupportedException($"Unable to determine min/max values for {nameof(DataType)}.{dataType}");
-            case DataType.Bit:
-                return (0, 1);
-            case DataType.SByte:
-                return (SByte.MinValue, SByte.MaxValue);
-            case DataType.Byte:
-                return (Byte.MinValue, Byte.MaxValue);
-            case DataType.Int16:
-                return (Int16.MinValue, Int16.MaxValue);
-            case DataType.UInt16:
-                return (UInt16.MinValue, UInt16.MaxValue);
-            case DataType.Int32:
-                return (Int32.MinValue, Int32.MaxValue);
-            case DataType.UInt32:
-                return (UInt32.MinValue, UInt32.MaxValue);
-            case DataType.Int64:
-                return (Int64.MinValue, Int64.MaxValue);
-            case DataType.UInt64:
-                return (0, long.MaxValue);
-            case DataType.UnixSeconds:
-                return (int.MinValue, int.MaxValue);
-            case DataType.Single:
-            case DataType.Double:
-            case DataType.DateTime:
-                throw new NotSupportedException($"{nameof(SmallestInt64ListMmf)} does not support {nameof(DataType)}.{dataType}");
-            case DataType.Int24AsInt64:
-                return (Int24AsInt64.MinValue, Int24AsInt64.MaxValue);
-            case DataType.Int40AsInt64:
-                return (Int40AsInt64.MinValue, Int40AsInt64.MaxValue);
-            case DataType.Int48AsInt64:
-                return (Int48AsInt64.MinValue, Int48AsInt64.MaxValue);
-            case DataType.Int56AsInt64:
-                return (Int56AsInt64.MinValue, Int56AsInt64.MaxValue);
-            case DataType.UInt24AsInt64:
-                return (UInt24AsInt64.MinValue, UInt24AsInt64.MaxValue);
-            case DataType.UInt40AsInt64:
-                return (UInt40AsInt64.MinValue, UInt40AsInt64.MaxValue);
-            case DataType.UInt48AsInt64:
-                return (UInt48AsInt64.MinValue, UInt48AsInt64.MaxValue);
-            case DataType.UInt56AsInt64:
-                return (UInt56AsInt64.MinValue, UInt56AsInt64.MaxValue);
-            default:
-                throw new ArgumentOutOfRangeException(nameof(dataType), dataType, null);
-        }
+        return DataTypeUtils.GetMinMaxValues(dataType);
     }
 
+    /// <summary>
+    /// Determines the smallest integer DataType that can hold the specified range of values.
+    /// </summary>
+    /// <remarks>This method is deprecated. Use <see cref="DataTypeUtils.GetSmallestInt64DataType"/> instead.</remarks>
+    [Obsolete("Use DataTypeUtils.GetSmallestInt64DataType instead")]
     public static DataType GetSmallestInt64DataType(long minValue, long maxValue)
     {
-        if (minValue < 0)
-        {
-            // return signed class
-            if (maxValue <= SByte.MaxValue && minValue >= SByte.MinValue)
-            {
-                return DataType.SByte;
-            }
-            if (maxValue <= Int16.MaxValue && minValue >= Int16.MinValue)
-            {
-                return DataType.Int16;
-            }
-            if (maxValue <= Int24AsInt64.MaxValue && minValue >= Int24AsInt64.MinValue)
-            {
-                return DataType.Int24AsInt64;
-            }
-            if (maxValue <= Int32.MaxValue && minValue >= Int32.MinValue)
-            {
-                return DataType.Int32;
-            }
-            if (maxValue <= Int40AsInt64.MaxValue && minValue >= Int40AsInt64.MinValue)
-            {
-                return DataType.Int40AsInt64;
-            }
-            if (maxValue <= Int48AsInt64.MaxValue && minValue >= Int48AsInt64.MinValue)
-            {
-                return DataType.Int48AsInt64;
-            }
-            if (maxValue <= Int56AsInt64.MaxValue && minValue >= Int56AsInt64.MinValue)
-            {
-                return DataType.Int56AsInt64;
-            }
-            if (maxValue <= Int64.MaxValue && minValue >= Int64.MinValue)
-            {
-                return DataType.Int64;
-            }
-            throw new NotSupportedException($"Unexpected. minValue={minValue} maxValue={maxValue}");
-        }
-        // return unsigned class
-        if (maxValue == 0)
-        {
-            // minValue and maxValue are both 0. Don't even create a file.
-            return DataType.Bit;
-        }
-        if (maxValue <= 1)
-        {
-            // Can fit in BitArray
-            return DataType.Bit;
-        }
-        if (maxValue <= Byte.MaxValue)
-        {
-            return DataType.Byte;
-        }
-        if (maxValue <= UInt16.MaxValue)
-        {
-            return DataType.UInt16;
-        }
-        if (maxValue <= UInt24AsInt64.MaxValue)
-        {
-            return DataType.UInt24AsInt64;
-        }
-        if (maxValue <= UInt32.MaxValue)
-        {
-            return DataType.UInt32;
-        }
-        if (maxValue <= UInt40AsInt64.MaxValue)
-        {
-            return DataType.UInt40AsInt64;
-        }
-        if (maxValue <= UInt48AsInt64.MaxValue)
-        {
-            return DataType.UInt48AsInt64;
-        }
-        if (maxValue <= UInt56AsInt64.MaxValue)
-        {
-            return DataType.UInt56AsInt64;
-        }
-        if (maxValue <= Int64.MaxValue)
-        {
-            // Can fit in UInt64, but we can't go bigger than long because we're returning long, so just use long
-            return DataType.Int64;
-        }
-        throw new NotSupportedException($"Unexpected. minValue={minValue} maxValue={maxValue}");
+        return DataTypeUtils.GetSmallestInt64DataType(minValue, maxValue);
     }
 
-    public static bool IsSmallestInt64DataType(DataType dataType)
-    {
-        switch (dataType)
-        {
-            case DataType.AnyStruct:
-                return false;
-            case DataType.Bit:
-            case DataType.SByte:
-            case DataType.Byte:
-            case DataType.Int16:
-            case DataType.UInt16:
-            case DataType.Int32:
-            case DataType.UInt32:
-            case DataType.Int64:
-            case DataType.UInt64:
-                return true;
-            case DataType.UnixSeconds:
-                return true;
-            case DataType.Single:
-            case DataType.Double:
-            case DataType.DateTime:
-                return false;
-            case DataType.Int24AsInt64:
-            case DataType.Int40AsInt64:
-            case DataType.Int48AsInt64:
-            case DataType.Int56AsInt64:
-            case DataType.UInt24AsInt64:
-            case DataType.UInt40AsInt64:
-            case DataType.UInt48AsInt64:
-            case DataType.UInt56AsInt64:
-                return true;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(dataType), dataType, null);
-        }
-    }
 
     private static void OnMessage(string message)
     {
@@ -840,7 +715,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         public void Dispose()
         {
             _iListMmf?.Dispose();
-            _iListMmf = null;
+            _iListMmf = null!;
         }
 
         public long Count => _iListMmf?.Count ?? 0;
@@ -868,7 +743,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
             _iListMmf!.TruncateBeginning(newCount, progress);
         }
 
-        public string? Path => _iListMmf?.Path;
+        public string Path => _iListMmf?.Path ?? string.Empty;
         public int WidthBits => _iListMmf?.WidthBits ?? 0;
         public int Version => _iListMmf?.Version ?? 0;
         public DataType DataType => _iListMmf?.DataType ?? DataType.AnyStruct;

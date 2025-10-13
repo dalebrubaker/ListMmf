@@ -66,7 +66,7 @@ public static class SmallestInt64ListMmfOptimized
             }
 
             // Dispose the source underlying to release the file. We don't want to Dispose the SmallestInt64ListMmf itself
-            source._underlying.Dispose();
+            source._underlying?.Dispose();
 
             // Delete the old file
             File.Delete(path);

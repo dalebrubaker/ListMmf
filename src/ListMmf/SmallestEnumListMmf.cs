@@ -31,7 +31,7 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
                 maxValue = value;
             }
         }
-        var dataType = SmallestInt64ListMmf.GetSmallestInt64DataType(minValue, maxValue);
+        var dataType = DataTypeUtils.GetSmallestInt64DataType(minValue, maxValue);
         _smallestInt64ListMmf = new SmallestInt64ListMmf(dataType, path, capacity);
     }
 
