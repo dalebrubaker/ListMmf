@@ -130,6 +130,17 @@ A "smallest" file can start out at a default size (SmallestInt64ListMmf.WidthBit
 
 Many times floating-precision number can be handled internally as integers. For example S&P Futures have a tick size of 0.25, so the integer can be stored as the price divided by the tick size (being careful about the conversion). This approach provides all the inherent speed and accuracy benefits of integers compared to floating point numbers.
 
+Long-facing adapter
+-------------------
+
+`UtilsListMmf.OpenAsInt64(path, access)` exposes any numeric file (standard or odd-byte width) as an `IListMmf<long>` by creating a `ListMmf<T>` underneath and wrapping it in `ListMmfLongAdapter<T>`. The adapter:
+
+* Uses the new `Int64Conversion<T>` helpers to expand odd-byte structs (Int24/UInt24/Int40/…) into pooled `long` spans without per-call allocations.
+* Performs checked writes and throws `DataTypeOverflowException` with the suggested upgrade width instead of silently truncating.
+* Provides `GetDataTypeUtilization()` and `ConfigureUtilizationWarning()` so callers can log when the stored values approach the limits of the current `DataType`.
+
+This enables downstream services such as BruTrader to keep their APIs in terms of `long` while preserving the compact on-disk representation that SmallestInt created.
+
 Interesting References
 =
 

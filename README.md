@@ -155,6 +155,43 @@ Consume(span);
 
 These helpers work with `ListMmf<T>` writers and `IReadOnlyList64Mmf<T>` readers for all supported odd-byte types (24/40/48/56-bit, signed and unsigned). They expand values to `long` without per-element allocations and are ideal when you need repeated analysis passes. For one-off whole-file conversions, continue to use `ListMmfWidthConverter`.
 
+### Open any numeric file as `long`
+
+BruTrader and other downstream tools can now work purely with `long` values even when the on-disk representation uses odd-byte widths. The new factory returns an allocation-conscious adapter that exposes `IListMmf<long>` and `IReadOnlyList64Mmf<long>` while delegating storage to the original type.
+
+```csharp
+using BruSoftware.ListMmf;
+using System.IO.MemoryMappedFiles;
+
+// Inspect values from a UInt24-backed file without rewriting it
+using var bars = UtilsListMmf.OpenAsInt64("Closes.bt", MemoryMappedFileAccess.ReadWrite);
+
+// Zero-copy reads reuse an internal pooled buffer for odd-byte widths
+ReadOnlySpan<long> window = bars.AsSpan(start: bars.Count - 1_000, length: 1_000);
+
+// Checked writes throw DataTypeOverflowException when the value no longer fits
+try
+{
+    bars.Add(checked((long)1_000_000));
+}
+catch (DataTypeOverflowException ex)
+{
+    Console.WriteLine($"{ex.Message}\nUpgrade suggestion: {ex.SuggestedDataType}");
+}
+
+// Monitor capacity consumption (returns the larger of the positive/negative utilization ratios)
+var status = ((ListMmfLongAdapter<UInt24AsInt64>)bars).GetDataTypeUtilization();
+Console.WriteLine($"{status.Utilization:P1} of {status.AllowedMax:N0} range in use");
+
+// Optional: trigger a friendly warning when utilization crosses a threshold
+((ListMmfLongAdapter<UInt24AsInt64>)bars).ConfigureUtilizationWarning(0.90, info =>
+{
+    Console.WriteLine($"WARNING: {info.Utilization:P0} of {info.AllowedMax:N0} capacity consumed");
+});
+```
+
+`UtilsListMmf.OpenAsInt64` automatically maps every supported `DataType` (including the odd-byte Int24/UInt24/Int40/UInt40/... variants) to its concrete `ListMmf<T>` and wraps it in the high-performance adapter. Writes remain O(1) with pooled buffers, and the adapter throws `DataTypeOverflowException` with upgrade guidance instead of silently truncating.
+
 ## Advanced Features
 
 ### Read-Only Views

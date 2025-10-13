@@ -57,3 +57,9 @@ using (var source = new SmallestInt64ListMmf(dataTypeExisting, tmpPath, 0L, Memo
 - No data loss during interrupted upgrades
 - Automatic cleanup of temporary files
 
+### Companion Work: Long-facing adapter (COMPLETE)
+
+- ✅ Introduced `Int64Conversion<T>` helpers to expand odd-byte values into pooled `long` spans without boxing.
+- ✅ Added `ListMmfLongAdapter<T>` and `UtilsListMmf.OpenAsInt64` so callers can open any numeric file as `IListMmf<long>`.
+- ✅ Emitted `DataTypeOverflowException` with upgrade guidance and utilization reporting to surface friendly warnings upstream.
+
