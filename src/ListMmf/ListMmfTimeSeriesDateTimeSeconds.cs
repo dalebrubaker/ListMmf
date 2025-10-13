@@ -23,6 +23,13 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     private readonly Action<int, long, long> _throwIfEarlierThanPreviousTicksAction;
     private readonly TimeSeriesOrder _timeSeriesOrder;
 
+    // Search optimization fields
+    private bool? _isUniform;
+    private const double UniformityThreshold = 0.15; // 15% variance tolerance
+    private const int UniformitySampleSize = 20;
+    private const long InterpolationMinSize = 10000; // Minimum size to benefit from interpolation
+    private const long BinarySearchCutoff = 8; // Switch to binary when range is this small
+
     /// <summary>
     /// Open a Writer on path
     /// Each inheriting class MUST CALL ResetView() from their constructors in order to properly set their pointers in the header
@@ -595,37 +602,345 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     }
 
     /// <summary>
-    /// Search for a specific element.
-    /// If this time series does not contain the specified value, the method returns a negative integer.
-    /// You can apply the bitwise complement operator (~ in C#) to the negative result to produce an index.
-    /// If this index is equal to the size of this time series, there are no items larger than value in this time series.
-    /// Otherwise, it is the index of the first element that is larger than value.
-    /// Duplicate time series items are allowed.
-    /// If this time series contains more than one item equal to value, the method returns the index of only one of the occurrences,
-    /// and not necessarily the first one.
-    /// This method is an O(log n) operation, where n is the length of the section to search.
+    /// Detects if the timestamp data is uniformly distributed enough to benefit from interpolation search.
+    /// Caches the result for subsequent calls. Call this explicitly or let Auto strategy handle it.
     /// </summary>
-    /// <param name="value">The value to search for.</param>
-    /// <param name="index">The starting index for the search.</param>
-    /// <param name="length">The length of this array or the length of the section to search. The default long.MaxValue means to use Count</param>
-    /// <returns></returns>
-    public long BinarySearch(DateTime value, long index = 0, long length = long.MaxValue)
+    /// <returns>True if data appears uniformly distributed within the threshold tolerance</returns>
+    private bool IsDataUniform()
     {
-        if (length == long.MaxValue)
+        if (_isUniform.HasValue)
         {
-            length = Count - index;
+            return _isUniform.Value;
         }
+
+        var count = Count;
+        if (count < 100)
+        {
+            _isUniform = false;
+            return false;
+        }
+
+        // Sample at strategic points to check uniformity
+        var stride = count / UniformitySampleSize;
+        if (stride == 0)
+        {
+            _isUniform = false;
+            return false;
+        }
+
+        double sumDeviation = 0;
+        var firstValue = UnsafeRead(0);
+        var lastValue = UnsafeRead(count - 1);
+        var expectedDelta = (double)(lastValue - firstValue) / (count - 1);
+
+        if (expectedDelta == 0)
+        {
+            // All values are the same
+            _isUniform = false;
+            return false;
+        }
+
+        long prevIndex = 0;
+        var prevValue = firstValue;
+
+        for (var i = 1; i < UniformitySampleSize; i++)
+        {
+            var idx = i * stride;
+            var currValue = UnsafeRead(idx);
+            var actualDelta = (double)(currValue - prevValue) / (idx - prevIndex);
+            var deviation = Math.Abs((actualDelta - expectedDelta) / expectedDelta);
+            sumDeviation += deviation;
+            prevIndex = idx;
+            prevValue = currValue;
+        }
+
+        var avgDeviation = sumDeviation / (UniformitySampleSize - 1);
+        _isUniform = avgDeviation < UniformityThreshold;
+
+        return _isUniform.Value;
+    }
+
+    /// <summary>
+    /// Interpolation-based lower bound search - O(log log n) for uniform distributions.
+    /// Particularly effective for time series data like daily trades.
+    /// </summary>
+    private long InterpolationLowerBound(long first, long last, int valueSeconds)
+    {
+        var count = last - first;
+        if (count == 0)
+        {
+            return first;
+        }
+
+        // Quick boundary checks
+        var firstValue = UnsafeRead(first);
+        if (valueSeconds <= firstValue)
+        {
+            return first;
+        }
+
+        var lastValue = UnsafeRead(last - 1);
+        if (valueSeconds > lastValue)
+        {
+            return last;
+        }
+
+        long low = first;
+        long high = last - 1;
+
+        while (high - low > BinarySearchCutoff)
+        {
+            var lowValue = UnsafeRead(low);
+            var highValue = UnsafeRead(high);
+
+            // Guard against division by zero (duplicate values in range)
+            if (highValue == lowValue)
+            {
+                // Fall back to binary search for this range
+                return BinaryLowerBound(low, high + 1, valueSeconds);
+            }
+
+            // Interpolation formula with overflow protection
+            // Calculate using double to avoid 64-bit overflow when (valueSeconds-lowValue) and (high-low) are large
+            // pos ≈ low + (valueSeconds - lowValue) * (high - low) / (highValue - lowValue)
+            var denom = (double)(highValue - lowValue);
+            var frac = ((double)(valueSeconds - lowValue)) / denom;
+            var posD = (double)low + frac * (double)(high - low);
+            var pos = (long)posD;
+
+            // Clamp position to valid range (in case of rounding)
+            pos = Math.Max(low, Math.Min(high, pos));
+
+            var posValue = UnsafeRead(pos);
+
+            if (posValue < valueSeconds)
+            {
+                low = pos + 1;
+            }
+            else
+            {
+                high = pos;
+            }
+        }
+
+        // Finish with binary search for the last few elements (more cache-friendly)
+        return BinaryLowerBound(low, high + 1, valueSeconds);
+    }
+
+    /// <summary>
+    /// Standard binary search implementation of lower bound - O(log n).
+    /// Reliable for all data distributions.
+    /// </summary>
+    private long BinaryLowerBound(long first, long last, int valueSeconds)
+    {
+        long count = last - first;
+
+        while (count > 0)
+        {
+            var step = count / 2;
+            var i = first + step;
+            var arrayValue = UnsafeRead(i);
+
+            if (arrayValue < valueSeconds)
+            {
+                first = i + 1;
+                count -= step + 1;
+            }
+            else
+            {
+                count = step;
+            }
+        }
+
+        return first;
+    }
+
+    /// <summary>
+    /// Interpolation-based upper bound search - O(log log n) for uniform distributions.
+    /// </summary>
+    private long InterpolationUpperBound(long first, long last, int valueSeconds)
+    {
+        var count = last - first;
+        if (count == 0)
+        {
+            return first;
+        }
+
+        // Quick boundary checks
+        var firstValue = UnsafeRead(first);
+        if (valueSeconds < firstValue)
+        {
+            return first;
+        }
+
+        var lastValue = UnsafeRead(last - 1);
+        if (valueSeconds >= lastValue)
+        {
+            return last;
+        }
+
+        long low = first;
+        long high = last - 1;
+
+        while (high - low > BinarySearchCutoff)
+        {
+            var lowValue = UnsafeRead(low);
+            var highValue = UnsafeRead(high);
+
+            // Guard against division by zero
+            if (highValue == lowValue)
+            {
+                return BinaryUpperBound(low, high + 1, valueSeconds);
+            }
+
+            // Interpolation formula with overflow protection (see InterpolationLowerBound)
+            var denom = (double)(highValue - lowValue);
+            var frac = ((double)(valueSeconds - lowValue)) / denom;
+            var posD = (double)low + frac * (double)(high - low);
+            var pos = (long)posD;
+
+            // Clamp position
+            pos = Math.Max(low, Math.Min(high, pos));
+
+            var posValue = UnsafeRead(pos);
+
+            if (!(valueSeconds < posValue))
+            {
+                low = pos + 1;
+            }
+            else
+            {
+                high = pos;
+            }
+        }
+
+        return BinaryUpperBound(low, high + 1, valueSeconds);
+    }
+
+    /// <summary>
+    /// Standard binary search implementation of upper bound - O(log n).
+    /// </summary>
+    private long BinaryUpperBound(long first, long last, int valueSeconds)
+    {
+        long count = last - first;
+
+        while (count > 0)
+        {
+            var step = count / 2;
+            var i = first + step;
+            var arrayValue = UnsafeRead(i);
+
+            if (!(valueSeconds < arrayValue))
+            {
+                first = i + 1;
+                count -= step + 1;
+            }
+            else
+            {
+                count = step;
+            }
+        }
+
+        return first;
+    }
+
+    /// <summary>
+    /// Interpolation-based binary search - O(log log n) for uniform distributions.
+    /// </summary>
+    private long InterpolationBinarySearch(DateTime value, long index, long length)
+    {
+        if (length == 0)
+        {
+            return ~index;
+        }
+
         var valueSeconds = value.ToUnixSeconds();
+        var first = index;
+        var last = index + length;
+
+        // Quick boundary checks
+        var firstValue = UnsafeRead(first);
+        if (valueSeconds < firstValue)
+        {
+            return ~first;
+        }
+        if (valueSeconds == firstValue)
+        {
+            return first;
+        }
+
+        var lastValue = UnsafeRead(last - 1);
+        if (valueSeconds > lastValue)
+        {
+            return ~last;
+        }
+        if (valueSeconds == lastValue)
+        {
+            return last - 1;
+        }
+
+        long low = first;
+        long high = last - 1;
+
+        while (low <= high && high - low > BinarySearchCutoff)
+        {
+            var lowValue = UnsafeRead(low);
+            var highValue = UnsafeRead(high);
+
+            // Guard against division by zero
+            if (highValue == lowValue)
+            {
+                return valueSeconds == lowValue ? low : ~low;
+            }
+
+            // Interpolation formula with overflow protection (see InterpolationLowerBound)
+            var denom = (double)(highValue - lowValue);
+            var frac = ((double)(valueSeconds - lowValue)) / denom;
+            var posD = (double)low + frac * (double)(high - low);
+            var pos = (long)posD;
+
+            // Clamp position
+            pos = Math.Max(low, Math.Min(high, pos));
+
+            var posValue = UnsafeRead(pos);
+
+            if (posValue == valueSeconds)
+            {
+                return pos;
+            }
+
+            if (posValue < valueSeconds)
+            {
+                low = pos + 1;
+            }
+            else
+            {
+                high = pos - 1;
+            }
+        }
+
+        // Finish with standard binary search
+        return BinaryBinarySearch(valueSeconds, low, high - low + 1);
+    }
+
+    /// <summary>
+    /// Standard binary search - O(log n).
+    /// </summary>
+    private long BinaryBinarySearch(int valueSeconds, long index, long length)
+    {
         var lo = index;
         var hi = index + length - 1;
+
         while (lo <= hi)
         {
             var i = lo + ((hi - lo) >> 1);
             var arrayValue = UnsafeRead(i);
+
             if (arrayValue == valueSeconds)
             {
                 return i;
             }
+
             if (arrayValue < valueSeconds)
             {
                 lo = i + 1;
@@ -635,32 +950,78 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
                 hi = i - 1;
             }
         }
+
         return ~lo;
     }
 
     /// <summary>
-    /// Get the lower bound for value in the entire file
-    /// See https://en.cppreference.com/w/cpp/algorithm/lower_bound
+    /// Search for a specific element.
+    /// If this time series does not contain the specified value, the method returns a negative integer.
+    /// You can apply the bitwise complement operator (~ in C#) to the negative result to produce an index.
+    /// If this index is equal to the size of this time series, there are no items larger than value in this time series.
+    /// Otherwise, it is the index of the first element that is larger than value.
+    /// Duplicate time series items are allowed.
+    /// If this time series contains more than one item equal to value, the method returns the index of only one of the occurrences,
+    /// and not necessarily the first one.
+    /// This method is an O(log n) operation with Binary strategy, or O(log log n) with Interpolation strategy for uniform data.
     /// </summary>
-    /// <param name="value"></param>
-    /// <returns>the index of first element in file) that does not satisfy element less than value, or Count if no such element is found</returns>
-    public long LowerBound(DateTime value)
+    /// <param name="value">The value to search for.</param>
+    /// <param name="index">The starting index for the search.</param>
+    /// <param name="length">The length of this array or the length of the section to search. The default long.MaxValue means to use Count</param>
+    /// <param name="strategy">The search strategy to use. Default is Auto which detects uniformity and chooses the best approach.</param>
+    /// <returns></returns>
+    public long BinarySearch(DateTime value, long index = 0, long length = long.MaxValue, SearchStrategy strategy = SearchStrategy.Auto)
     {
-        return LowerBound(0, Count, value);
+        if (length == long.MaxValue)
+        {
+            length = Count - index;
+        }
+
+        // Determine strategy
+        var useInterpolation = strategy switch
+        {
+            SearchStrategy.Interpolation => true,
+            SearchStrategy.Binary => false,
+            SearchStrategy.Auto => length >= InterpolationMinSize && IsDataUniform(),
+            _ => false
+        };
+
+        if (useInterpolation)
+        {
+            return InterpolationBinarySearch(value, index, length);
+        }
+
+        var valueSeconds = value.ToUnixSeconds();
+        return BinaryBinarySearch(valueSeconds, index, length);
+    }
+
+    /// <summary>
+    /// Get the lower bound for value in the entire file.
+    /// See https://en.cppreference.com/w/cpp/algorithm/lower_bound
+    /// This method is O(log n) with Binary strategy, or O(log log n) with Interpolation strategy for uniform data.
+    /// </summary>
+    /// <param name="value">The value to search for</param>
+    /// <param name="strategy">The search strategy to use. Default is Auto which detects uniformity and chooses the best approach.</param>
+    /// <returns>the index of first element in file that does not satisfy element less than value, or Count if no such element is found</returns>
+    public long LowerBound(DateTime value, SearchStrategy strategy = SearchStrategy.Auto)
+    {
+        return LowerBound(0, Count, value, strategy);
     }
 
     /// <summary>
     /// Get the lower bound for value in the range from first to last.
     /// See https://en.cppreference.com/w/cpp/algorithm/lower_bound
+    /// This method is O(log n) with Binary strategy, or O(log log n) with Interpolation strategy for uniform data.
     /// </summary>
     /// <param name="first">This first index to search, must be 0 or higher</param>
     /// <param name="last">The index one higher than the highest index in the range (e.g. Count)</param>
-    /// <param name="value"></param>
+    /// <param name="value">The value to search for</param>
+    /// <param name="strategy">The search strategy to use. Default is Auto which detects uniformity and chooses the best approach.</param>
     /// <returns>
     /// the index of first element in the range [first, last) that does not satisfy element less than value, or last (Count) if no such element is
     /// found
     /// </returns>
-    public long LowerBound(long first, long last, DateTime value)
+    public long LowerBound(long first, long last, DateTime value, SearchStrategy strategy = SearchStrategy.Auto)
     {
         if (first < 0)
         {
@@ -671,46 +1032,51 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
         {
             throw new ArgumentException($"last={last:N0} must not be higher than {count:N0}", nameof(last));
         }
+
         var valueSeconds = value.ToUnixSeconds();
-        count = last - first;
-        while (count > 0)
+        var length = last - first;
+
+        // Determine strategy
+        var useInterpolation = strategy switch
         {
-            var step = count / 2;
-            var i = first + step;
-            var arrayValue = UnsafeRead(i);
-            if (arrayValue < valueSeconds)
-            {
-                first = ++i;
-                count -= step + 1;
-            }
-            else
-            {
-                count = step;
-            }
+            SearchStrategy.Interpolation => true,
+            SearchStrategy.Binary => false,
+            SearchStrategy.Auto => length >= InterpolationMinSize && IsDataUniform(),
+            _ => false
+        };
+
+        if (useInterpolation)
+        {
+            return InterpolationLowerBound(first, last, valueSeconds);
         }
-        return first;
+
+        return BinaryLowerBound(first, last, valueSeconds);
     }
 
     /// <summary>
-    /// Get the upper bound for value in the entire file
+    /// Get the upper bound for value in the entire file.
     /// See https://en.cppreference.com/w/cpp/algorithm/upper_bound
+    /// This method is O(log n) with Binary strategy, or O(log log n) with Interpolation strategy for uniform data.
     /// </summary>
-    /// <param name="value"></param>
+    /// <param name="value">The value to search for</param>
+    /// <param name="strategy">The search strategy to use. Default is Auto which detects uniformity and chooses the best approach.</param>
     /// <returns>the index of first element in the range [first, last) such that value is less than element, or last (Count) if no such element is found</returns>
-    public long UpperBound(DateTime value)
+    public long UpperBound(DateTime value, SearchStrategy strategy = SearchStrategy.Auto)
     {
-        return UpperBound(0, Count, value);
+        return UpperBound(0, Count, value, strategy);
     }
 
     /// <summary>
     /// Get the upper bound for value in the range from first to last.
     /// See https://en.cppreference.com/w/cpp/algorithm/upper_bound
+    /// This method is O(log n) with Binary strategy, or O(log log n) with Interpolation strategy for uniform data.
     /// </summary>
     /// <param name="first">This first index to search, must be 0 or higher</param>
     /// <param name="last">The index one higher than the highest index in the range (e.g. Count)</param>
-    /// <param name="value"></param>
+    /// <param name="value">The value to search for</param>
+    /// <param name="strategy">The search strategy to use. Default is Auto which detects uniformity and chooses the best approach.</param>
     /// <returns>the index of first element in the range [first, last) such that value is less than element, or last (Count) if no such element is found</returns>
-    public long UpperBound(long first, long last, DateTime value)
+    public long UpperBound(long first, long last, DateTime value, SearchStrategy strategy = SearchStrategy.Auto)
     {
         if (first < 0)
         {
@@ -721,24 +1087,25 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
         {
             throw new ArgumentException($"last={last:N0} must not be higher than {count:N0}", nameof(last));
         }
+
         var valueSeconds = value.ToUnixSeconds();
-        count = last - first;
-        while (count > 0)
+        var length = last - first;
+
+        // Determine strategy
+        var useInterpolation = strategy switch
         {
-            var step = count / 2;
-            var i = first + step;
-            var arrayValue = UnsafeRead(i);
-            if (!(valueSeconds < arrayValue))
-            {
-                first = ++i;
-                count -= step + 1;
-            }
-            else
-            {
-                count = step;
-            }
+            SearchStrategy.Interpolation => true,
+            SearchStrategy.Binary => false,
+            SearchStrategy.Auto => length >= InterpolationMinSize && IsDataUniform(),
+            _ => false
+        };
+
+        if (useInterpolation)
+        {
+            return InterpolationUpperBound(first, last, valueSeconds);
         }
-        return first;
+
+        return BinaryUpperBound(first, last, valueSeconds);
     }
 
     /// <summary>

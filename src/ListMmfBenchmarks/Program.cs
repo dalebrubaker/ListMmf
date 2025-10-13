@@ -33,7 +33,8 @@ internal static class Program
             //var summary = BenchmarkRunner.Run<BenchmarkTwoViews>();
 
             //DebugAppend();
-            BenchmarkReadOnlyLists();
+            // Run only the odd vs standard width benchmark by default
+            BenchmarkOddVsStandard();
         }
 
         Console.ReadLine();
@@ -45,7 +46,20 @@ internal static class Program
         var summary = BenchmarkRunner.Run<BenchmarkLowerBound>();
     }
 
-    private static void BenchmarkReadOnlyLists()
+    // private static void BenchmarkReadOnlyLists()
+    // {
+    //     // ReSharper disable once JoinDeclarationAndInitializer
+    //     DebugInProcessConfig config;
+    // #if DEBUG
+    //     config = new DebugInProcessConfig();
+    // #else
+    //     config = null;
+    // #endif
+    //
+    //     var summaryW = BenchmarkRunner.Run<BenchmarkReadOnlyList64View>(config);
+    // }
+
+    private static void BenchmarkOddVsStandard()
     {
         // ReSharper disable once JoinDeclarationAndInitializer
         DebugInProcessConfig config;
@@ -55,7 +69,7 @@ internal static class Program
         config = null;
 #endif
 
-        var summaryW = BenchmarkRunner.Run<BenchmarkReadOnlyList64View>(config);
+        var summary = BenchmarkRunner.Run<BenchmarkOddByteVsStandard>(config);
     }
 
 //     private static void DebugAppend()

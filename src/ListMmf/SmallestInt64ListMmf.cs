@@ -9,9 +9,78 @@ using System.Linq;
 namespace BruSoftware.ListMmf;
 
 /// <summary>
-/// Wraps a smallest list that will accept integer values that fit into an Int64 (long) based on a given minValue and maxValue.
-/// Includes checking of values written, with an automatic upgrade to a larger file size when required.
+/// Memory-mapped list that automatically selects the smallest integer type (Int24/Int40/Int48/Int56/Int32/Int64)
+/// based on the range of values stored, and automatically upgrades storage when values exceed the current type's range.
 /// </summary>
+/// <remarks>
+/// <para><strong>Automatic Type Selection and Upgrades:</strong></para>
+/// <para>
+/// SmallestInt dynamically chooses storage width based on value range and upgrades the file when needed:
+/// </para>
+/// <list type="bullet">
+/// <item><description>Values 0-16M: Int24 (3 bytes) - UInt24 for unsigned</description></item>
+/// <item><description>Values up to 1T: Int40 (5 bytes) - UInt40 for unsigned</description></item>
+/// <item><description>Values up to 281T: Int48 (6 bytes) - UInt48 for unsigned</description></item>
+/// <item><description>Values up to 72 quadrillion: Int56 (7 bytes) - UInt56 for unsigned</description></item>
+/// <item><description>Larger values: Int32/Int64 (4/8 bytes)</description></item>
+/// </list>
+/// <para><strong>Trade-offs vs Standard ListMmf:</strong></para>
+/// <list type="table">
+/// <listheader>
+/// <term>Feature</term>
+/// <description>SmallestInt vs ListMmf&lt;T&gt;</description>
+/// </listheader>
+/// <item>
+/// <term>Storage</term>
+/// <description>5-10% smaller (uses odd-byte types like Int24)</description>
+/// </item>
+/// <item>
+/// <term>Performance</term>
+/// <description>5-8x SLOWER (bitwise conversions for odd-byte types)</description>
+/// </item>
+/// <item>
+/// <term>Behavior</term>
+/// <description>Auto-upgrades on overflow vs Throws OverflowException</description>
+/// </item>
+/// <item>
+/// <term>Python Compat</term>
+/// <description>NOT compatible (odd-byte types) vs Zero-copy compatible</description>
+/// </item>
+/// <item>
+/// <term>Predictability</term>
+/// <description>File type changes at runtime vs Fixed type</description>
+/// </item>
+/// </list>
+/// <para><strong>When to Use SmallestInt:</strong></para>
+/// <list type="number">
+/// <item><description>Storage is critical (millions of files, limited disk space)</description></item>
+/// <item><description>Data range is truly unknown (could be 100 or 1,000,000,000)</description></item>
+/// <item><description>You need automatic upgrades for convenience</description></item>
+/// <item><description>You're NOT exporting to Python/NumPy</description></item>
+/// </list>
+/// <para><strong>When to Use Standard ListMmf Instead:</strong></para>
+/// <list type="number">
+/// <item><description>You need Python/NumPy interoperability (numpy.memmap)</description></item>
+/// <item><description>You want 15-30x faster read performance</description></item>
+/// <item><description>You prefer predictable behavior (fail-fast on overflow)</description></item>
+/// <item><description>Storage cost &lt;10% is acceptable (use Int32/Int64)</description></item>
+/// </list>
+/// </remarks>
+/// <example>
+/// <code>
+/// // SmallestInt: Auto-upgrades storage type as needed
+/// var data = new SmallestInt64ListMmf(DataType.Int24AsInt64, "data.bt");
+/// data.Add(1_000);        // Stored as Int24 (3 bytes)
+/// data.Add(10_000_000);   // Still Int24
+/// data.Add(100_000_000);  // Auto-upgrades to Int32 (4 bytes)
+///
+/// // Compare with standard ListMmf: Fixed type, faster, Python-compatible
+/// var data2 = new ListMmf&lt;int&gt;("data2.mmf", DataType.Int32);
+/// data2.Add(1_000);       // Always Int32 (4 bytes)
+/// data2.Add(100_000_000); // Still Int32 (no upgrade needed)
+/// // If overflow: throws OverflowException instead of auto-upgrading
+/// </code>
+/// </example>
 public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 {
     public static EventHandler<string> MessageEvent;

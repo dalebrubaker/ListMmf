@@ -7,8 +7,62 @@ namespace BruSoftware.ListMmf;
 
 /// <summary>
 /// Provides a memory-mapped implementation of <see cref="IListMmf{T}"/> for unmanaged value types.
+/// Data is persisted to disk and can be shared between processes with zero-copy access via spans.
 /// </summary>
-/// <typeparam name="T">The value type stored in the list.</typeparam>
+/// <typeparam name="T">The unmanaged value type stored in the list (e.g., int, long, double, or custom structs).</typeparam>
+/// <remarks>
+/// <para><strong>Type Safety and Overflow Protection:</strong></para>
+/// <para>
+/// ListMmf stores values using the exact type T specified. Unlike SmallestInt64ListMmf, it does NOT automatically
+/// upgrade storage when values exceed the type's range. Instead, overflow protection occurs at the caller's cast site:
+/// </para>
+/// <list type="bullet">
+/// <item><description>Use <c>checked</c> casts to throw OverflowException on overflow: <c>list.Add(checked((short)value))</c></description></item>
+/// <item><description>Avoid <c>unchecked</c> casts which silently truncate and corrupt data</description></item>
+/// <item><description>Choose appropriately-sized types upfront (prefer int/long over short/byte for production data)</description></item>
+/// </list>
+/// <para><strong>Best Practices:</strong></para>
+/// <list type="number">
+/// <item><description><strong>Production Data:</strong> Use Int32 (±2.1B) or Int64 (±9.2E+18) to avoid overflow risks</description></item>
+/// <item><description><strong>Python Interop:</strong> Standard types (int, long, float, double) enable zero-copy via numpy.memmap</description></item>
+/// <item><description><strong>Handle OverflowException:</strong> Catch and log when unexpected data ranges occur</description></item>
+/// <item><description><strong>Thread Safety:</strong> Single writer, multiple readers supported (lock-free for ≤8 byte types)</description></item>
+/// </list>
+/// <para><strong>Performance:</strong></para>
+/// <para>
+/// Memory-mapped files provide near-memory-speed access for cached pages, automatic OS paging for large datasets,
+/// and zero-copy data sharing between processes. Use AsSpan() for bulk operations without allocations.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code>
+/// // Create a price list (Int32 supports up to $21M per share if storing cents)
+/// using var prices = new ListMmf&lt;int&gt;("prices.mmf", DataType.Int32);
+///
+/// // Add values safely
+/// prices.Add(10050);  // $100.50 in cents
+///
+/// // Handle realtime data with overflow protection
+/// int realtimePrice = GetPriceFromFeed();
+/// try
+/// {
+///     prices.Add(realtimePrice);
+/// }
+/// catch (OverflowException)
+/// {
+///     Logger.Error($"Price {realtimePrice} exceeds Int32 range");
+///     // Handle gracefully - alert operators, use fallback, etc.
+/// }
+///
+/// // Zero-copy bulk access
+/// ReadOnlySpan&lt;int&gt; lastHour = prices.AsSpan(prices.Count - 3600, 3600);
+/// int average = CalculateAverage(lastHour);
+///
+/// // Share with another process
+/// using var reader = new ListMmf&lt;int&gt;("prices.mmf", DataType.Int32);
+/// Console.WriteLine($"Shared data: {reader.Count} prices");
+/// </code>
+/// </example>
 public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf<T> where T : struct
 {
     /// <summary>

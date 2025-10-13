@@ -10,7 +10,8 @@ High-performance memory-mapped file implementation of .NET's `IList<T>` interfac
 - **Large Data Support**: Handle datasets larger than available RAM
 - **64-bit Optimized**: Lock-free operations for 8-byte and smaller data types
 - **Persistent Storage**: Data persists across application restarts
-- **Time Series Support**: Specialized implementations for DateTime-based series
+- **Time Series Support**: Specialized implementations for DateTime-based series with advanced search strategies
+- **Intelligent Search Algorithms**: Auto-detects data distribution for optimal search (3-5x faster on uniform data)
 - **Variable-Width Storage**: Optimized storage for different integer sizes (Int24, Int40, Int48, Int56)
 - **Bit Array Support**: Efficient storage for boolean arrays
 - **SourceLink Enabled**: Debug into library source directly from consuming applications
@@ -28,8 +29,9 @@ dotnet add package BruSoftware.ListMmf
 ```csharp
 using BruSoftware.ListMmf;
 
-// Create or open a memory-mapped list
-var list = new ListMmf<int>("shared-list");
+// Create or open a memory-mapped list with an appropriate type
+// Use Int32 for most integers (±2.1B range), Int64 for larger/unknown ranges
+var list = new ListMmf<int>("shared-list.mmf", DataType.Int32);
 
 // Use it like any IList<T>
 list.Add(42);
@@ -41,9 +43,32 @@ int value = list[0];  // 42
 list[1] = 200;        // Update value
 
 // Share between processes - another process can open the same list
-var sharedList = new ListMmf<int>("shared-list");
+using var sharedList = new ListMmf<int>("shared-list.mmf", DataType.Int32);
 Console.WriteLine(sharedList.Count);  // 3
 ```
+
+### ⚠️ Type Safety and Overflow Protection
+
+**ListMmf uses fixed types and does NOT auto-upgrade like SmallestInt.** Choose appropriate types upfront:
+
+```csharp
+// ✅ GOOD: Use Int32 or Int64 for production data
+var prices = new ListMmf<int>("prices.mmf", DataType.Int32);     // ±2.1B range
+var volumes = new ListMmf<long>("volumes.mmf", DataType.Int64);  // ±9.2E+18 range
+
+// ❌ AVOID: Small types risk overflow and data corruption
+var prices = new ListMmf<short>("prices.mmf", DataType.Int16);   // Only ±32K!
+
+// If you must cast, use checked() to throw on overflow instead of corrupting data:
+int realtimeValue = GetFromDataFeed();
+try {
+    prices.Add(checked((short)realtimeValue));  // Throws OverflowException if too large
+} catch (OverflowException) {
+    Logger.Error($"Value {realtimeValue} exceeds type range");
+}
+```
+
+**📘 See [BEST-PRACTICES.md](BEST-PRACTICES.md) for detailed guidance on type selection and overflow handling.**
 
 ### Zero-Copy Span Access
 
@@ -57,7 +82,7 @@ Console.WriteLine(recent[0]);
 > Legacy callers can continue to use `GetRange` but the method now forwards to `AsSpan` internally.
 > Prefer the `AsSpan` overloads for new code so the zero-copy semantics are obvious at call sites.
 
-### Time Series Data
+### Time Series Data with Advanced Search Strategies
 
 ```csharp
 // Optimized for DateTime series with ordered data
@@ -66,20 +91,39 @@ var timeSeries = new ListMmfTimeSeriesDateTime("market-data");
 // Add timestamps
 timeSeries.Add(DateTime.UtcNow);
 
-// Efficient binary search for time-based lookups
-var index = timeSeries.BinarySearch(targetDateTime);
+// Efficient search with automatic strategy selection (NEW in v1.0.8)
+// Auto-detects if data is uniformly distributed and uses optimal algorithm
+var index = timeSeries.LowerBound(targetDateTime);  // 3-5x faster on uniform data
+
+// Or choose explicit strategy for backtesting/analytics:
+var index = timeSeries.LowerBound(targetDateTime, SearchStrategy.Interpolation);  // O(log log n)
+var index = timeSeries.LowerBound(targetDateTime, SearchStrategy.Binary);         // O(log n)
+var index = timeSeries.LowerBound(targetDateTime, SearchStrategy.Auto);           // Smart auto-detect
 ```
 
-### Variable-Width Integer Storage
+**Search Performance** (for 2M-2B items):
+- **Binary**: ~21-31 comparisons (standard)
+- **Interpolation**: ~5-7 comparisons (3-5x faster on uniform data like daily trades)
+- **Auto**: Automatically chooses best strategy with one-time detection
+
+See [SEARCH-STRATEGIES.md](SEARCH-STRATEGIES.md) for detailed usage guide.
+
+### Variable-Width Integer Storage (SmallestInt)
 
 ```csharp
-// Automatically uses the smallest storage size based on your data range
-var optimizedList = new SmallestInt64ListMmfOptimized("optimized-data");
+// SmallestInt automatically uses the smallest storage size based on your data range
+var optimizedList = new SmallestInt64ListMmf(DataType.Int24AsInt64, "optimized-data.bt");
 
-// Stores using minimal bytes (Int24, Int40, etc.) based on value range
-optimizedList.Add(1000);      // Might use Int24
-optimizedList.Add(10000000);  // Might upgrade to Int40
+// Stores using minimal bytes (Int24, Int40, etc.) and auto-upgrades when needed
+optimizedList.Add(1000);      // Stored as Int24 (3 bytes)
+optimizedList.Add(10000000);  // Auto-upgrades to Int32 (4 bytes)
 ```
+
+**When to use SmallestInt vs standard ListMmf:**
+- **SmallestInt**: Saves storage (5-10%) but 5-8x slower, auto-upgrades, not Python-compatible
+- **ListMmf**: Fast, Python-compatible, predictable, but no auto-upgrade (throws on overflow)
+
+See [BEST-PRACTICES.md](BEST-PRACTICES.md#when-to-use-listmmf-vs-smallestint) for detailed comparison.
 
 ## Advanced Features
 
@@ -153,10 +197,23 @@ Data files are stored with metadata headers containing:
 
 ## Thread Safety
 
-- Thread-safe for multiple readers
-- Single writer with multiple readers supported
-- No locking for 8-byte atomic operations
-- Larger structures may require external synchronization
+- **Multiple Readers**: Thread-safe, no locking needed
+- **Single Writer + Multiple Readers**: Supported pattern
+- **Atomic Operations**: Lock-free for ≤8 byte types (int, long, double)
+- **Multiple Writers**: Not supported (throws IOException on second writer)
+- **Large Structures**: Types >8 bytes may require external synchronization
+
+**Example:**
+```csharp
+// Process A: Writer (exclusive)
+using var writer = new ListMmf<long>("shared.mmf", DataType.Int64);
+writer.Add(12345);
+
+// Process B & C: Readers (concurrent, lock-free)
+using var reader1 = new ListMmf<long>("shared.mmf", DataType.Int64);
+using var reader2 = new ListMmf<long>("shared.mmf", DataType.Int64);
+Console.WriteLine(reader1.Count + reader2.Count);  // Safe
+```
 
 ## Requirements
 
