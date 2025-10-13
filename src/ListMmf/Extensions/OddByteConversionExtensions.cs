@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Buffers;
 
@@ -223,7 +224,8 @@ public static class OddByteConversionExtensions
     {
         for (var i = 0; i < destination.Length; i++)
         {
-            destination[i] = source[i];
+            // Use dynamic to allow implicit conversion operator to resolve at runtime
+            destination[i] = (dynamic)source[i]!;
         }
     }
 
