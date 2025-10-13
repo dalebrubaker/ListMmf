@@ -180,61 +180,85 @@ public static class UtilsListMmf
         {
             return new SmallestInt64ListMmf(dataType, path);
         }
-        IListMmf result;
-        switch (dataType)
+        return dataType switch
         {
-            case DataType.AnyStruct:
-                throw new ListMmfException("Unable to determine data type for empty file.");
-            case DataType.Bit:
-                result = new ListMmfBitArray(path);
-                break;
-            case DataType.SByte:
-                result = new ListMmf<sbyte>(path, dataType);
-                break;
-            case DataType.Byte:
-                result = new ListMmf<byte>(path, dataType);
-                break;
-            case DataType.Int16:
-                result = new ListMmf<short>(path, dataType);
-                break;
-            case DataType.UInt16:
-                result = new ListMmf<ushort>(path, dataType);
-                break;
-            case DataType.Int32:
-                result = new ListMmf<int>(path, dataType);
-                break;
-            case DataType.UInt32:
-                result = new ListMmf<uint>(path, dataType);
-                break;
-            case DataType.Int64:
-                result = new ListMmf<long>(path, dataType);
-                break;
-            case DataType.UInt64:
-                result = new ListMmf<ulong>(path, dataType);
-                break;
-            case DataType.Single:
-                result = new ListMmf<float>(path, dataType);
-                break;
-            case DataType.Double:
-                result = new ListMmf<double>(path, dataType);
-                break;
-            case DataType.DateTime:
-                result = new ListMmf<DateTime>(path, dataType);
-                break;
-            case DataType.UnixSeconds:
-            case DataType.Int24AsInt64:
-            case DataType.Int40AsInt64:
-            case DataType.Int48AsInt64:
-            case DataType.Int56AsInt64:
-            case DataType.UInt24AsInt64:
-            case DataType.UInt40AsInt64:
-            case DataType.UInt48AsInt64:
-            case DataType.UInt56AsInt64:
-                throw new ListMmfException("Not supported except SmallestInt");
-            default:
-                throw new ArgumentOutOfRangeException();
+            DataType.AnyStruct => throw new ListMmfException("Unable to determine data type for empty file."),
+            DataType.Bit => new ListMmfBitArray(path),
+            DataType.SByte => new ListMmf<sbyte>(path, dataType),
+            DataType.Byte => new ListMmf<byte>(path, dataType),
+            DataType.Int16 => new ListMmf<short>(path, dataType),
+            DataType.UInt16 => new ListMmf<ushort>(path, dataType),
+            DataType.Int32 => new ListMmf<int>(path, dataType),
+            DataType.UInt32 => new ListMmf<uint>(path, dataType),
+            DataType.Int64 => new ListMmf<long>(path, dataType),
+            DataType.UInt64 => new ListMmf<ulong>(path, dataType),
+            DataType.Single => new ListMmf<float>(path, dataType),
+            DataType.Double => new ListMmf<double>(path, dataType),
+            DataType.DateTime => new ListMmf<DateTime>(path, dataType),
+            DataType.Int24AsInt64 => new ListMmf<Int24AsInt64>(path, dataType),
+            DataType.Int40AsInt64 => new ListMmf<Int40AsInt64>(path, dataType),
+            DataType.Int48AsInt64 => new ListMmf<Int48AsInt64>(path, dataType),
+            DataType.Int56AsInt64 => new ListMmf<Int56AsInt64>(path, dataType),
+            DataType.UInt24AsInt64 => new ListMmf<UInt24AsInt64>(path, dataType),
+            DataType.UInt40AsInt64 => new ListMmf<UInt40AsInt64>(path, dataType),
+            DataType.UInt48AsInt64 => new ListMmf<UInt48AsInt64>(path, dataType),
+            DataType.UInt56AsInt64 => new ListMmf<UInt56AsInt64>(path, dataType),
+            DataType.UnixSeconds => throw new ListMmfException("UnixSeconds is not supported by OpenExistingListMmf."),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+    }
+
+    public static IListMmf<long> OpenAsInt64(string path, MemoryMappedFileAccess access, string? seriesName = null)
+    {
+        var (_, dataType, _) = GetHeaderInfo(path);
+        if (dataType == DataType.AnyStruct)
+        {
+            throw new ListMmfException("Unable to determine data type for empty file.");
         }
-        return result;
+
+        if (dataType is DataType.Bit)
+        {
+            throw new ListMmfException("OpenAsInt64 does not support DataType.Bit.");
+        }
+
+        if (dataType is DataType.UnixSeconds)
+        {
+            throw new ListMmfException("OpenAsInt64 does not support DataType.UnixSeconds.");
+        }
+
+        return dataType switch
+        {
+            DataType.SByte => CreateAdapter(new ListMmf<sbyte>(path, dataType), dataType, seriesName),
+            DataType.Byte => CreateAdapter(new ListMmf<byte>(path, dataType), dataType, seriesName),
+            DataType.Int16 => CreateAdapter(new ListMmf<short>(path, dataType), dataType, seriesName),
+            DataType.UInt16 => CreateAdapter(new ListMmf<ushort>(path, dataType), dataType, seriesName),
+            DataType.Int32 => CreateAdapter(new ListMmf<int>(path, dataType), dataType, seriesName),
+            DataType.UInt32 => CreateAdapter(new ListMmf<uint>(path, dataType), dataType, seriesName),
+            DataType.Int64 => CreateAdapter(new ListMmf<long>(path, dataType), dataType, seriesName),
+            DataType.Int24AsInt64 => CreateAdapter(new ListMmf<Int24AsInt64>(path, dataType), dataType, seriesName),
+            DataType.Int40AsInt64 => CreateAdapter(new ListMmf<Int40AsInt64>(path, dataType), dataType, seriesName),
+            DataType.Int48AsInt64 => CreateAdapter(new ListMmf<Int48AsInt64>(path, dataType), dataType, seriesName),
+            DataType.Int56AsInt64 => CreateAdapter(new ListMmf<Int56AsInt64>(path, dataType), dataType, seriesName),
+            DataType.UInt24AsInt64 => CreateAdapter(new ListMmf<UInt24AsInt64>(path, dataType), dataType, seriesName),
+            DataType.UInt40AsInt64 => CreateAdapter(new ListMmf<UInt40AsInt64>(path, dataType), dataType, seriesName),
+            DataType.UInt48AsInt64 => CreateAdapter(new ListMmf<UInt48AsInt64>(path, dataType), dataType, seriesName),
+            DataType.UInt56AsInt64 => CreateAdapter(new ListMmf<UInt56AsInt64>(path, dataType), dataType, seriesName),
+            _ => throw new ListMmfException($"OpenAsInt64 does not support {dataType}.")
+        };
+    }
+
+    private static IListMmf<long> CreateAdapter<T>(ListMmf<T> list, DataType dataType, string? seriesName)
+        where T : struct
+    {
+        try
+        {
+            return new ListMmfLongAdapter<T>(list, dataType, seriesName);
+        }
+        catch
+        {
+            list.Dispose();
+            throw;
+        }
     }
 
     public static void OpenAndTruncateExistingListMmf(string path, bool useSmallestInt, long newCount)

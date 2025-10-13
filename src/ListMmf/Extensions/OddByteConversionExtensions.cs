@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Buffers;
 
@@ -6,226 +5,54 @@ namespace BruSoftware.ListMmf;
 
 public static class OddByteConversionExtensions
 {
-    public static void CopyAsInt64(this ListMmf<UInt24AsInt64> list, long start, Span<long> destination)
+    public static void CopyAsInt64<T>(this ListMmf<T> list, long start, Span<long> destination)
+        where T : struct
     {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this ListMmf<Int24AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this ListMmf<UInt40AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this ListMmf<Int40AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this ListMmf<UInt48AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this ListMmf<Int48AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this ListMmf<UInt56AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this ListMmf<Int56AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this IReadOnlyList64Mmf<UInt24AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this IReadOnlyList64Mmf<Int24AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this IReadOnlyList64Mmf<UInt40AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this IReadOnlyList64Mmf<Int40AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this IReadOnlyList64Mmf<UInt48AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this IReadOnlyList64Mmf<Int48AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this IReadOnlyList64Mmf<UInt56AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static void CopyAsInt64(this IReadOnlyList64Mmf<Int56AsInt64> list, long start, Span<long> destination)
-    {
-        CopyAsInt64Internal(list, start, destination);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this ListMmf<UInt24AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this ListMmf<Int24AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this ListMmf<UInt40AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this ListMmf<Int40AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this ListMmf<UInt48AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this ListMmf<Int48AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this ListMmf<UInt56AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this ListMmf<Int56AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this IReadOnlyList64Mmf<UInt24AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this IReadOnlyList64Mmf<Int24AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this IReadOnlyList64Mmf<UInt40AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this IReadOnlyList64Mmf<Int40AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this IReadOnlyList64Mmf<UInt48AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this IReadOnlyList64Mmf<Int48AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this IReadOnlyList64Mmf<UInt56AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    public static IMemoryOwner<long> RentAsInt64(this IReadOnlyList64Mmf<Int56AsInt64> list, long start, int length)
-    {
-        return RentAsInt64Internal(list, start, length);
-    }
-
-    private static void CopyAsInt64Internal<TOdd>(ListMmf<TOdd> list, long start, Span<long> destination)
-        where TOdd : struct
-    {
+        if (list == null) throw new ArgumentNullException(nameof(list));
         ValidateRange(list.Count, start, destination.Length, nameof(destination));
         var source = list.AsSpan(start, destination.Length);
-        ConvertRange(source, destination);
+        Int64Conversion<T>.CopyToInt64(source, destination);
     }
 
-    private static void CopyAsInt64Internal<TOdd>(IReadOnlyList64Mmf<TOdd> list, long start, Span<long> destination)
-        where TOdd : struct
+    public static void CopyAsInt64<T>(this IReadOnlyList64Mmf<T> list, long start, Span<long> destination)
+        where T : struct
     {
+        if (list == null) throw new ArgumentNullException(nameof(list));
         ValidateRange(list.Count, start, destination.Length, nameof(destination));
-        var source = list.GetRange(start, destination.Length);
-        ConvertRange(source, destination);
+        var source = list.AsSpan(start, destination.Length);
+        Int64Conversion<T>.CopyToInt64(source, destination);
     }
 
-    private static IMemoryOwner<long> RentAsInt64Internal<TOdd>(ListMmf<TOdd> list, long start, int length)
-        where TOdd : struct
+    public static IMemoryOwner<long> RentAsInt64<T>(this ListMmf<T> list, long start, int length)
+        where T : struct
     {
-        ValidateRange(list.Count, start, length, nameof(length));
+        if (list == null) throw new ArgumentNullException(nameof(list));
+        return RentInternal(list.Count, start, length, () => list.AsSpan(start, length));
+    }
+
+    public static IMemoryOwner<long> RentAsInt64<T>(this IReadOnlyList64Mmf<T> list, long start, int length)
+        where T : struct
+    {
+        if (list == null) throw new ArgumentNullException(nameof(list));
+        return RentInternal(list.Count, start, length, () => list.AsSpan(start, length));
+    }
+
+    private static IMemoryOwner<long> RentInternal<T>(long count, long start, int length, Func<ReadOnlySpan<T>> sourceFactory)
+        where T : struct
+    {
+        ValidateRange(count, start, length, nameof(length));
         var owner = MemoryPool<long>.Shared.Rent(length);
         try
         {
-            var span = owner.Memory.Span;
-            var slice = span.Slice(0, length);
-            CopyAsInt64Internal(list, start, slice);
+            var span = owner.Memory.Span.Slice(0, length);
+            var source = sourceFactory();
+            Int64Conversion<T>.CopyToInt64(source, span);
             return new SlicedMemoryOwner<long>(owner, length);
         }
         catch
         {
             owner.Dispose();
             throw;
-        }
-    }
-
-    private static IMemoryOwner<long> RentAsInt64Internal<TOdd>(IReadOnlyList64Mmf<TOdd> list, long start, int length)
-        where TOdd : struct
-    {
-        ValidateRange(list.Count, start, length, nameof(length));
-        var owner = MemoryPool<long>.Shared.Rent(length);
-        try
-        {
-            var span = owner.Memory.Span;
-            var slice = span.Slice(0, length);
-            CopyAsInt64Internal(list, start, slice);
-            return new SlicedMemoryOwner<long>(owner, length);
-        }
-        catch
-        {
-            owner.Dispose();
-            throw;
-        }
-    }
-
-    private static void ConvertRange<TOdd>(ReadOnlySpan<TOdd> source, Span<long> destination)
-    {
-        for (var i = 0; i < destination.Length; i++)
-        {
-            // Use dynamic to allow implicit conversion operator to resolve at runtime
-            destination[i] = (dynamic)source[i]!;
         }
     }
 

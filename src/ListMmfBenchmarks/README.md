@@ -94,6 +94,8 @@ var mmfTimestamps = new ListMmfTimeSeriesDateTimeSeconds(filePath, TimeSeriesOrd
 var index = mmfTimestamps.LowerBound(searchTime); // Direct memory access
 ```
 
+> **Note**: Odd-byte integer files can now be opened through `UtilsListMmf.OpenAsInt64`, which uses pooled conversions (`Int64Conversion<T>`) and the new `ListMmfLongAdapter<T>` to keep the benchmarked zero-allocation characteristics intact while exposing a `long` API to callers.
+
 ### File I/O (Cross-platform)
 ```csharp
 // Binary search with individual file seeks
