@@ -154,6 +154,22 @@ public interface IReadOnlyList64Mmf<T> : IReadOnlyList64<T>
 }
 ```
 
+### Odd-byte to Int64 conversion extensions
+
+Bulk conversion helpers avoid intermediate allocations when expanding the 24/40/48/56-bit structs to 64-bit integers:
+
+```csharp
+using var list = new ListMmf<UInt24AsInt64>("prices.u24.mmf", DataType.UInt24AsInt64);
+
+var buffer = GC.AllocateUninitializedArray<long>(4_096);
+list.CopyAsInt64(0, buffer);
+
+using var owner = list.RentAsInt64(start: 0, length: 4_096);
+ReadOnlySpan<long> window = owner.Memory.Span;
+```
+
+Use `CopyAsInt64` when you manage the destination span (stack, array, or pooled buffer). Use `RentAsInt64` for temporary pooled storage—the returned `IMemoryOwner<long>` exposes only the requested length while reusing the shared `MemoryPool<long>` under the hood.
+
 ## Usage Examples
 
 ### Basic List Operations
