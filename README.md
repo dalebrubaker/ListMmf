@@ -180,11 +180,11 @@ catch (DataTypeOverflowException ex)
 }
 
 // Monitor capacity consumption (returns the larger of the positive/negative utilization ratios)
-var status = ((ListMmfLongAdapter<UInt24AsInt64>)bars).GetDataTypeUtilization();
+var status = ((IListMmfLongAdapter)bars).GetDataTypeUtilization();
 Console.WriteLine($"{status.Utilization:P1} of {status.AllowedMax:N0} range in use");
 
 // Optional: trigger a friendly warning when utilization crosses a threshold
-((ListMmfLongAdapter<UInt24AsInt64>)bars).ConfigureUtilizationWarning(0.90, info =>
+((IListMmfLongAdapter)bars).ConfigureUtilizationWarning(0.90, info =>
 {
     Console.WriteLine($"WARNING: {info.Utilization:P0} of {info.AllowedMax:N0} capacity consumed");
 });

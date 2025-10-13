@@ -186,6 +186,19 @@ public class BenchmarkOddByteVsStandard
     }
 
     [Benchmark]
+    public long Read_Odd_UInt24_Adapter_AsSpan_Sum()
+    {
+        using var adapter = (IListMmfLongAdapter)UtilsListMmf.OpenAsInt64(_odd24Path, System.IO.MemoryMappedFiles.MemoryMappedFileAccess.ReadWrite);
+        long sum = 0;
+        for (var p = 0; p < Passes; p++)
+        {
+            var span = adapter.AsSpan(0, (int)adapter.Count); // uses pooled buffer + Int64Conversion
+            for (var i = 0; i < span.Length; i++) sum += span[i];
+        }
+        return sum;
+    }
+
+    [Benchmark]
     public long Read_Std_UInt64_AsSpan_Sum()
     {
         using var list = new ListMmf<ulong>(_stdU64Path, DataType.UInt64);
@@ -219,6 +232,19 @@ public class BenchmarkOddByteVsStandard
         for (var p = 0; p < Passes; p++)
         {
             var span = smallest.AsSpan(0, (int)smallest.Count);
+            for (var i = 0; i < span.Length; i++) sum += span[i];
+        }
+        return sum;
+    }
+
+    [Benchmark]
+    public long Read_Odd_UInt40_Adapter_AsSpan_Sum()
+    {
+        using var adapter = (IListMmfLongAdapter)UtilsListMmf.OpenAsInt64(_odd40Path, System.IO.MemoryMappedFiles.MemoryMappedFileAccess.ReadWrite);
+        long sum = 0;
+        for (var p = 0; p < Passes; p++)
+        {
+            var span = adapter.AsSpan(0, (int)adapter.Count);
             for (var i = 0; i < span.Length; i++) sum += span[i];
         }
         return sum;
@@ -267,6 +293,21 @@ public class BenchmarkOddByteVsStandard
         {
             var idx = rng.Next(0, (int)smallest.Count);
             sum += smallest[idx];
+        }
+        return sum;
+    }
+
+    [Benchmark]
+    public long Random_Odd_UInt24_Adapter_Indexer_Sum()
+    {
+        using var adapter = (IListMmfLongAdapter)UtilsListMmf.OpenAsInt64(_odd24Path, System.IO.MemoryMappedFiles.MemoryMappedFileAccess.ReadWrite);
+        var rng = new Random(1);
+        long sum = 0;
+        var ops = Math.Min(RandomOps, (int)adapter.Count);
+        for (var i = 0; i < ops; i++)
+        {
+            var idx = rng.Next(0, (int)adapter.Count);
+            sum += adapter[idx];
         }
         return sum;
     }

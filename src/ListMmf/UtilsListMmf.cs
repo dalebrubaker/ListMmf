@@ -252,7 +252,7 @@ public static class UtilsListMmf
     {
         try
         {
-            return new ListMmfLongAdapter<T>(list, dataType, seriesName);
+            return ListMmfLongAdapter.Create(list, dataType, seriesName);
         }
         catch
         {

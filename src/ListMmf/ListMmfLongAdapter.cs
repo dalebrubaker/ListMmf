@@ -2,18 +2,15 @@ using System;
 using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace BruSoftware.ListMmf;
 
-public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
-    where T : struct
+public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf<long>
 {
     private const int ChunkSize = 4096;
 
-    private readonly IListMmf<T> _list;
-    private readonly IReadOnlyList64Mmf<T> _readOnly;
+    private readonly IAdapterCore _core;
     private readonly DataType _dataType;
     private readonly string? _seriesName;
     private readonly long _minValue;
@@ -30,48 +27,57 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
     private bool _warningTriggered;
     private Action<DataTypeUtilizationStatus>? _warningCallback;
 
-    public ListMmfLongAdapter(IListMmf<T> list, DataType dataType, string? seriesName = null)
+    public static ListMmfLongAdapter Create<T>(IListMmf<T> list, DataType dataType, string? seriesName = null)
+        where T : struct
     {
-        _list = list ?? throw new ArgumentNullException(nameof(list));
-        _readOnly = list as IReadOnlyList64Mmf<T> ?? throw new ArgumentException("List must implement IReadOnlyList64Mmf<T>", nameof(list));
+        if (list == null) throw new ArgumentNullException(nameof(list));
+        var readOnly = list as IReadOnlyList64Mmf<T> ?? throw new ArgumentException("List must implement IReadOnlyList64Mmf<T>", nameof(list));
+
         if (!Int64Conversion<T>.IsSupported)
         {
             throw new NotSupportedException($"Type {typeof(T)} is not supported for ListMmfLongAdapter.");
         }
+
+        var core = new AdapterCore<T>(list, readOnly);
+        return new ListMmfLongAdapter(core, dataType, seriesName);
+    }
+
+    private ListMmfLongAdapter(IAdapterCore core, DataType dataType, string? seriesName)
+    {
+        _core = core;
         _dataType = dataType;
         _seriesName = seriesName;
         (_minValue, _maxValue) = DataTypeUtils.GetMinMaxValues(dataType);
     }
 
-    public long Count => _list.Count; 
+    public long Count => _core.Count;
 
     public long Capacity
     {
-        get => _list.Capacity;
-        set => _list.Capacity = value;
+        get => _core.Capacity;
+        set => _core.Capacity = value;
     }
 
-    public string Path => _list.Path;
+    public string Path => _core.Path;
 
-    public int WidthBits => _list.WidthBits;
+    public int WidthBits => _core.WidthBits;
 
-    public int Version => _list.Version;
+    public int Version => _core.Version;
 
-    public DataType DataType => _list.DataType;
+    public DataType DataType => _core.DataType;
 
-    public bool IsResetPointersDisallowed => _list.IsResetPointersDisallowed;
+    public bool IsResetPointersDisallowed => _core.IsResetPointersDisallowed;
 
     public long this[long index]
     {
         get
         {
             EnsureNotDisposed();
-            if (index < 0 || index >= _list.Count)
+            if (index < 0 || index >= _core.Count)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
-            var value = _readOnly[index];
-            return Int64Conversion<T>.ToInt64(value);
+            return _core.ReadUnchecked(index);
         }
     }
 
@@ -79,8 +85,7 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
     {
         EnsureNotDisposed();
         EnsureWithinRange(value);
-        var converted = Int64Conversion<T>.FromInt64(value);
-        _list.Add(converted);
+        _core.Add(value);
         UpdateObservedRange(value);
         MaybeFireWarning();
     }
@@ -149,8 +154,7 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
     {
         EnsureNotDisposed();
         EnsureWithinRange(value);
-        var converted = Int64Conversion<T>.FromInt64(value);
-        _list.SetLast(converted);
+        _core.SetLast(value);
         UpdateObservedRange(value);
         MaybeFireWarning();
     }
@@ -158,20 +162,20 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
     public void Truncate(long newCount)
     {
         EnsureNotDisposed();
-        _list.Truncate(newCount);
+        _core.Truncate(newCount);
         InvalidateObservedRange();
     }
 
     public void DisallowResetPointers()
     {
         EnsureNotDisposed();
-        _list.DisallowResetPointers();
+        _core.DisallowResetPointers();
     }
 
     public void TruncateBeginning(long newCount, IProgress<long>? progress = null)
     {
         EnsureNotDisposed();
-        _list.TruncateBeginning(newCount, progress);
+        _core.TruncateBeginning(newCount, progress);
         InvalidateObservedRange();
     }
 
@@ -192,7 +196,7 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
             }
         }
 
-        _list.Dispose();
+        _core.Dispose();
     }
 
     public IEnumerator<long> GetEnumerator()
@@ -200,7 +204,7 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
         EnsureNotDisposed();
         for (long i = 0; i < Count; i++)
         {
-            yield return Int64Conversion<T>.ToInt64(_readOnly.ReadUnchecked(i));
+            yield return _core.ReadUnchecked(i);
         }
     }
 
@@ -212,26 +216,25 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
     public long ReadUnchecked(long index)
     {
         EnsureNotDisposed();
-        var value = _readOnly.ReadUnchecked(index);
-        return Int64Conversion<T>.ToInt64(value);
+        return _core.ReadUnchecked(index);
     }
 
     public ReadOnlySpan<long> AsSpan(long start, int length)
     {
         EnsureNotDisposed();
-        ValidateRange(_list.Count, start, length, nameof(length));
+        ValidateRange(_core.Count, start, length, nameof(length));
 
-        if (typeof(T) == typeof(long) && _readOnly is IReadOnlyList64Mmf<long> longList)
+        // Try fast path for long
+        if (_core.TryGetLongSpan(start, length, out var fastPath))
         {
-            return longList.AsSpan(start, length);
+            return fastPath;
         }
 
         lock (_bufferGate)
         {
             EnsureBufferCapacity(length);
             var destination = _scratchBuffer!.AsSpan(0, length);
-            var source = _readOnly.AsSpan(start, length);
-            Int64Conversion<T>.CopyToInt64(source, destination);
+            _core.CopyToLongSpan(start, length, destination);
             return destination;
         }
     }
@@ -239,7 +242,7 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
     public ReadOnlySpan<long> AsSpan(long start)
     {
         EnsureNotDisposed();
-        var remaining = _list.Count - start;
+        var remaining = _core.Count - start;
         if (remaining > int.MaxValue)
         {
             throw new ListMmfOnlyInt32SupportedException(remaining);
@@ -290,34 +293,13 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
             return;
         }
 
-        var typedBuffer = ArrayPool<T>.Shared.Rent(values.Length);
-        try
+        // Validate all values first
+        for (var i = 0; i < values.Length; i++)
         {
-            var typedSpan = typedBuffer.AsSpan(0, values.Length);
-            for (var i = 0; i < values.Length; i++)
-            {
-                var value = values[i];
-                EnsureWithinRange(value);
-                typedSpan[i] = Int64Conversion<T>.FromInt64(value);
-            }
-
-            if (_list is ListMmf<T> concrete)
-            {
-                concrete.AddRange(typedSpan);
-            }
-            else
-            {
-                for (var i = 0; i < typedSpan.Length; i++)
-                {
-                    _list.Add(typedSpan[i]);
-                }
-            }
-        }
-        finally
-        {
-            ArrayPool<T>.Shared.Return(typedBuffer);
+            EnsureWithinRange(values[i]);
         }
 
+        _core.AddRange(values);
         UpdateObservedRange(values);
         MaybeFireWarning();
     }
@@ -380,8 +362,7 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
             while (remaining > 0)
             {
                 var length = (int)Math.Min(remaining, span.Length);
-                var source = _readOnly.AsSpan(offset, length);
-                Int64Conversion<T>.CopyToInt64(source, span[..length]);
+                _core.CopyToLongSpan(offset, length, span[..length]);
                 UpdateObservedRange(span[..length]);
                 offset += length;
                 remaining -= length;
@@ -466,17 +447,139 @@ public sealed class ListMmfLongAdapter<T> : IListMmfLongAdapter<T>
     {
         if (_disposed)
         {
-            throw new ObjectDisposedException(nameof(ListMmfLongAdapter<T>));
+            throw new ObjectDisposedException(nameof(ListMmfLongAdapter));
         }
     }
 
-    public readonly struct DataTypeUtilizationStatus(double utilization, long observedMin, long observedMax, long allowedMin, long allowedMax, long count)
+    // Internal interface to abstract over the generic type
+    private interface IAdapterCore : IDisposable
     {
-        public double Utilization { get; } = utilization;
-        public long ObservedMin { get; } = observedMin;
-        public long ObservedMax { get; } = observedMax;
-        public long AllowedMin { get; } = allowedMin;
-        public long AllowedMax { get; } = allowedMax;
-        public long Count { get; } = count;
+        long Count { get; }
+        long Capacity { get; set; }
+        string Path { get; }
+        int WidthBits { get; }
+        int Version { get; }
+        DataType DataType { get; }
+        bool IsResetPointersDisallowed { get; }
+
+        long ReadUnchecked(long index);
+        void Add(long value);
+        void AddRange(ReadOnlySpan<long> values);
+        void SetLast(long value);
+        void Truncate(long newCount);
+        void DisallowResetPointers();
+        void TruncateBeginning(long newCount, IProgress<long>? progress);
+
+        bool TryGetLongSpan(long start, int length, out ReadOnlySpan<long> span);
+        void CopyToLongSpan(long start, int length, Span<long> destination);
+    }
+
+    private sealed class AdapterCore<T> : IAdapterCore where T : struct
+    {
+        private readonly IListMmf<T> _list;
+        private readonly IReadOnlyList64Mmf<T> _readOnly;
+
+        public AdapterCore(IListMmf<T> list, IReadOnlyList64Mmf<T> readOnly)
+        {
+            _list = list;
+            _readOnly = readOnly;
+        }
+
+        public long Count => _list.Count;
+        public long Capacity
+        {
+            get => _list.Capacity;
+            set => _list.Capacity = value;
+        }
+        public string Path => _list.Path;
+        public int WidthBits => _list.WidthBits;
+        public int Version => _list.Version;
+        public DataType DataType => _list.DataType;
+        public bool IsResetPointersDisallowed => _list.IsResetPointersDisallowed;
+
+        public long ReadUnchecked(long index)
+        {
+            var value = _readOnly.ReadUnchecked(index);
+            return Int64Conversion<T>.ToInt64(value);
+        }
+
+        public void Add(long value)
+        {
+            var converted = Int64Conversion<T>.FromInt64(value);
+            _list.Add(converted);
+        }
+
+        public void AddRange(ReadOnlySpan<long> values)
+        {
+            var typedBuffer = ArrayPool<T>.Shared.Rent(values.Length);
+            try
+            {
+                var typedSpan = typedBuffer.AsSpan(0, values.Length);
+                for (var i = 0; i < values.Length; i++)
+                {
+                    typedSpan[i] = Int64Conversion<T>.FromInt64(values[i]);
+                }
+
+                if (_list is ListMmf<T> concrete)
+                {
+                    concrete.AddRange(typedSpan);
+                }
+                else
+                {
+                    for (var i = 0; i < typedSpan.Length; i++)
+                    {
+                        _list.Add(typedSpan[i]);
+                    }
+                }
+            }
+            finally
+            {
+                ArrayPool<T>.Shared.Return(typedBuffer);
+            }
+        }
+
+        public void SetLast(long value)
+        {
+            var converted = Int64Conversion<T>.FromInt64(value);
+            _list.SetLast(converted);
+        }
+
+        public void Truncate(long newCount)
+        {
+            _list.Truncate(newCount);
+        }
+
+        public void DisallowResetPointers()
+        {
+            _list.DisallowResetPointers();
+        }
+
+        public void TruncateBeginning(long newCount, IProgress<long>? progress)
+        {
+            _list.TruncateBeginning(newCount, progress);
+        }
+
+        public bool TryGetLongSpan(long start, int length, out ReadOnlySpan<long> span)
+        {
+            // Fast path for long
+            if (typeof(T) == typeof(long) && _readOnly is IReadOnlyList64Mmf<long> longList)
+            {
+                span = longList.AsSpan(start, length);
+                return true;
+            }
+            span = default;
+            return false;
+        }
+
+        public void CopyToLongSpan(long start, int length, Span<long> destination)
+        {
+            var source = _readOnly.AsSpan(start, length);
+            Int64Conversion<T>.CopyToInt64(source, destination);
+        }
+
+        public void Dispose()
+        {
+            _list.Dispose();
+        }
     }
 }

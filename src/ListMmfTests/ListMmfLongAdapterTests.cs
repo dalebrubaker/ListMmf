@@ -41,7 +41,7 @@ public sealed class ListMmfLongAdapterTests : IDisposable
             }
         }
 
-        using var adapter = (IListMmfLongAdapter<UInt24AsInt64>)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
+        using var adapter = (IListMmfLongAdapter)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
         adapter.Count.Should().Be(initialValues.Length);
         adapter.AsSpan(0, initialValues.Length).ToArray().Should().Equal(initialValues);
 
@@ -72,7 +72,7 @@ public sealed class ListMmfLongAdapterTests : IDisposable
             writer.Add(new Int40AsInt64(100));
         }
 
-        using var adapter = (IListMmfLongAdapter<Int40AsInt64>)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
+        using var adapter = (IListMmfLongAdapter)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
         var triggered = false;
         adapter.ConfigureUtilizationWarning(0.5, _ => triggered = true);
 
@@ -93,7 +93,7 @@ public sealed class ListMmfLongAdapterTests : IDisposable
             writer.Add(new Int24AsInt64(0));
         }
 
-        using var adapter = (IListMmfLongAdapter<Int24AsInt64>)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
+        using var adapter = (IListMmfLongAdapter)UtilsListMmf.OpenAsInt64(path, MemoryMappedFileAccess.ReadWrite);
 
         // Act: attempt to add a value that exceeds Int24 max on the positive side
         var overflow = Int24AsInt64.MaxValue + 1; // positive overflow

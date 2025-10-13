@@ -7,9 +7,7 @@ namespace BruSoftware.ListMmf;
 /// Represents an adapter that wraps a memory-mapped list of any supported numeric type
 /// and exposes it as a list of long values with data type utilization monitoring.
 /// </summary>
-/// <typeparam name="T">The underlying storage type (must be a supported numeric struct type).</typeparam>
-public interface IListMmfLongAdapter<T> : IListMmf<long>
-    where T : struct
+public interface IListMmfLongAdapter : IListMmf<long>
 {
     /// <summary>
     /// Provides zero-copy access to a range of elements as a span.
@@ -26,7 +24,7 @@ public interface IListMmfLongAdapter<T> : IListMmf<long>
     /// This method scans the entire list if the observed range has not been initialized.
     /// </summary>
     /// <returns>A status object containing utilization ratio and observed/allowed ranges.</returns>
-    ListMmfLongAdapter<T>.DataTypeUtilizationStatus GetDataTypeUtilization();
+    DataTypeUtilizationStatus GetDataTypeUtilization();
 
     /// <summary>
     /// Configures a warning callback that fires once when utilization exceeds the specified threshold.
@@ -36,5 +34,18 @@ public interface IListMmfLongAdapter<T> : IListMmf<long>
     /// <param name="callback">The callback to invoke when the threshold is exceeded.</param>
     /// <exception cref="ArgumentOutOfRangeException">If threshold is not between 0 and 1.</exception>
     /// <exception cref="ArgumentNullException">If callback is null.</exception>
-    void ConfigureUtilizationWarning(double threshold, Action<ListMmfLongAdapter<T>.DataTypeUtilizationStatus> callback);
+    void ConfigureUtilizationWarning(double threshold, Action<DataTypeUtilizationStatus> callback);
+}
+
+/// <summary>
+/// Contains data type utilization statistics.
+/// </summary>
+public readonly struct DataTypeUtilizationStatus(double utilization, long observedMin, long observedMax, long allowedMin, long allowedMax, long count)
+{
+    public double Utilization { get; } = utilization;
+    public long ObservedMin { get; } = observedMin;
+    public long ObservedMax { get; } = observedMax;
+    public long AllowedMin { get; } = allowedMin;
+    public long AllowedMax { get; } = allowedMax;
+    public long Count { get; } = count;
 }
