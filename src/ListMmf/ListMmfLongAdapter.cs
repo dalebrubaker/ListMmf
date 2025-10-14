@@ -199,6 +199,11 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
         _core.Dispose();
     }
 
+    public override string ToString()
+    {
+        return $"{Count:N0} of {DataType} at {Path}";
+    }
+
     public IEnumerator<long> GetEnumerator()
     {
         EnsureNotDisposed();

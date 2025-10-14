@@ -745,10 +745,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <returns></returns>
     public override string ToString()
     {
-        // Accessing Count in the debugger ToString() can crash the debugger. Use GetInfo() for that.
         var result = _accessName;
 #if DEBUG
-        result += $" {InstanceId}";
+        result += $" {InstanceId} {Count:N0}";
 #endif
         return result;
     }
