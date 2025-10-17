@@ -13,7 +13,10 @@ namespace BruSoftware.ListMmf;
 
 /// <summary>
 /// This is the class from which inheritors should derive, NOT ListMmf which exposes more public methods than necessary
-/// MemoryMappedFileAccess is ALWAYS MemoryMappedFileAccess.ReadWrite. ReadOnly access is not supported. Multi-thread access is not supported. 
+/// Supports both ReadWrite (default) and Read access modes.
+/// - ReadWrite mode: Acquires exclusive lock, no concurrent writers allowed
+/// - Read mode: No locks acquired, multiple readers allowed, FileShare.ReadWrite
+/// Multi-thread access is not supported within a single instance.
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
@@ -57,8 +60,13 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     protected long _capacity;
 
     private FileStream? _fileStream;
-    private readonly ExclusiveFileLock _exclusiveFileLock;
+    private readonly ExclusiveFileLock? _exclusiveFileLock;
     private Func<long> _funcGetCount;
+
+    /// <summary>
+    /// True if opened in read-only mode (no locks, FileShare.ReadWrite)
+    /// </summary>
+    public bool IsReadOnly { get; }
 
     protected bool _isDisposed;
 
@@ -110,18 +118,23 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// This ctor is used only by derived classes, to pass along parentHeaderBytes
     /// Each inheriting class MUST CALL ResetView() from their constructors in order to properly set their pointers in the header
     /// </summary>
-    /// <param name="path">The path to open ReadWrite</param>
+    /// <param name="path">The path to open ReadWrite or Read</param>
     /// <param name="capacityItems">
     /// The number of items to initialize the list.
     /// If 0, will be set to some default amount for a new file. Is ignored for an existing one.
+    /// Ignored in read-only mode.
     /// </param>
     /// <param name="parentHeaderBytes"></param>
+    /// <param name="logger"></param>
+    /// <param name="isReadOnly">If true, opens in read-only mode with no locks and FileShare.ReadWrite</param>
     /// <exception cref="ListMmfException"></exception>
     private readonly ILogger _logger;
 
-    protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes, ILogger? logger = null) : base(path)
+    protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes, ILogger? logger = null, bool isReadOnly = false) : base(path)
     {
         _logger = logger ?? NullLogger.Instance;
+        IsReadOnly = isReadOnly;
+
         if (parentHeaderBytes % 8 != 0)
             // Not sure this is a necessary limitation
             throw new ListMmfException($"{nameof(parentHeaderBytes)} is required to be a multiple of 8 bytes.");
@@ -130,37 +143,52 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             throw new PlatformNotSupportedException("Requires a 64-bit process (x64 or ARM64).");
         _width = Unsafe.SizeOf<T>();
         _funcGetCount = GetCountWriter;
-        _accessName = "Writer " + path;
+        _accessName = (isReadOnly ? "Reader " : "Writer ") + path;
         Path = path;
         _parentHeaderBytes = parentHeaderBytes;
 
         // We want to write at least 1 page
         var fi = new FileInfo(path);
         long capacityBytes;
-        if (fi.Exists)
+
+        if (isReadOnly)
         {
-            // use the existing file length
+            // Read-only mode: file must already exist
+            if (!fi.Exists)
+                throw new FileNotFoundException($"Cannot open '{path}' in read-only mode: file does not exist.", path);
+
+            // Open file in read-only mode with shared access (no lock)
+            _fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             capacityBytes = 0; // 0 means the entire file
+            _exclusiveFileLock = null; // No lock for read-only
         }
         else
         {
-            // The file doesn't exist
-            if (!Directory.Exists(fi.DirectoryName))
-                if (fi.DirectoryName != null)
-                    Directory.CreateDirectory(fi.DirectoryName);
+            // Write mode: acquire exclusive lock
+            if (fi.Exists)
+            {
+                // use the existing file length
+                capacityBytes = 0; // 0 means the entire file
+            }
+            else
+            {
+                // The file doesn't exist
+                if (!Directory.Exists(fi.DirectoryName))
+                    if (fi.DirectoryName != null)
+                        Directory.CreateDirectory(fi.DirectoryName);
 
-            capacityBytes = CapacityItemsToBytes(capacityItems); // rounds up to PageSize, so we don't write off the end
-        }
+                capacityBytes = CapacityItemsToBytes(capacityItems); // rounds up to PageSize, so we don't write off the end
+            }
 
-        // Acquire lock before creating MMF (can't await in unsafe context)
-        try
-        { 
-            // We only allow MemoryMappedFileAccess.ReadWrite, in order to void thread locks. Multi-threaded access is not supported
-            _exclusiveFileLock = ExclusiveFileLock.AcquireAsync(Path, alsoLockDataFile: true).GetAwaiter().GetResult();
-        }
-        catch (TimeoutException ex)
-        {
-            throw new IOException($"Cannot open '{Path}' for writing. The file is already open by another writer.", ex);
+            // Acquire lock before creating MMF (can't await in unsafe context)
+            try
+            {
+                _exclusiveFileLock = ExclusiveFileLock.AcquireAsync(Path, alsoLockDataFile: true).GetAwaiter().GetResult();
+            }
+            catch (TimeoutException ex)
+            {
+                throw new IOException($"Cannot open '{Path}' for writing. The file is already open by another writer.", ex);
+            }
         }
 
         CreateMmf(capacityBytes);
@@ -201,12 +229,16 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     public long Count
     {
         get => _funcGetCount.Invoke(); // Returns 0 if disposed
-        protected set =>
+        protected set
+        {
+            if (IsReadOnly)
+                throw new NotSupportedException("Cannot set Count in read-only mode");
             // if (value > _capacity)
             // {
             //     throw new ListMmfException($"Attempt to set Count={value} which must be <= _capacity={_capacity}");
             // }
             Unsafe.Write(_ptrCount, value);
+        }
     }
 
     /// <summary>
@@ -298,12 +330,16 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         try
         {
-            _fileStream = _exclusiveFileLock.DataFileStream;
+            if (!IsReadOnly)
+            {
+                _fileStream = _exclusiveFileLock!.DataFileStream;
 
-            if (_fileStream.Length == 0 && capacityBytes <= 0)
-                _fileStream.SetLength(PageSize); // We want to write at least 1 page
+                if (_fileStream.Length == 0 && capacityBytes <= 0)
+                    _fileStream.SetLength(PageSize); // We want to write at least 1 page
+            }
 
-            _mmf = MemoryMappedFile.CreateFromFile(_fileStream, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
+            var access = IsReadOnly ? MemoryMappedFileAccess.Read : MemoryMappedFileAccess.ReadWrite;
+            _mmf = MemoryMappedFile.CreateFromFile(_fileStream!, null, capacityBytes, access,
                 HandleInheritability.None, true);
         }
         catch (IOException)
@@ -395,8 +431,8 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// </summary>
     public void TrimExcess()
     {
-        // Skip trimming if ResetPointers is disallowed
-        if (_isResetPointersDisallowed) return;
+        // Skip trimming if ResetPointers is disallowed or in read-only mode
+        if (_isResetPointersDisallowed || IsReadOnly) return;
 
         var threshold = (long)(Capacity * 0.9);
         if (Count < threshold) Capacity = Count;
@@ -410,8 +446,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         // Release pointer before disposing the view
         ReleasePointerIfAcquired();
         _view?.Dispose();
-        _view = _mmf?.CreateViewAccessor(0, 0, MemoryMappedFileAccess.ReadWrite);
-        if (_fileStream!.Length != CapacityBytes)
+        var access = IsReadOnly ? MemoryMappedFileAccess.Read : MemoryMappedFileAccess.ReadWrite;
+        _view = _mmf?.CreateViewAccessor(0, 0, access);
+        if (!IsReadOnly && _fileStream!.Length != CapacityBytes)
             // Set the file length up to the view length so we don't write off the end
             _fileStream.SetLength(CapacityBytes);
         var totalHeaderBytes = ResetPointers();
@@ -433,6 +470,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <param name="minCapacityItems"></param>
     protected void GrowCapacity(long minCapacityItems)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot grow capacity in read-only mode");
+
         // Check if ResetPointers has been disallowed
         if (_isResetPointersDisallowed)
             throw new ResetPointersDisallowedException(
@@ -461,6 +501,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <exception cref="ListMmfException"></exception>
     protected void ResetCapacity(long newCapacityItems)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot reset capacity in read-only mode");
+
         if (newCapacityItems < Count)
             throw new ListMmfException($"newCapacityItems={newCapacityItems} cannot be less than Count={Count}");
 
@@ -479,6 +522,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <param name="newCapacityItems">Carried along for debugging</param>
     private void ResetMmfAndView(long capacityBytes, long newCapacityItems = 0)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot reset MMF in read-only mode");
+
         var oldCapacityBytes = CapacityBytes;
         var oldCapacityItems = Capacity;
         var fi = new FileInfo(Path);
@@ -656,6 +702,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <inheritdoc cref="IListMmf{T}" />
     public void Truncate(long newCount)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot truncate in read-only mode");
+
         // if (this is ListMmfTimeSeriesDateTimeSeconds && Path.Contains(@"\1T\"))
         // {
         // }
@@ -675,6 +724,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <inheritdoc cref="IListMmf{T}" />
     public void TruncateBeginning(long newCount, IProgress<long>? progress = null)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot truncate beginning in read-only mode");
+
         var count = Count;
         if (newCount > count)
             throw new ListMmfException($"TruncateBeginning {newCount} must not be greater than Count={count}");

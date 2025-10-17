@@ -212,4 +212,160 @@ public class ListMmfLockingTests : IDisposable
             writer2[1].Should().Be(43);
         }
     }
+
+    [Fact]
+    public void ReadOnly_OpensWithoutLock()
+    {
+        // Arrange - Create a file with data using a writer
+        using (var writer = new ListMmf<int>(_testFilePath, DataType.Int32, 100))
+        {
+            writer.Add(42);
+            writer.Add(43);
+            writer.Add(44);
+        }
+
+        // Act - Open in read-only mode
+        using var reader = new ListMmf<int>(_testFilePath, DataType.Int32, isReadOnly: true);
+
+        // Assert
+        reader.IsReadOnly.Should().BeTrue();
+        reader.Count.Should().Be(3);
+        reader[0].Should().Be(42);
+        reader[1].Should().Be(43);
+        reader[2].Should().Be(44);
+    }
+
+    [Fact]
+    public void ReadOnly_ThrowsOnWriteOperations()
+    {
+        // Arrange - Create a file with data
+        using (var writer = new ListMmf<int>(_testFilePath, DataType.Int32, 100))
+        {
+            writer.Add(42);
+        }
+
+        // Act - Open in read-only mode
+        using var reader = new ListMmf<int>(_testFilePath, DataType.Int32, isReadOnly: true);
+
+        // Assert - All write operations should throw NotSupportedException
+        Assert.Throws<NotSupportedException>(() => reader.Add(99));
+        Assert.Throws<NotSupportedException>(() => reader.Truncate(0));
+        Assert.Throws<NotSupportedException>(() => reader.TruncateBeginning(0));
+    }
+
+    [Fact]
+    public void ReadOnly_MultipleReadersCanOpenSimultaneously()
+    {
+        // Arrange - Create a file with data
+        using (var writer = new ListMmf<int>(_testFilePath, DataType.Int32, 100))
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                writer.Add(i);
+            }
+        }
+
+        // Act - Open multiple readers simultaneously
+        using var reader1 = new ListMmf<int>(_testFilePath, DataType.Int32, isReadOnly: true);
+        using var reader2 = new ListMmf<int>(_testFilePath, DataType.Int32, isReadOnly: true);
+        using var reader3 = new ListMmf<int>(_testFilePath, DataType.Int32, isReadOnly: true);
+
+        // Assert - All readers should work fine
+        reader1.Count.Should().Be(100);
+        reader2.Count.Should().Be(100);
+        reader3.Count.Should().Be(100);
+
+        reader1[50].Should().Be(50);
+        reader2[75].Should().Be(75);
+        reader3[99].Should().Be(99);
+    }
+
+    [Fact]
+    public void ReadOnly_ReaderAndWriterCanCoexist()
+    {
+        // Arrange - Create a file with initial data
+        using (var writer = new ListMmf<int>(_testFilePath, DataType.Int32, 100))
+        {
+            writer.Add(42);
+        }
+
+        // Act - Open writer and reader simultaneously
+        using var writer2 = new ListMmf<int>(_testFilePath, DataType.Int32);
+        using var reader = new ListMmf<int>(_testFilePath, DataType.Int32, isReadOnly: true);
+
+        // Add more data with writer
+        writer2.Add(43);
+        writer2.Add(44);
+
+        // Assert - Reader should see the data
+        // Note: This may require a small delay or manual refresh depending on OS caching
+        reader.Count.Should().BeGreaterThanOrEqualTo(1); // At least the initial value
+        reader[0].Should().Be(42);
+    }
+
+    [Fact]
+    public void ReadOnly_NoLockFileOnPosix()
+    {
+        // This test only runs on POSIX systems (macOS, Linux)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return; // Skip on Windows
+        }
+
+        // Arrange - Create a file with data
+        using (var writer = new ListMmf<int>(_testFilePath, DataType.Int32, 100))
+        {
+            writer.Add(42);
+        }
+
+        var lockPath = _testFilePath + UtilsListMmf.LockFileExtension;
+
+        // Act - Open in read-only mode
+        using (var reader = new ListMmf<int>(_testFilePath, DataType.Int32, isReadOnly: true))
+        {
+            // Assert - No lock file should be created for readers
+            File.Exists(lockPath).Should().BeFalse("read-only mode should not create lock files");
+            reader.Count.Should().Be(1);
+        }
+
+        // Assert - Still no lock file after disposal
+        File.Exists(lockPath).Should().BeFalse("read-only mode should not create lock files");
+    }
+
+    [Fact]
+    public void ReadOnly_ThrowsIfFileDoesNotExist()
+    {
+        // Arrange
+        var nonExistentPath = Path.Combine(_testDirectory, "nonexistent.bt");
+
+        // Act & Assert - Opening non-existent file in read-only mode should throw
+        var exception = Assert.Throws<FileNotFoundException>(() =>
+        {
+            using var reader = new ListMmf<int>(nonExistentPath, DataType.Int32, isReadOnly: true);
+        });
+
+        exception.Message.Should().Contain("read-only mode");
+    }
+
+    [Fact]
+    public void ReadOnly_AsSpanWorks()
+    {
+        // Arrange - Create a file with data
+        using (var writer = new ListMmf<int>(_testFilePath, DataType.Int32, 100))
+        {
+            for (var i = 0; i < 50; i++)
+            {
+                writer.Add(i * 2);
+            }
+        }
+
+        // Act - Open in read-only mode and use AsSpan
+        using var reader = new ListMmf<int>(_testFilePath, DataType.Int32, isReadOnly: true);
+        var span = reader.AsSpan(10, 20);
+
+        // Assert
+        span.Length.Should().Be(20);
+        span[0].Should().Be(20); // 10 * 2
+        span[19].Should().Be(58); // 29 * 2
+    }
 }

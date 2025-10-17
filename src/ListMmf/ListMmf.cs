@@ -77,30 +77,38 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     /// <param name="capacityItems">The initial capacity in items.</param>
     /// <param name="dataType">The data type stored in the list.</param>
     /// <param name="parentHeaderBytes">Header bytes used by the parent class.</param>
-    protected ListMmf(string path, long capacityItems, DataType dataType, long parentHeaderBytes, Microsoft.Extensions.Logging.ILogger? logger = null)
-        : base(path, capacityItems, parentHeaderBytes + MyHeaderBytes, logger)
+    /// <param name="logger">Optional logger</param>
+    /// <param name="isReadOnly">If true, opens in read-only mode with no locks and FileShare.ReadWrite</param>
+    protected ListMmf(string path, long capacityItems, DataType dataType, long parentHeaderBytes, Microsoft.Extensions.Logging.ILogger? logger = null, bool isReadOnly = false)
+        : base(path, capacityItems, parentHeaderBytes + MyHeaderBytes, logger, isReadOnly)
     {
         ResetView();
-        Version = 0;
-        DataType = dataType;
+        if (!isReadOnly)
+        {
+            Version = 0;
+            DataType = dataType;
+        }
     }
 
     /// <summary>
-    /// Open the list in a MemoryMappedFile at path as the exclusive Writer.
+    /// Open the list in a MemoryMappedFile at path as the exclusive Writer, or as a read-only Reader.
     /// Each inheriting class MUST CALL ResetView() from their constructors in order to properly set their pointers in the header
     /// </summary>
-    /// <param name="path">The path to open ReadWrite</param>
+    /// <param name="path">The path to open ReadWrite or Read</param>
     /// <param name="dataType"></param>
     /// <param name="capacityItems">
     /// The number of items to initialize the list.
     /// If 0, will be set to some default amount for a new file. Is ignored for an existing one.
+    /// Ignored in read-only mode.
     /// </param>
+    /// <param name="logger">Optional logger</param>
+    /// <param name="isReadOnly">If true, opens in read-only mode with no locks and FileShare.ReadWrite</param>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
     /// <exception cref="IOException">Another Writer is open on this path</exception>
     /// <exception cref="ListMmfException"></exception>
-    public ListMmf(string path, DataType dataType, long capacityItems = 0, Microsoft.Extensions.Logging.ILogger? logger = null)
-        : this(path, capacityItems, dataType, 0, logger)
+    public ListMmf(string path, DataType dataType, long capacityItems = 0, Microsoft.Extensions.Logging.ILogger? logger = null, bool isReadOnly = false)
+        : this(path, capacityItems, dataType, 0, logger, isReadOnly)
     {
         ResetView();
     }
@@ -108,6 +116,9 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     /// <inheritdoc cref="IListMmf{T}" />
     public void Add(T value)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot add items in read-only mode");
+
         var count = Count;
         if (count + 1 > _capacity)
         {
@@ -123,6 +134,9 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     /// <inheritdoc cref="IListMmf{T}" />
     public void AddRange(IEnumerable<T> collection)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot add items in read-only mode");
+
         if (collection == null)
         {
             throw new ArgumentNullException(nameof(collection));
@@ -182,6 +196,9 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     /// <inheritdoc cref="IListMmf{T}" />
     public void AddRange(ReadOnlySpan<T> span)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot add items in read-only mode");
+
         if (span.IsEmpty)
         {
             return;
@@ -207,6 +224,9 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     /// <inheritdoc cref="IListMmf{T}" />
     public void SetLast(T value)
     {
+        if (IsReadOnly)
+            throw new NotSupportedException("Cannot modify items in read-only mode");
+
         var count = Count;
         UnsafeWrite(count - 1, value);
     }
