@@ -34,16 +34,17 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     /// Open a Writer on path
     /// Each inheriting class MUST CALL ResetView() from their constructors in order to properly set their pointers in the header
     /// </summary>
-    /// <param name="path">The path to open ReadWrite</param>
+    /// <param name="path">The path to open ReadWrite or Read</param>
     /// <param name="timeSeriesOrder"></param>
     /// <param name="capacity">
     /// The number of items to initialize the list.
     /// If 0, will be set to some default amount for a new file. Is ignored for an existing one.
     /// </param>
     /// <param name="parentHeaderBytes"></param>
+    /// <param name="isReadOnly">If true, opens in read-only mode with no locks and FileShare.ReadWrite</param>
     private ListMmfTimeSeriesDateTimeSeconds(string path, TimeSeriesOrder timeSeriesOrder, long capacity = 0,
-        long parentHeaderBytes = 0)
-        : base(path, capacity, parentHeaderBytes + MyHeaderBytes)
+        long parentHeaderBytes = 0, bool isReadOnly = false)
+        : base(path, capacity, parentHeaderBytes + MyHeaderBytes, isReadOnly: isReadOnly)
     {
         _timeSeriesOrder = timeSeriesOrder;
         ResetView();
@@ -64,22 +65,26 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
             default:
                 throw new ArgumentOutOfRangeException();
         }
-        Version = 0;
-        DataType = DataType.UnixSeconds;
+        if (!isReadOnly)
+        {
+            Version = 0;
+            DataType = DataType.UnixSeconds;
+        }
     }
 
     /// <summary>
-    /// Open a Writer on path
+    /// Open a Writer or Reader on path
     /// Each inheriting class MUST CALL ResetView() from their constructors in order to properly set their pointers in the header
     /// </summary>
-    /// <param name="path">The path to open ReadWrite</param>
+    /// <param name="path">The path to open ReadWrite or Read</param>
     /// <param name="timeSeriesOrder"></param>
     /// <param name="capacity">
     /// The number of items to initialize the list.
     /// If 0, will be set to some default amount for a new file. Is ignored for an existing one.
     /// </param>
-    public ListMmfTimeSeriesDateTimeSeconds(string path, TimeSeriesOrder timeSeriesOrder, long capacity = 0)
-        : this(path, timeSeriesOrder, capacity, 0)
+    /// <param name="isReadOnly">If true, opens in read-only mode with no locks and FileShare.ReadWrite</param>
+    public ListMmfTimeSeriesDateTimeSeconds(string path, TimeSeriesOrder timeSeriesOrder, long capacity = 0, bool isReadOnly = false)
+        : this(path, timeSeriesOrder, capacity, 0, isReadOnly)
     {
     }
 
