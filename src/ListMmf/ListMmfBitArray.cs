@@ -34,12 +34,15 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// If 0, will be set to some default amount for a new file. Is ignored for an existing one.
     /// </param>
     /// <param name="parentHeaderBytes"></param>
-    private ListMmfBitArray(string path, long capacity = 0, long parentHeaderBytes = 0)
-        : base(path, capacity == 0 ? 0 : GetArrayLength(capacity), parentHeaderBytes + MyHeaderBytes)
+    private ListMmfBitArray(string path, long capacity = 0, long parentHeaderBytes = 0, bool isReadOnly = false)
+        : base(path, capacity == 0 ? 0 : GetArrayLength(capacity), parentHeaderBytes + MyHeaderBytes, logger: null, isReadOnly: isReadOnly)
     {
         ResetView();
-        Version = 0;
-        base.DataType = DataType.Bit;
+        if (!IsReadOnly)
+        {
+            Version = 0;
+            base.DataType = DataType.Bit;
+        }
     }
 
     /// <summary>
@@ -51,8 +54,8 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// The number of bits to initialize the list.
     /// If 0, will be set to some default amount for a new file. Is ignored for an existing one.
     /// </param>
-    public ListMmfBitArray(string path, long capacity = 0)
-        : this(path, capacity, 0)
+    public ListMmfBitArray(string path, long capacity = 0, bool isReadOnly = false)
+        : this(path, capacity, 0, isReadOnly)
     {
     }
 
@@ -110,12 +113,14 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
 
     public void Add(bool value)
     {
+        EnsureNotReadOnly();
         Length++;
         this[Length - 1] = value;
     }
 
     public void AddRange(IEnumerable<bool> collection)
     {
+        EnsureNotReadOnly();
         if (collection == null)
         {
             throw new ArgumentNullException(nameof(collection));
@@ -178,6 +183,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
 
     public new void Truncate(long newCount)
     {
+        EnsureNotReadOnly();
         if (newCount >= Length)
         {
             // nothing to do
@@ -201,6 +207,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
 
     public new void TruncateBeginning(long newCount, IProgress<long>? progress = null)
     {
+        EnsureNotReadOnly();
         var count = Length;
         if (newCount > count)
         {
@@ -259,6 +266,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
 
     public void SetLast(bool value)
     {
+        EnsureNotReadOnly();
         Set(Count - 1, value);
     }
 
@@ -312,6 +320,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// <exception cref="ArgumentOutOfRangeException">if index &lt; 0 or index &gt;= Length</exception>
     public void Set(long index, bool value)
     {
+        EnsureNotReadOnly();
         if (index + 1 > Length)
         {
             // Increase Length to include the highest value that has been Set()
@@ -366,6 +375,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// <exception cref="ArgumentOutOfRangeException">if value == null or value.Length != this.Length</exception>
     public ListMmfBitArray And(ListMmfBitArray value)
     {
+        EnsureNotReadOnly();
         if (value == null)
         {
             throw new ArgumentNullException(nameof(value));
@@ -392,6 +402,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// <exception cref="ArgumentOutOfRangeException">if value == null or value.Length != this.Length</exception>
     public ListMmfBitArray Or(ListMmfBitArray value)
     {
+        EnsureNotReadOnly();
         if (value == null)
         {
             throw new ArgumentNullException(nameof(value));
@@ -418,6 +429,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// <exception cref="ArgumentOutOfRangeException">if value == null or value.Length != this.Length</exception>
     public ListMmfBitArray Xor(ListMmfBitArray value)
     {
+        EnsureNotReadOnly();
         if (value == null)
         {
             throw new ArgumentNullException(nameof(value));
@@ -438,6 +450,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
 
     public ListMmfBitArray Not()
     {
+        EnsureNotReadOnly();
         var newCountInt32 = GetArrayLength(Length);
         for (var i = 0; i < newCountInt32; i++)
         {
@@ -446,6 +459,15 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
             UnsafeWrite(i, newValue);
         }
         return this;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void EnsureNotReadOnly()
+    {
+        if (IsReadOnly)
+        {
+            throw new NotSupportedException("Cannot modify a read-only ListMmfBitArray.");
+        }
     }
 
     // Disallow the use of the public member in the base

@@ -13,7 +13,7 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
     private readonly Type _enumType;
     private readonly SmallestInt64ListMmf _smallestInt64ListMmf;
 
-    public SmallestEnumListMmf(Type enumType, string path, long capacity = 0)
+    public SmallestEnumListMmf(Type enumType, string path, long capacity = 0, bool isReadOnly = false)
     {
         _enumType = enumType;
         var enumValues = Enum.GetValues(enumType);
@@ -32,7 +32,7 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
             }
         }
         var dataType = DataTypeUtils.GetSmallestInt64DataType(minValue, maxValue);
-        _smallestInt64ListMmf = new SmallestInt64ListMmf(dataType, path, capacity);
+        _smallestInt64ListMmf = new SmallestInt64ListMmf(dataType, path, capacity, isReadOnly: isReadOnly);
     }
 
     public void Dispose()
@@ -52,9 +52,9 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
     {
         _smallestInt64ListMmf.Truncate(newCount);
     }
-    
+
     public bool IsResetPointersDisallowed => _smallestInt64ListMmf?.IsResetPointersDisallowed ?? false;
-    
+
     public void DisallowResetPointers()
     {
         _smallestInt64ListMmf?.DisallowResetPointers();

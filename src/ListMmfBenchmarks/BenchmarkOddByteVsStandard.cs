@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
 using BruSoftware.ListMmf;
@@ -17,6 +15,7 @@ namespace ListMmfBenchmarks;
 /// </summary>
 [Orderer(SummaryOrderPolicy.FastestToSlowest)]
 [RankColumn]
+[SimpleJob(warmupCount: 1, iterationCount: 3)] // Fast job configuration for quicker results
 public class BenchmarkOddByteVsStandard
 {
     private string _workDir;
@@ -26,15 +25,15 @@ public class BenchmarkOddByteVsStandard
     private string _stdU64Path;
 
     // Sweep sizes to expose bandwidth vs compute tradeoffs
-    [Params(1_000_000, 10_000_000)] // large sizes; increase if desired
+    [Params(100_000, 1_000_000)] // Reduced from 10M to 1M max for faster benchmarks
     public int ItemCount { get; set; }
 
     // Repeat passes over the same data to amplify per-pass costs
-    [Params(1, 5)]
+    [Params(1)] // Reduced from 5 to 1 for faster benchmarks
     public int Passes { get; set; }
 
     // Number of random index reads per invocation (capped by ItemCount)
-    [Params(1_000_000)]
+    [Params(100_000)] // Reduced from 1M to 100K for faster benchmarks
     public int RandomOps { get; set; }
 
     [GlobalSetup]

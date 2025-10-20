@@ -178,31 +178,31 @@ public static class UtilsListMmf
         var (version, dataType, count) = GetHeaderInfo(path);
         if (useSmallestInt)
         {
-            return new SmallestInt64ListMmf(dataType, path);
+            return new SmallestInt64ListMmf(dataType, path, isReadOnly: access == MemoryMappedFileAccess.Read);
         }
         return dataType switch
         {
             DataType.AnyStruct => throw new ListMmfException("Unable to determine data type for empty file."),
-            DataType.Bit => new ListMmfBitArray(path),
-            DataType.SByte => new ListMmf<sbyte>(path, dataType),
-            DataType.Byte => new ListMmf<byte>(path, dataType),
-            DataType.Int16 => new ListMmf<short>(path, dataType),
-            DataType.UInt16 => new ListMmf<ushort>(path, dataType),
-            DataType.Int32 => new ListMmf<int>(path, dataType),
-            DataType.UInt32 => new ListMmf<uint>(path, dataType),
-            DataType.Int64 => new ListMmf<long>(path, dataType),
-            DataType.UInt64 => new ListMmf<ulong>(path, dataType),
-            DataType.Single => new ListMmf<float>(path, dataType),
-            DataType.Double => new ListMmf<double>(path, dataType),
-            DataType.DateTime => new ListMmf<DateTime>(path, dataType),
-            DataType.Int24AsInt64 => new ListMmf<Int24AsInt64>(path, dataType),
-            DataType.Int40AsInt64 => new ListMmf<Int40AsInt64>(path, dataType),
-            DataType.Int48AsInt64 => new ListMmf<Int48AsInt64>(path, dataType),
-            DataType.Int56AsInt64 => new ListMmf<Int56AsInt64>(path, dataType),
-            DataType.UInt24AsInt64 => new ListMmf<UInt24AsInt64>(path, dataType),
-            DataType.UInt40AsInt64 => new ListMmf<UInt40AsInt64>(path, dataType),
-            DataType.UInt48AsInt64 => new ListMmf<UInt48AsInt64>(path, dataType),
-            DataType.UInt56AsInt64 => new ListMmf<UInt56AsInt64>(path, dataType),
+            DataType.Bit => new ListMmfBitArray(path, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.SByte => new ListMmf<sbyte>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Byte => new ListMmf<byte>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Int16 => new ListMmf<short>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.UInt16 => new ListMmf<ushort>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Int32 => new ListMmf<int>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.UInt32 => new ListMmf<uint>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Int64 => new ListMmf<long>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.UInt64 => new ListMmf<ulong>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Single => new ListMmf<float>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Double => new ListMmf<double>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.DateTime => new ListMmf<DateTime>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Int24AsInt64 => new ListMmf<Int24AsInt64>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Int40AsInt64 => new ListMmf<Int40AsInt64>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Int48AsInt64 => new ListMmf<Int48AsInt64>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.Int56AsInt64 => new ListMmf<Int56AsInt64>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.UInt24AsInt64 => new ListMmf<UInt24AsInt64>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.UInt40AsInt64 => new ListMmf<UInt40AsInt64>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.UInt48AsInt64 => new ListMmf<UInt48AsInt64>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
+            DataType.UInt56AsInt64 => new ListMmf<UInt56AsInt64>(path, dataType, isReadOnly: access == MemoryMappedFileAccess.Read),
             DataType.UnixSeconds => throw new ListMmfException("UnixSeconds is not supported by OpenExistingListMmf."),
             _ => throw new ArgumentOutOfRangeException()
         };
@@ -226,33 +226,34 @@ public static class UtilsListMmf
             throw new ListMmfException("OpenAsInt64 does not support DataType.UnixSeconds.");
         }
 
+        var isReadOnly = access == MemoryMappedFileAccess.Read;
         return dataType switch
         {
-            DataType.SByte => CreateAdapter(new ListMmf<sbyte>(path, dataType), dataType, seriesName),
-            DataType.Byte => CreateAdapter(new ListMmf<byte>(path, dataType), dataType, seriesName),
-            DataType.Int16 => CreateAdapter(new ListMmf<short>(path, dataType), dataType, seriesName),
-            DataType.UInt16 => CreateAdapter(new ListMmf<ushort>(path, dataType), dataType, seriesName),
-            DataType.Int32 => CreateAdapter(new ListMmf<int>(path, dataType), dataType, seriesName),
-            DataType.UInt32 => CreateAdapter(new ListMmf<uint>(path, dataType), dataType, seriesName),
-            DataType.Int64 => CreateAdapter(new ListMmf<long>(path, dataType), dataType, seriesName),
-            DataType.Int24AsInt64 => CreateAdapter(new ListMmf<Int24AsInt64>(path, dataType), dataType, seriesName),
-            DataType.Int40AsInt64 => CreateAdapter(new ListMmf<Int40AsInt64>(path, dataType), dataType, seriesName),
-            DataType.Int48AsInt64 => CreateAdapter(new ListMmf<Int48AsInt64>(path, dataType), dataType, seriesName),
-            DataType.Int56AsInt64 => CreateAdapter(new ListMmf<Int56AsInt64>(path, dataType), dataType, seriesName),
-            DataType.UInt24AsInt64 => CreateAdapter(new ListMmf<UInt24AsInt64>(path, dataType), dataType, seriesName),
-            DataType.UInt40AsInt64 => CreateAdapter(new ListMmf<UInt40AsInt64>(path, dataType), dataType, seriesName),
-            DataType.UInt48AsInt64 => CreateAdapter(new ListMmf<UInt48AsInt64>(path, dataType), dataType, seriesName),
-            DataType.UInt56AsInt64 => CreateAdapter(new ListMmf<UInt56AsInt64>(path, dataType), dataType, seriesName),
+            DataType.SByte => CreateAdapter(new ListMmf<sbyte>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.Byte => CreateAdapter(new ListMmf<byte>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.Int16 => CreateAdapter(new ListMmf<short>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.UInt16 => CreateAdapter(new ListMmf<ushort>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.Int32 => CreateAdapter(new ListMmf<int>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.UInt32 => CreateAdapter(new ListMmf<uint>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.Int64 => CreateAdapter(new ListMmf<long>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.Int24AsInt64 => CreateAdapter(new ListMmf<Int24AsInt64>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.Int40AsInt64 => CreateAdapter(new ListMmf<Int40AsInt64>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.Int48AsInt64 => CreateAdapter(new ListMmf<Int48AsInt64>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.Int56AsInt64 => CreateAdapter(new ListMmf<Int56AsInt64>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.UInt24AsInt64 => CreateAdapter(new ListMmf<UInt24AsInt64>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.UInt40AsInt64 => CreateAdapter(new ListMmf<UInt40AsInt64>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.UInt48AsInt64 => CreateAdapter(new ListMmf<UInt48AsInt64>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
+            DataType.UInt56AsInt64 => CreateAdapter(new ListMmf<UInt56AsInt64>(path, dataType, isReadOnly: isReadOnly), dataType, seriesName, isReadOnly),
             _ => throw new ListMmfException($"OpenAsInt64 does not support {dataType}.")
         };
     }
 
-    private static IListMmf<long> CreateAdapter<T>(ListMmf<T> list, DataType dataType, string? seriesName)
+    private static IListMmf<long> CreateAdapter<T>(ListMmf<T> list, DataType dataType, string? seriesName, bool isReadOnly)
         where T : struct
     {
         try
         {
-            return ListMmfLongAdapter.Create(list, dataType, seriesName);
+            return ListMmfLongAdapter.Create(list, dataType, seriesName, isReadOnly);
         }
         catch
         {

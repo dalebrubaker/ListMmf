@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace BruSoftware.ListMmf;
 
@@ -27,18 +28,17 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
     private bool _warningTriggered;
     private Action<DataTypeUtilizationStatus>? _warningCallback;
 
-    public static ListMmfLongAdapter Create<T>(IListMmf<T> list, DataType dataType, string? seriesName = null)
+    public static ListMmfLongAdapter Create<T>(IListMmf<T> list, DataType dataType, string? seriesName = null, bool isReadOnly = false)
         where T : struct
     {
         if (list == null) throw new ArgumentNullException(nameof(list));
-        var readOnly = list as IReadOnlyList64Mmf<T> ?? throw new ArgumentException("List must implement IReadOnlyList64Mmf<T>", nameof(list));
 
         if (!Int64Conversion<T>.IsSupported)
         {
             throw new NotSupportedException($"Type {typeof(T)} is not supported for ListMmfLongAdapter.");
         }
 
-        var core = new AdapterCore<T>(list, readOnly);
+        var core = new AdapterCore<T>(list, isReadOnly);
         return new ListMmfLongAdapter(core, dataType, seriesName);
     }
 
@@ -107,22 +107,22 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
                 AddRange(CollectionsMarshal.AsSpan(list));
                 return;
             case IReadOnlyList<long> readOnly:
-            {
-                var buffer = ArrayPool<long>.Shared.Rent(readOnly.Count);
-                try
                 {
-                    for (var i = 0; i < readOnly.Count; i++)
+                    var buffer = ArrayPool<long>.Shared.Rent(readOnly.Count);
+                    try
                     {
-                        buffer[i] = readOnly[i];
+                        for (var i = 0; i < readOnly.Count; i++)
+                        {
+                            buffer[i] = readOnly[i];
+                        }
+                        AddRange(buffer.AsSpan(0, readOnly.Count));
                     }
-                    AddRange(buffer.AsSpan(0, readOnly.Count));
+                    finally
+                    {
+                        ArrayPool<long>.Shared.Return(buffer);
+                    }
+                    return;
                 }
-                finally
-                {
-                    ArrayPool<long>.Shared.Return(buffer);
-                }
-                return;
-            }
         }
 
         var rented = ArrayPool<long>.Shared.Rent(ChunkSize);
@@ -483,18 +483,24 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
     {
         private readonly IListMmf<T> _list;
         private readonly IReadOnlyList64Mmf<T> _readOnly;
+        private readonly bool _isReadOnly;
 
-        public AdapterCore(IListMmf<T> list, IReadOnlyList64Mmf<T> readOnly)
+        public AdapterCore(IListMmf<T> list, bool isReadOnly)
         {
             _list = list;
-            _readOnly = readOnly;
+            _readOnly = list as IReadOnlyList64Mmf<T> ?? throw new ArgumentException("List must implement IReadOnlyList64Mmf<T>", nameof(list));
+            _isReadOnly = isReadOnly;
         }
 
         public long Count => _list.Count;
         public long Capacity
         {
             get => _list.Capacity;
-            set => _list.Capacity = value;
+            set
+            {
+                EnsureNotReadOnly();
+                _list.Capacity = value;
+            }
         }
         public string Path => _list.Path;
         public int WidthBits => _list.WidthBits;
@@ -510,12 +516,14 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
 
         public void Add(long value)
         {
+            EnsureNotReadOnly();
             var converted = Int64Conversion<T>.FromInt64(value);
             _list.Add(converted);
         }
 
         public void AddRange(ReadOnlySpan<long> values)
         {
+            EnsureNotReadOnly();
             var typedBuffer = ArrayPool<T>.Shared.Rent(values.Length);
             try
             {
@@ -545,22 +553,26 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
 
         public void SetLast(long value)
         {
+            EnsureNotReadOnly();
             var converted = Int64Conversion<T>.FromInt64(value);
             _list.SetLast(converted);
         }
 
         public void Truncate(long newCount)
         {
+            EnsureNotReadOnly();
             _list.Truncate(newCount);
         }
 
         public void DisallowResetPointers()
         {
+            EnsureNotReadOnly();
             _list.DisallowResetPointers();
         }
 
         public void TruncateBeginning(long newCount, IProgress<long>? progress)
         {
+            EnsureNotReadOnly();
             _list.TruncateBeginning(newCount, progress);
         }
 
@@ -580,6 +592,15 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
         {
             var source = _readOnly.AsSpan(start, length);
             Int64Conversion<T>.CopyToInt64(source, destination);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureNotReadOnly()
+        {
+            if (_isReadOnly)
+            {
+                throw new NotSupportedException("Cannot modify a read-only ListMmfLongAdapter.");
+            }
         }
 
         public void Dispose()

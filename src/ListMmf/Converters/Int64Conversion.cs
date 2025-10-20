@@ -78,80 +78,80 @@ internal static class Int64Conversion<T>
         switch (s_kind)
         {
             case ConverterKind.Int64:
-            {
-                var tmp = value;
-                return Unsafe.As<long, T>(ref tmp);
-            }
+                {
+                    var tmp = value;
+                    return Unsafe.As<long, T>(ref tmp);
+                }
             case ConverterKind.Int32:
-            {
-                var tmp = checked((int)value);
-                return Unsafe.As<int, T>(ref tmp);
-            }
+                {
+                    var tmp = checked((int)value);
+                    return Unsafe.As<int, T>(ref tmp);
+                }
             case ConverterKind.UInt32:
-            {
-                var tmp = checked((uint)value);
-                return Unsafe.As<uint, T>(ref tmp);
-            }
+                {
+                    var tmp = checked((uint)value);
+                    return Unsafe.As<uint, T>(ref tmp);
+                }
             case ConverterKind.Int16:
-            {
-                var tmp = checked((short)value);
-                return Unsafe.As<short, T>(ref tmp);
-            }
+                {
+                    var tmp = checked((short)value);
+                    return Unsafe.As<short, T>(ref tmp);
+                }
             case ConverterKind.UInt16:
-            {
-                var tmp = checked((ushort)value);
-                return Unsafe.As<ushort, T>(ref tmp);
-            }
+                {
+                    var tmp = checked((ushort)value);
+                    return Unsafe.As<ushort, T>(ref tmp);
+                }
             case ConverterKind.SByte:
-            {
-                var tmp = checked((sbyte)value);
-                return Unsafe.As<sbyte, T>(ref tmp);
-            }
+                {
+                    var tmp = checked((sbyte)value);
+                    return Unsafe.As<sbyte, T>(ref tmp);
+                }
             case ConverterKind.Byte:
-            {
-                var tmp = checked((byte)value);
-                return Unsafe.As<byte, T>(ref tmp);
-            }
+                {
+                    var tmp = checked((byte)value);
+                    return Unsafe.As<byte, T>(ref tmp);
+                }
             case ConverterKind.Int24:
-            {
-                var tmp = new Int24AsInt64(value);
-                return Unsafe.As<Int24AsInt64, T>(ref tmp);
-            }
+                {
+                    var tmp = new Int24AsInt64(value);
+                    return Unsafe.As<Int24AsInt64, T>(ref tmp);
+                }
             case ConverterKind.UInt24:
-            {
-                var tmp = new UInt24AsInt64(value);
-                return Unsafe.As<UInt24AsInt64, T>(ref tmp);
-            }
+                {
+                    var tmp = new UInt24AsInt64(value);
+                    return Unsafe.As<UInt24AsInt64, T>(ref tmp);
+                }
             case ConverterKind.Int40:
-            {
-                var tmp = new Int40AsInt64(value);
-                return Unsafe.As<Int40AsInt64, T>(ref tmp);
-            }
+                {
+                    var tmp = new Int40AsInt64(value);
+                    return Unsafe.As<Int40AsInt64, T>(ref tmp);
+                }
             case ConverterKind.UInt40:
-            {
-                var tmp = new UInt40AsInt64(value);
-                return Unsafe.As<UInt40AsInt64, T>(ref tmp);
-            }
+                {
+                    var tmp = new UInt40AsInt64(value);
+                    return Unsafe.As<UInt40AsInt64, T>(ref tmp);
+                }
             case ConverterKind.Int48:
-            {
-                var tmp = new Int48AsInt64(value);
-                return Unsafe.As<Int48AsInt64, T>(ref tmp);
-            }
+                {
+                    var tmp = new Int48AsInt64(value);
+                    return Unsafe.As<Int48AsInt64, T>(ref tmp);
+                }
             case ConverterKind.UInt48:
-            {
-                var tmp = new UInt48AsInt64(value);
-                return Unsafe.As<UInt48AsInt64, T>(ref tmp);
-            }
+                {
+                    var tmp = new UInt48AsInt64(value);
+                    return Unsafe.As<UInt48AsInt64, T>(ref tmp);
+                }
             case ConverterKind.Int56:
-            {
-                var tmp = new Int56AsInt64(value);
-                return Unsafe.As<Int56AsInt64, T>(ref tmp);
-            }
+                {
+                    var tmp = new Int56AsInt64(value);
+                    return Unsafe.As<Int56AsInt64, T>(ref tmp);
+                }
             case ConverterKind.UInt56:
-            {
-                var tmp = new UInt56AsInt64(value);
-                return Unsafe.As<UInt56AsInt64, T>(ref tmp);
-            }
+                {
+                    var tmp = new UInt56AsInt64(value);
+                    return Unsafe.As<UInt56AsInt64, T>(ref tmp);
+                }
             default:
                 throw new NotSupportedException(GetMessage());
         }

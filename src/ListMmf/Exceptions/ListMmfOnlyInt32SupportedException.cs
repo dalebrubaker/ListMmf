@@ -8,7 +8,7 @@ namespace BruSoftware.ListMmf
     /// </summary>
     public class ListMmfOnlyInt32SupportedException : NotSupportedException
     {
-        public ListMmfOnlyInt32SupportedException() 
+        public ListMmfOnlyInt32SupportedException()
             : base("Operation is limited to int32 range (maximum ~2.1 billion elements)")
         {
         }

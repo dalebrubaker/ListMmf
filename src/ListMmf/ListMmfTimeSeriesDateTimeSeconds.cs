@@ -90,12 +90,12 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
 
     public void Add(DateTime value)
     {
-// #if DEBUG
-//             if (value > DateTime.Now)
-//             {
-//                 throw new ListMmfException("Is this intended?. Likely okay if realtime.");
-//             }
-// #endif
+        // #if DEBUG
+        //             if (value > DateTime.Now)
+        //             {
+        //                 throw new ListMmfException("Is this intended?. Likely okay if realtime.");
+        //             }
+        // #endif
         // if (value.Kind == DateTimeKind.Utc)
         // {
         //     throw new ListMmfException("We only use local times;");

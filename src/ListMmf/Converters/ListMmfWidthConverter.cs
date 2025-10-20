@@ -206,7 +206,7 @@ public static class ListMmfWidthConverter
             var span = src.AsSpan(start, len);
             for (var i = 0; i < len; i++)
             {
-                buffer[i] = (long) (dynamic) span[i]; // relies on implicit operator long; kept local to conversion
+                buffer[i] = (long)(dynamic)span[i]; // relies on implicit operator long; kept local to conversion
             }
             dst.AddRange(buffer.AsSpan(0, len));
         }
@@ -221,7 +221,7 @@ public static class ListMmfWidthConverter
             var span = src.AsSpan(start, len);
             for (var i = 0; i < len; i++)
             {
-                var v = (long) (dynamic) span[i];
+                var v = (long)(dynamic)span[i];
                 buffer[i] = unchecked((ulong)v);
             }
             dst.AddRange(buffer.AsSpan(0, len));

@@ -81,7 +81,7 @@ public sealed class ExclusiveFileLock : IDisposable
         TimeSpan pollInterval,
         bool alsoLockDataFile,
         CancellationToken cancellationToken)
-    { 
+    {
         timeout = TimeSpan.Zero; // For Windows, we don't retry because we aren't using .lock files
         var deadline = DateTime.UtcNow + timeout;
 

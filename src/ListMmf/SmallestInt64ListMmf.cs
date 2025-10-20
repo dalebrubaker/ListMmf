@@ -85,6 +85,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 {
     public static EventHandler<string>? MessageEvent;
     private readonly DataType _dataTypeIfNewFile;
+    private readonly bool _isReadOnly;
 
     private readonly object _lock = new();
     private readonly string _name;
@@ -93,13 +94,14 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     internal Underlying? _underlying;
 
     public SmallestInt64ListMmf(DataType dataTypeIfNewFile, string path, long capacityItems = 0L,
-        string name = "", IProgressReport? progress = null)
+        string name = "", IProgressReport? progress = null, bool isReadOnly = false)
     {
         Path = path;
         _dataTypeIfNewFile = dataTypeIfNewFile;
         _name = name;
         _progress = progress;
-        _underlying = new Underlying(dataTypeIfNewFile, path, capacityItems);
+        _isReadOnly = isReadOnly;
+        _underlying = new Underlying(dataTypeIfNewFile, path, capacityItems, isReadOnly);
     }
 
     public string Path { get; }
@@ -437,18 +439,30 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         {
             throw new ListMmfException("Why?");
         }
-        //Debug.Assert(_underlying != null);
-        if (value < _underlying.MinValue && value > _underlying.MaxValue)
+        // Handle empty sentinel where MinValue > MaxValue (AnyStruct/empty file)
+        if (_underlying.MinValue > _underlying.MaxValue)
         {
+            EnsureNotReadOnly();
             UpgradeUnderlying(value, value);
         }
         else if (value < _underlying.MinValue)
         {
+            EnsureNotReadOnly();
             UpgradeUnderlyingNewMinValue(value);
         }
         else if (value > _underlying.MaxValue)
         {
+            EnsureNotReadOnly();
             UpgradeUnderlyingNewMaxValue(value);
+        }
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private void EnsureNotReadOnly()
+    {
+        if (_isReadOnly)
+        {
+            throw new NotSupportedException("Cannot upgrade a read-only SmallestInt64ListMmf. Open the file in write mode to allow automatic upgrades.");
         }
     }
 
@@ -580,6 +594,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
     {
         public readonly long MaxValue;
         public readonly long MinValue;
+        private readonly bool _isReadOnly;
         private Action<long> _actionAdd = null!;
         private Action<IEnumerable<long>> _actionAddRange = null!;
         private Action<long> _actionSetLast = null!;
@@ -594,8 +609,9 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         /// </summary>
         private IListMmf _iListMmf = null!;
 
-        public Underlying(DataType dataTypeIfNewFile, string path, long capacityItems = 0L)
+        public Underlying(DataType dataTypeIfNewFile, string path, long capacityItems = 0L, bool isReadOnly = false)
         {
+            _isReadOnly = isReadOnly;
             DataType dataType;
             if (!File.Exists(path))
             {
@@ -833,7 +849,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetSByte(string path, long capacity)
         {
-            var list = new ListMmf<sbyte>(path, DataType.SByte, capacity);
+            var list = new ListMmf<sbyte>(path, DataType.SByte, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -866,7 +882,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetInt16(string path, long capacity)
         {
-            var list = new ListMmf<short>(path, DataType.Int16, capacity);
+            var list = new ListMmf<short>(path, DataType.Int16, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -899,7 +915,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetInt32(string path, long capacity)
         {
-            var list = new ListMmf<int>(path, DataType.Int32, capacity);
+            var list = new ListMmf<int>(path, DataType.Int32, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -932,7 +948,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetInt64(string path, long capacity)
         {
-            var list = new ListMmf<long>(path, DataType.Int64, capacity);
+            var list = new ListMmf<long>(path, DataType.Int64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -956,7 +972,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetBitArray(string path, long capacity)
         {
-            var list = new ListMmfBitArray(path, capacity);
+            var list = new ListMmfBitArray(path, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1001,7 +1017,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetByte(string path, long capacity)
         {
-            var list = new ListMmf<byte>(path, DataType.Byte, capacity);
+            var list = new ListMmf<byte>(path, DataType.Byte, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1034,7 +1050,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetUInt16(string path, long capacity)
         {
-            var list = new ListMmf<ushort>(path, DataType.UInt16, capacity);
+            var list = new ListMmf<ushort>(path, DataType.UInt16, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1067,7 +1083,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetUInt24(string path, long capacity)
         {
-            var list = new ListMmf<UInt24AsInt64>(path, DataType.UInt24AsInt64, capacity);
+            var list = new ListMmf<UInt24AsInt64>(path, DataType.UInt24AsInt64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1100,7 +1116,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetInt24(string path, long capacity)
         {
-            var list = new ListMmf<Int24AsInt64>(path, DataType.Int24AsInt64, capacity);
+            var list = new ListMmf<Int24AsInt64>(path, DataType.Int24AsInt64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1133,7 +1149,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetUInt32(string path, long capacity)
         {
-            var list = new ListMmf<uint>(path, DataType.UInt32, capacity);
+            var list = new ListMmf<uint>(path, DataType.UInt32, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1166,7 +1182,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetUInt40(string path, long capacity)
         {
-            var list = new ListMmf<UInt40AsInt64>(path, DataType.UInt40AsInt64, capacity);
+            var list = new ListMmf<UInt40AsInt64>(path, DataType.UInt40AsInt64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1199,7 +1215,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetInt40(string path, long capacity)
         {
-            var list = new ListMmf<Int40AsInt64>(path, DataType.Int40AsInt64, capacity);
+            var list = new ListMmf<Int40AsInt64>(path, DataType.Int40AsInt64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1232,7 +1248,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetUInt48(string path, long capacity)
         {
-            var list = new ListMmf<UInt48AsInt64>(path, DataType.UInt48AsInt64, capacity);
+            var list = new ListMmf<UInt48AsInt64>(path, DataType.UInt48AsInt64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1265,7 +1281,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetInt48(string path, long capacity)
         {
-            var list = new ListMmf<Int48AsInt64>(path, DataType.Int48AsInt64, capacity);
+            var list = new ListMmf<Int48AsInt64>(path, DataType.Int48AsInt64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1298,7 +1314,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetUInt56(string path, long capacity)
         {
-            var list = new ListMmf<UInt56AsInt64>(path, DataType.UInt56AsInt64, capacity);
+            var list = new ListMmf<UInt56AsInt64>(path, DataType.UInt56AsInt64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
@@ -1331,7 +1347,7 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
 
         private void SetInt56(string path, long capacity)
         {
-            var list = new ListMmf<Int56AsInt64>(path, DataType.Int56AsInt64, capacity);
+            var list = new ListMmf<Int56AsInt64>(path, DataType.Int56AsInt64, capacity, isReadOnly: _isReadOnly);
             _iListMmf = list;
             _actionAdd = x =>
             {
