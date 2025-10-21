@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
@@ -11,11 +12,11 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
 {
     private const int ChunkSize = 4096;
 
-    private readonly IAdapterCore _core;
-    private readonly DataType _dataType;
+    private IAdapterCore _core;
+    private DataType _dataType;
     private readonly string? _seriesName;
-    private readonly long _minValue;
-    private readonly long _maxValue;
+    private long _minValue;
+    private long _maxValue;
     private readonly object _bufferGate = new();
 
     private long[]? _scratchBuffer;
@@ -84,7 +85,8 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
     public void Add(long value)
     {
         EnsureNotDisposed();
-        EnsureWithinRange(value);
+        EnsureWritable();
+        EnsureWithinRange(value, value);
         _core.Add(value);
         UpdateObservedRange(value);
         MaybeFireWarning();
@@ -93,6 +95,7 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
     public void AddRange(IEnumerable<long> collection)
     {
         EnsureNotDisposed();
+        EnsureWritable();
         if (collection == null) throw new ArgumentNullException(nameof(collection));
 
         switch (collection)
@@ -107,22 +110,22 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
                 AddRange(CollectionsMarshal.AsSpan(list));
                 return;
             case IReadOnlyList<long> readOnly:
+            {
+                var buffer = ArrayPool<long>.Shared.Rent(readOnly.Count);
+                try
                 {
-                    var buffer = ArrayPool<long>.Shared.Rent(readOnly.Count);
-                    try
+                    for (var i = 0; i < readOnly.Count; i++)
                     {
-                        for (var i = 0; i < readOnly.Count; i++)
-                        {
-                            buffer[i] = readOnly[i];
-                        }
-                        AddRange(buffer.AsSpan(0, readOnly.Count));
+                        buffer[i] = readOnly[i];
                     }
-                    finally
-                    {
-                        ArrayPool<long>.Shared.Return(buffer);
-                    }
-                    return;
+                    AddRange(buffer.AsSpan(0, readOnly.Count));
                 }
+                finally
+                {
+                    ArrayPool<long>.Shared.Return(buffer);
+                }
+                return;
+            }
         }
 
         var rented = ArrayPool<long>.Shared.Rent(ChunkSize);
@@ -153,7 +156,8 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
     public void SetLast(long value)
     {
         EnsureNotDisposed();
-        EnsureWithinRange(value);
+        EnsureWritable();
+        EnsureWithinRange(value, value);
         _core.SetLast(value);
         UpdateObservedRange(value);
         MaybeFireWarning();
@@ -298,11 +302,22 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
             return;
         }
 
-        // Validate all values first
-        for (var i = 0; i < values.Length; i++)
+        var minValue = values[0];
+        var maxValue = values[0];
+        for (var i = 1; i < values.Length; i++)
         {
-            EnsureWithinRange(values[i]);
+            var value = values[i];
+            if (value < minValue)
+            {
+                minValue = value;
+            }
+            if (value > maxValue)
+            {
+                maxValue = value;
+            }
         }
+
+        EnsureWithinRange(minValue, maxValue);
 
         _core.AddRange(values);
         UpdateObservedRange(values);
@@ -324,22 +339,205 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
         _scratchBuffer = ArrayPool<long>.Shared.Rent(requiredLength);
     }
 
-    private void EnsureWithinRange(long value)
+    private void EnsureWithinRange(long minValue, long maxValue)
     {
-        if (value < _minValue || value > _maxValue)
+        if (minValue >= _minValue && maxValue <= _maxValue)
         {
-            // Include existing value range before suggesting an upgrade.
-            // If we haven't initialized the observed range yet, scan once to avoid
-            // suggesting an unsigned type when the file already contains negatives.
-            if (!_observedInitialized)
+            return;
+        }
+
+        if (!_observedInitialized)
+        {
+            EnsureObservedRange();
+        }
+
+        var combinedMin = _observedInitialized ? Math.Min(minValue, _observedMin) : minValue;
+        var combinedMax = _observedInitialized ? Math.Max(maxValue, _observedMax) : maxValue;
+
+        if (combinedMin >= _minValue && combinedMax <= _maxValue)
+        {
+            return;
+        }
+
+        UpgradeToFitRange(combinedMin, combinedMax);
+
+        if (combinedMin < _minValue || combinedMax > _maxValue)
+        {
+            var suggested = DataTypeUtils.GetSmallestInt64DataType(combinedMin, combinedMax);
+            var attempted = combinedMax > _maxValue ? combinedMax : combinedMin;
+            throw new DataTypeOverflowException(Path, _dataType, attempted, suggested, _minValue, _maxValue, _seriesName);
+        }
+    }
+
+    private void UpgradeToFitRange(long minRequired, long maxRequired)
+    {
+        if (_core.IsReadOnly)
+        {
+            throw new NotSupportedException("Cannot upgrade a read-only ListMmfLongAdapter. Open the file in write mode to allow automatic upgrades.");
+        }
+
+        var targetDataType = DataTypeUtils.GetSmallestInt64DataType(minRequired, maxRequired);
+        if (targetDataType == _dataType)
+        {
+            return;
+        }
+
+        UpgradeDataType(targetDataType, minRequired, maxRequired);
+    }
+
+    private void UpgradeDataType(DataType targetDataType, long minRequired, long maxRequired)
+    {
+        switch (targetDataType)
+        {
+            case DataType.SByte:
+                UpgradeTo<sbyte>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.Byte:
+                UpgradeTo<byte>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.Int16:
+                UpgradeTo<short>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.UInt16:
+                UpgradeTo<ushort>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.Int32:
+                UpgradeTo<int>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.UInt32:
+                UpgradeTo<uint>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.Int64:
+                UpgradeTo<long>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.Int24AsInt64:
+                UpgradeTo<Int24AsInt64>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.Int40AsInt64:
+                UpgradeTo<Int40AsInt64>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.Int48AsInt64:
+                UpgradeTo<Int48AsInt64>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.Int56AsInt64:
+                UpgradeTo<Int56AsInt64>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.UInt24AsInt64:
+                UpgradeTo<UInt24AsInt64>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.UInt40AsInt64:
+                UpgradeTo<UInt40AsInt64>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.UInt48AsInt64:
+                UpgradeTo<UInt48AsInt64>(targetDataType, minRequired, maxRequired);
+                break;
+            case DataType.UInt56AsInt64:
+                UpgradeTo<UInt56AsInt64>(targetDataType, minRequired, maxRequired);
+                break;
+            default:
+                throw new NotSupportedException($"Cannot upgrade {Path} to {targetDataType}.");
+        }
+    }
+
+    private void UpgradeTo<TTarget>(DataType targetDataType, long minRequired, long maxRequired)
+        where TTarget : struct
+    {
+        var sourceCore = _core;
+        var path = sourceCore.Path;
+        var upgradingPath = path + ".upgrading";
+        var upgradeLockPath = upgradingPath + UtilsListMmf.LockFileExtension;
+        var count = sourceCore.Count;
+        var capacity = sourceCore.Capacity;
+        var resetDisallowed = sourceCore.IsResetPointersDisallowed;
+
+        if (File.Exists(upgradingPath))
+        {
+            File.Delete(upgradingPath);
+        }
+        if (File.Exists(upgradeLockPath))
+        {
+            File.Delete(upgradeLockPath);
+        }
+
+        var longBuffer = ArrayPool<long>.Shared.Rent(ChunkSize);
+        var typedBuffer = ArrayPool<TTarget>.Shared.Rent(ChunkSize);
+
+        try
+        {
+            using (var destination = new ListMmf<TTarget>(upgradingPath, targetDataType, Math.Max(capacity, count), isReadOnly: false))
             {
-                EnsureObservedRange();
+                if (count > 0)
+                {
+                    var remaining = count;
+                    var offset = 0L;
+                    while (remaining > 0)
+                    {
+                        var length = (int)Math.Min(remaining, longBuffer.Length);
+                        var sourceSpan = longBuffer.AsSpan(0, length);
+                        sourceCore.CopyToLongSpan(offset, length, sourceSpan);
+
+                        var typedSpan = typedBuffer.AsSpan(0, length);
+                        for (var i = 0; i < length; i++)
+                        {
+                            typedSpan[i] = Int64Conversion<TTarget>.FromInt64(sourceSpan[i]);
+                        }
+
+                        destination.AddRange(typedSpan[..length]);
+                        offset += length;
+                        remaining -= length;
+                    }
+                }
+
+                if (destination.Capacity < capacity)
+                {
+                    destination.Capacity = capacity;
+                }
             }
 
-            var combinedMin = _observedInitialized ? Math.Min(value, _observedMin) : value;
-            var combinedMax = _observedInitialized ? Math.Max(value, _observedMax) : value;
-            var suggested = DataTypeUtils.GetSmallestInt64DataType(combinedMin, combinedMax);
-            throw new DataTypeOverflowException(Path, _dataType, value, suggested, _minValue, _maxValue, _seriesName);
+            sourceCore.Dispose();
+
+            File.Delete(path);
+            File.Move(upgradingPath, path);
+
+            var newList = new ListMmf<TTarget>(path, targetDataType, isReadOnly: false);
+            if (newList.Capacity < capacity)
+            {
+                newList.Capacity = capacity;
+            }
+
+            var newCore = new AdapterCore<TTarget>(newList, false);
+            if (resetDisallowed)
+            {
+                newCore.DisallowResetPointers();
+            }
+
+            _core = newCore;
+            _dataType = targetDataType;
+            (_minValue, _maxValue) = DataTypeUtils.GetMinMaxValues(targetDataType);
+            _observedInitialized = true;
+            _observedMin = minRequired;
+            _observedMax = maxRequired;
+            _warningTriggered = false;
+        }
+        catch
+        {
+            try
+            {
+                if (File.Exists(upgradingPath))
+                {
+                    File.Delete(upgradingPath);
+                }
+            }
+            catch
+            {
+                // ignore cleanup failures
+            }
+            throw;
+        }
+        finally
+        {
+            ArrayPool<long>.Shared.Return(longBuffer);
+            ArrayPool<TTarget>.Shared.Return(typedBuffer);
         }
     }
 
@@ -448,6 +646,14 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
         }
     }
 
+    private void EnsureWritable()
+    {
+        if (_core.IsReadOnly)
+        {
+            throw new NotSupportedException("Cannot modify a read-only ListMmfLongAdapter. Open the file in write mode to allow automatic upgrades.");
+        }
+    }
+
     private void EnsureNotDisposed()
     {
         if (_disposed)
@@ -465,6 +671,7 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
         int WidthBits { get; }
         int Version { get; }
         DataType DataType { get; }
+        bool IsReadOnly { get; }
         bool IsResetPointersDisallowed { get; }
 
         long ReadUnchecked(long index);
@@ -506,6 +713,7 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
         public int WidthBits => _list.WidthBits;
         public int Version => _list.Version;
         public DataType DataType => _list.DataType;
+        public bool IsReadOnly => _isReadOnly;
         public bool IsResetPointersDisallowed => _list.IsResetPointersDisallowed;
 
         public long ReadUnchecked(long index)

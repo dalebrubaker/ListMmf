@@ -17,9 +17,9 @@ public class ListMmfIdentifier
         InstanceId = instanceId;
     }
 
-    public int CompareTo(ListMmfIdentifier other)
+    public int CompareTo(ListMmfIdentifier? other)
     {
-        return InstanceId.CompareTo(other.InstanceId);
+        return InstanceId.CompareTo(other?.InstanceId ?? 0);
     }
 
     public override string ToString()
