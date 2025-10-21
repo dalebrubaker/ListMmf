@@ -15,18 +15,18 @@ public class TrackerId
     public int Id { get; }
 
 #if DEBUG
-    public string Name { get; }
-    public string StackTrace { get; }
+    public string? Name { get; }
+    public string? StackTrace { get; }
 
-    public TrackerId(int id, string name, string stackTrace) : this(id)
+    public TrackerId(int id, string name, string? stackTrace) : this(id)
     {
         Name = name;
         StackTrace = stackTrace;
     }
 
-    public int CompareTo(TrackerId other)
+    public int CompareTo(TrackerId? other)
     {
-        return Id.CompareTo(other.Id);
+        return Id.CompareTo(other?.Id ?? 0);
     }
 
     public override string ToString()
