@@ -57,9 +57,18 @@ public sealed class ListMmfLongAdapterTests : IDisposable
         var expectedUtilization = (double)expectedObservedMax / UInt24AsInt64.MaxValue;
         status.Utilization.Should().BeApproximately(expectedUtilization, 1e-9);
 
-        adapter.Invoking(x => x.Add(UInt24AsInt64.MaxValue + 1))
-            .Should().Throw<DataTypeOverflowException>()
-            .Which.AttemptedValue.Should().Be(UInt24AsInt64.MaxValue + 1);
+        var overflow = UInt24AsInt64.MaxValue + 1;
+        adapter.Add(overflow);
+
+        adapter.DataType.Should().Be(DataType.UInt32);
+        adapter[adapter.Count - 1].Should().Be(overflow);
+
+        var upgradedStatus = adapter.GetDataTypeUtilization();
+        upgradedStatus.ObservedMax.Should().Be(overflow);
+        upgradedStatus.ObservedMin.Should().Be(status.ObservedMin);
+        upgradedStatus.AllowedMax.Should().Be((long)uint.MaxValue);
+        var expectedUpgradedUtilization = overflow / (double)uint.MaxValue;
+        upgradedStatus.Utilization.Should().BeApproximately(expectedUpgradedUtilization, 1e-9);
     }
 
     [Fact]
@@ -97,11 +106,11 @@ public sealed class ListMmfLongAdapterTests : IDisposable
 
         // Act: attempt to add a value that exceeds Int24 max on the positive side
         var overflow = Int24AsInt64.MaxValue + 1; // positive overflow
-        var act = () => adapter.Add(overflow);
+        adapter.Add(overflow);
 
-        // Assert: suggestion should NOT be an unsigned type; it should suggest a signed upgrade (Int32 here)
-        act.Should().Throw<DataTypeOverflowException>()
-            .Which.SuggestedDataType.Should().Be(DataType.Int32);
+        adapter.DataType.Should().Be(DataType.Int32);
+        adapter[adapter.Count - 1].Should().Be(overflow);
+        adapter.AsSpan(0, (int)adapter.Count)[0].Should().Be(-1);
     }
     [Fact]
     public void OpenExistingListMmf_ReturnsOddTypedList()
