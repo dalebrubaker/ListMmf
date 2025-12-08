@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace BruSoftware.ListMmf;
@@ -106,7 +107,7 @@ public static class SmallestInt64ListMmfOptimized
 
             // Bulk add the chunk (much more efficient than individual Add() calls)
             var chunk = new ArraySegment<long>(values, 0, (int)remainingCount);
-            destination.AddRange(chunk);
+            destination.AddRange((IEnumerable<long>)chunk);
 
             // Check if user cancelled and report progress
             if (progress?.Update(startIndex + remainingCount - 1) == true)

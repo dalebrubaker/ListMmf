@@ -33,6 +33,14 @@ public interface IListMmf<T> : IListMmf, IEnumerable<T>
     void AddRange(IEnumerable<T> collection);
 
     /// <summary>
+    /// Appends the elements of a ReadOnlySpan to the end of this array using bulk copy operations.
+    /// This provides significantly better performance than adding elements individually.
+    /// </summary>
+    /// <param name="span">The span containing elements to append</param>
+    /// <exception cref="ListMmfException">if list won't fit</exception>
+    void AddRange(ReadOnlySpan<T> span);
+
+    /// <summary>
     /// Sets the last item (Count - 1) to value
     /// This class only allows writing to the last item in the list, or Add() or AddRange() to append.
     /// </summary>

@@ -295,7 +295,7 @@ public sealed class ListMmfLongAdapter : IListMmfLongAdapter, IReadOnlyList64Mmf
         _warningTriggered = false;
     }
 
-    private void AddRange(ReadOnlySpan<long> values)
+    public void AddRange(ReadOnlySpan<long> values)
     {
         if (values.IsEmpty)
         {

@@ -123,6 +123,31 @@ public class SmallestEnumListMmf<T> : IListMmf<T>, IReadOnlyList64Mmf<T> where T
         _smallestInt64ListMmf.AddRange(list);
     }
 
+    public void AddRange(ReadOnlySpan<T> span)
+    {
+        if (span.IsEmpty)
+        {
+            return;
+        }
+
+        // Convert enum values to longs and delegate to the underlying list
+        Span<long> longSpan = stackalloc long[Math.Min(span.Length, 1024)];
+        var remaining = span.Length;
+        var offset = 0;
+
+        while (remaining > 0)
+        {
+            var chunkSize = Math.Min(remaining, longSpan.Length);
+            for (var i = 0; i < chunkSize; i++)
+            {
+                longSpan[i] = (int)(object)span[offset + i];
+            }
+            _smallestInt64ListMmf.AddRange(longSpan.Slice(0, chunkSize));
+            offset += chunkSize;
+            remaining -= chunkSize;
+        }
+    }
+
     public void SetLast(T value)
     {
         var intValue = (int)(object)value;
