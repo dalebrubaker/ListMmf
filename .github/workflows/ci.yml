@@ -34,10 +34,10 @@ jobs:
         dotnet-version: ${{ matrix.dotnet-version }}
     
     - name: Restore dependencies
-      run: dotnet restore
-    
+      run: dotnet restore ListMmf.slnx
+
     - name: Build
-      run: dotnet build --no-restore --configuration Release
+      run: dotnet build ListMmf.slnx --no-restore --configuration Release
     
     - name: Test
       run: dotnet test src/ListMmfTests/ListMmfTests.csproj --configuration Release --logger "trx;LogFileName=test-results.trx"
