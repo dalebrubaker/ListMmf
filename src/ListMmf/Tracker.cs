@@ -22,7 +22,7 @@ public class Tracker
     {
         lock (_lock)
         {
-            var id = s_nextId++;
+            var id = Interlocked.Increment(ref s_nextId);
 #if DEBUG
             var trackerId = new TrackerId(id, name, stackTrace);
             _trackerIdsById.Add(trackerId.Id, trackerId);
