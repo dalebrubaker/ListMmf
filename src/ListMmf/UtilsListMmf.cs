@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 
@@ -322,7 +323,7 @@ public static class UtilsListMmf
 
             // Bulk add the chunk
             var chunk = new ArraySegment<long>(values, 0, (int)remainingCount);
-            destination.AddRange(chunk);
+            destination.AddRange((IEnumerable<long>)chunk);
         }
     }
 }

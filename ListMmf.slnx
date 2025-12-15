@@ -1,0 +1,15 @@
+﻿<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+    <File Path="LICENSE.txt" />
+    <File Path=".github\workflows\ci.yml" />
+    <File Path="AGENTS.md" />
+  </Folder>
+  <Project Path="src\ListMmfBenchmarks\ListMmfBenchmarks.csproj" />
+  <Project Path="src\ListMmfTests\ListMmfTests.csproj" />
+  <Project Path="src\ListMmf\ListMmf.csproj" />
+</Solution>

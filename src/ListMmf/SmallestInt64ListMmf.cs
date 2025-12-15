@@ -319,6 +319,54 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         }
     }
 
+    public void AddRange(ReadOnlySpan<long> span)
+    {
+        lock (_lock)
+        {
+            if (_underlying == null)
+            {
+                return;
+            }
+
+            if (span.IsEmpty)
+            {
+                return;
+            }
+
+            // Find min/max for potential upgrade
+            var minValue = _underlying.MinValue;
+            var maxValue = _underlying.MaxValue;
+            for (var i = 0; i < span.Length; i++)
+            {
+                var value = span[i];
+                if (value < minValue)
+                {
+                    minValue = value;
+                }
+                if (value > maxValue)
+                {
+                    maxValue = value;
+                }
+            }
+
+            // Perform upgrade if needed
+            if (minValue < _underlying.MinValue && maxValue > _underlying.MaxValue)
+            {
+                UpgradeUnderlying(minValue, maxValue);
+            }
+            else if (minValue < _underlying.MinValue)
+            {
+                UpgradeUnderlyingNewMinValue(minValue);
+            }
+            else if (maxValue > _underlying.MaxValue)
+            {
+                UpgradeUnderlyingNewMaxValue(maxValue);
+            }
+
+            _underlying.AddRange(span);
+        }
+    }
+
     public void SetLast(long value)
     {
         lock (_lock)
@@ -797,6 +845,18 @@ public class SmallestInt64ListMmf : IListMmf<long>, IReadOnlyList64Mmf<long>
         public void AddRange(IEnumerable<long> collection)
         {
             _actionAddRange(collection);
+        }
+
+        public void AddRange(ReadOnlySpan<long> span)
+        {
+            // Note: This iterates element-by-element rather than using bulk memory operations
+            // because the delegate-based architecture doesn't expose span-aware bulk operations.
+            // The performance benefit comes from the outer SmallestInt64ListMmf.AddRange(span)
+            // which does min/max scanning and upgrade checks in a single pass before calling this.
+            for (var i = 0; i < span.Length; i++)
+            {
+                _actionAdd(span[i]);
+            }
         }
 
         public void SetLast(long value)

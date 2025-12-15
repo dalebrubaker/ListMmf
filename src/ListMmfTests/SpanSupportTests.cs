@@ -398,4 +398,120 @@ public class SpanSupportTests : IDisposable
         Assert.Equal(200, array[0]);
         Assert.Equal(300, array[1]);
     }
+
+    [Fact]
+    public void SmallestInt64_AddRange_Span_AppendsCorrectly()
+    {
+        // Arrange
+        var path = GetTempFilePath("test_smallest_addrange_span.mmf");
+        using var list = new SmallestInt64ListMmf(DataType.Int32, path);
+
+        list.Add(10);
+        list.Add(20);
+
+        var newData = new long[] { 30, 40, 50 }.AsSpan();
+
+        // Act
+        list.AddRange(newData);
+
+        // Assert
+        Assert.Equal(5, list.Count);
+        Assert.Equal(10, list[0]);
+        Assert.Equal(20, list[1]);
+        Assert.Equal(30, list[2]);
+        Assert.Equal(40, list[3]);
+        Assert.Equal(50, list[4]);
+    }
+
+    [Fact]
+    public void SmallestInt64_AddRange_EmptySpan_DoesNothing()
+    {
+        // Arrange
+        var path = GetTempFilePath("test_smallest_addrange_empty.mmf");
+        using var list = new SmallestInt64ListMmf(DataType.Int32, path);
+
+        list.Add(10);
+        list.Add(20);
+
+        var emptySpan = new long[0].AsSpan();
+
+        // Act
+        list.AddRange(emptySpan);
+
+        // Assert
+        Assert.Equal(2, list.Count);
+        Assert.Equal(10, list[0]);
+        Assert.Equal(20, list[1]);
+    }
+
+    [Fact]
+    public void SmallestEnum_AddRange_Span_AppendsCorrectly()
+    {
+        // Arrange
+        var path = GetTempFilePath("test_enum_addrange_span.mmf");
+        using var list = new SmallestEnumListMmf<DayOfWeek>(typeof(DayOfWeek), path);
+
+        list.Add(DayOfWeek.Monday);
+        list.Add(DayOfWeek.Tuesday);
+
+        var newData = new[] { DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday }.AsSpan();
+
+        // Act
+        list.AddRange(newData);
+
+        // Assert
+        Assert.Equal(5, list.Count);
+        Assert.Equal(DayOfWeek.Monday, list[0]);
+        Assert.Equal(DayOfWeek.Tuesday, list[1]);
+        Assert.Equal(DayOfWeek.Wednesday, list[2]);
+        Assert.Equal(DayOfWeek.Thursday, list[3]);
+        Assert.Equal(DayOfWeek.Friday, list[4]);
+    }
+
+    [Fact]
+    public void ListMmfLongAdapter_AddRange_Span_AppendsCorrectly()
+    {
+        // Arrange
+        var path = GetTempFilePath("test_adapter_addrange_span.mmf");
+        var innerList = new ListMmf<int>(path, DataType.Int32);
+        using var adapter = ListMmfLongAdapter.Create(innerList, DataType.Int32);
+
+        adapter.Add(100);
+        adapter.Add(200);
+
+        var newData = new long[] { 300, 400, 500 }.AsSpan();
+
+        // Act
+        adapter.AddRange(newData);
+
+        // Assert
+        Assert.Equal(5, adapter.Count);
+        Assert.Equal(100, adapter[0]);
+        Assert.Equal(200, adapter[1]);
+        Assert.Equal(300, adapter[2]);
+        Assert.Equal(400, adapter[3]);
+        Assert.Equal(500, adapter[4]);
+    }
+
+    [Fact]
+    public void ListMmfLongAdapter_AddRange_EmptySpan_DoesNothing()
+    {
+        // Arrange
+        var path = GetTempFilePath("test_adapter_addrange_empty.mmf");
+        var innerList = new ListMmf<int>(path, DataType.Int32);
+        using var adapter = ListMmfLongAdapter.Create(innerList, DataType.Int32);
+
+        adapter.Add(100);
+        adapter.Add(200);
+
+        var emptySpan = ReadOnlySpan<long>.Empty;
+
+        // Act
+        adapter.AddRange(emptySpan);
+
+        // Assert
+        Assert.Equal(2, adapter.Count);
+        Assert.Equal(100, adapter[0]);
+        Assert.Equal(200, adapter[1]);
+    }
 }
