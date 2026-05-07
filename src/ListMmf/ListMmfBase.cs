@@ -130,7 +130,8 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <exception cref="ListMmfException"></exception>
     private readonly ILogger _logger;
 
-    protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes, ILogger? logger = null, bool isReadOnly = false) : base(path)
+    protected ListMmfBase(string path, long capacityItems, long parentHeaderBytes, ILogger? logger = null, bool isReadOnly = false,
+        TimeSpan? writeLockTimeout = null, TimeSpan? writeLockPollInterval = null) : base(path)
     {
         _logger = logger ?? NullLogger.Instance;
         IsReadOnly = isReadOnly;
@@ -183,7 +184,10 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             // Acquire lock before creating MMF (can't await in unsafe context)
             try
             {
-                _exclusiveFileLock = ExclusiveFileLock.AcquireAsync(Path, alsoLockDataFile: true).GetAwaiter().GetResult();
+                _exclusiveFileLock = ExclusiveFileLock
+                    .AcquireAsync(Path, writeLockTimeout, writeLockPollInterval, alsoLockDataFile: true)
+                    .GetAwaiter()
+                    .GetResult();
             }
             catch (TimeoutException ex)
             {
@@ -237,7 +241,12 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             // {
             //     throw new ListMmfException($"Attempt to set Count={value} which must be <= _capacity={_capacity}");
             // }
-            Unsafe.Write(_ptrCount, value);
+            lock (SyncRoot)
+            {
+                if (_ptrCount == null)
+                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+                Unsafe.Write(_ptrCount, value);
+            }
         }
     }
 
@@ -248,10 +257,23 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         get
         {
-            var version = Unsafe.Read<int>(_ptrVersion);
-            return version;
+            lock (SyncRoot)
+            {
+                if (_ptrVersion == null)
+                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+                var version = Unsafe.Read<int>(_ptrVersion);
+                return version;
+            }
         }
-        protected set => Unsafe.Write(_ptrVersion, value);
+        protected set
+        {
+            lock (SyncRoot)
+            {
+                if (_ptrVersion == null)
+                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+                Unsafe.Write(_ptrVersion, value);
+            }
+        }
     }
 
     /// <summary>
@@ -261,10 +283,23 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         get
         {
-            var dataType = Unsafe.Read<int>(_ptrDataType);
-            return (DataType)dataType;
+            lock (SyncRoot)
+            {
+                if (_ptrDataType == null)
+                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+                var dataType = Unsafe.Read<int>(_ptrDataType);
+                return (DataType)dataType;
+            }
         }
-        protected init => Unsafe.Write(_ptrDataType, (int)value);
+        protected init
+        {
+            lock (SyncRoot)
+            {
+                if (_ptrDataType == null)
+                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+                Unsafe.Write(_ptrDataType, (int)value);
+            }
+        }
     }
 
     /// <summary>
@@ -322,8 +357,16 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
 
     private long GetCountWriter()
     {
-        var count = Unsafe.Read<long>(_ptrCount);
-        return count;
+        lock (SyncRoot)
+        {
+            var ptr = _ptrCount;
+            if (ptr == null)
+            {
+                return 0;
+            }
+            var count = Unsafe.Read<long>(ptr);
+            return count;
+        }
     }
 
     private void CreateMmf(long capacityBytes)
@@ -379,6 +422,14 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             _pointerAcquired = false;
             _basePointerView = null;
         }
+    }
+
+    private void ClearPointers()
+    {
+        _ptrCount = null;
+        _ptrVersion = null;
+        _ptrDataType = null;
+        _ptrArray = null;
     }
 
     /// <summary>
@@ -443,22 +494,27 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// </summary>
     protected void ResetView()
     {
-        // Release pointer before disposing the view
-        ReleasePointerIfAcquired();
-        _view?.Dispose();
-        var access = IsReadOnly ? MemoryMappedFileAccess.Read : MemoryMappedFileAccess.ReadWrite;
-        _view = _mmf?.CreateViewAccessor(0, 0, access);
-        if (!IsReadOnly && _fileStream!.Length != CapacityBytes)
-            // Set the file length up to the view length so we don't write off the end
-            _fileStream.SetLength(CapacityBytes);
-        var totalHeaderBytes = ResetPointers();
-        if (totalHeaderBytes != _parentHeaderBytes + HeaderBytesBase)
-            throw new ListMmfException(
-                $"{nameof(ResetPointers)} returns {totalHeaderBytes} but expected {_parentHeaderBytes + HeaderBytesBase}");
-        _capacity = (CapacityBytes - _parentHeaderBytes - HeaderBytesBase)
-                    / _width; // for the header fields just before the beginning of the array
-        if (_capacity < Count)
-            throw new ListMmfException($"_capacity={_capacity:N0} cannot be less than Count={Count:N0} for {this}");
+        lock (SyncRoot)
+        {
+            ClearPointers();
+
+            // Release pointer before disposing the view.
+            ReleasePointerIfAcquired();
+            _view?.Dispose();
+            var access = IsReadOnly ? MemoryMappedFileAccess.Read : MemoryMappedFileAccess.ReadWrite;
+            _view = _mmf?.CreateViewAccessor(0, 0, access);
+            if (!IsReadOnly && _fileStream!.Length != CapacityBytes)
+                // Set the file length up to the view length so we don't write off the end
+                _fileStream.SetLength(CapacityBytes);
+            var totalHeaderBytes = ResetPointers();
+            if (totalHeaderBytes != _parentHeaderBytes + HeaderBytesBase)
+                throw new ListMmfException(
+                    $"{nameof(ResetPointers)} returns {totalHeaderBytes} but expected {_parentHeaderBytes + HeaderBytesBase}");
+            _capacity = (CapacityBytes - _parentHeaderBytes - HeaderBytesBase)
+                        / _width; // for the header fields just before the beginning of the array
+            if (_capacity < Count)
+                throw new ListMmfException($"_capacity={_capacity:N0} cannot be less than Count={Count:N0} for {this}");
+        }
     }
 
     /// <summary>
@@ -525,34 +581,37 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         if (IsReadOnly)
             throw new NotSupportedException("Cannot reset MMF in read-only mode");
 
-        var oldCapacityBytes = CapacityBytes;
-        var oldCapacityItems = Capacity;
-        var fi = new FileInfo(Path);
+        lock (SyncRoot)
+        {
+            var oldCapacityBytes = CapacityBytes;
+            var oldCapacityItems = Capacity;
+            var fi = new FileInfo(Path);
 
-        // Release pointer before disposing the view
-        ReleasePointerIfAcquired();
-        _view?.Dispose();
-        _view = null;
-        _mmf?.Dispose();
-        _mmf = null;
-        if (capacityBytes != 0 && capacityBytes < fi.Length)
-            // We want to shorten (Truncate) the file
-            try
-            {
-                _fileStream!.SetLength(capacityBytes);
-            }
-            catch (Exception)
-            {
-                // Ignore -- some reader may have this file open
-                //s_logger.Warn("Unable to shrink to {CapacityBytes:N0} from {FileLength:N0} for {This}", capacityBytes, _fileStream.Length, this);
-            }
+            ClearPointers();
+            ReleasePointerIfAcquired();
+            _view?.Dispose();
+            _view = null;
+            _mmf?.Dispose();
+            _mmf = null;
+            if (capacityBytes != 0 && capacityBytes < fi.Length)
+                // We want to shorten (Truncate) the file
+                try
+                {
+                    _fileStream!.SetLength(capacityBytes);
+                }
+                catch (Exception)
+                {
+                    // Ignore -- some reader may have this file open
+                    //s_logger.Warn("Unable to shrink to {CapacityBytes:N0} from {FileLength:N0} for {This}", capacityBytes, _fileStream.Length, this);
+                }
 
-        if (capacityBytes != 0 && capacityBytes < _fileStream!.Length)
-            // We can't open a file for ReadWrite with a smaller capacity, except 0
-            capacityBytes = _fileStream.Length;
-        _mmf = MemoryMappedFile.CreateFromFile(_fileStream!, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
-            HandleInheritability.None, true);
-        ResetView();
+            if (capacityBytes != 0 && capacityBytes < _fileStream!.Length)
+                // We can't open a file for ReadWrite with a smaller capacity, except 0
+                capacityBytes = _fileStream.Length;
+            _mmf = MemoryMappedFile.CreateFromFile(_fileStream!, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
+                HandleInheritability.None, true);
+            ResetView();
+        }
     }
 
     /// <summary>
@@ -580,7 +639,12 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected T UnsafeRead(long index)
     {
-        return Unsafe.Read<T>(_ptrArray + index * _width);
+        lock (SyncRoot)
+        {
+            if (_ptrArray == null)
+                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+            return Unsafe.Read<T>(_ptrArray + index * _width);
+        }
     }
 
     /// <summary>
@@ -596,7 +660,12 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     public T ReadUnchecked(long index)
     {
         // Avoid going to properties (i.e. Capacity or Count) which lock
-        return Unsafe.Read<T>(_ptrArray + index * _width);
+        lock (SyncRoot)
+        {
+            if (_ptrArray == null)
+                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+            return Unsafe.Read<T>(_ptrArray + index * _width);
+        }
     }
 
     /// <summary>
@@ -766,28 +835,31 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && !_isDisposed)
+        lock (SyncRoot)
         {
-            // Only trim if ResetPointers is allowed
-            if (!_isResetPointersDisallowed) TrimExcess();
-            _funcGetCount = GetCountDisposed;
-            _isDisposed = true;
+            if (disposing && !_isDisposed)
+            {
+                // Only trim if ResetPointers is allowed
+                if (!_isResetPointersDisallowed) TrimExcess();
+                _funcGetCount = GetCountDisposed;
+                _isDisposed = true;
 
-            // Release the pointer before disposing the view
-            ReleasePointerIfAcquired();
+                ClearPointers();
+                ReleasePointerIfAcquired();
 
-            _view?.Dispose(); // must be disposed before _mmf
-            _view = null;
-            _mmf?.Dispose();
-            _mmf = null;
-            _fileStream?.Dispose();
-            _fileStream = null;
+                _view?.Dispose(); // must be disposed before _mmf
+                _view = null;
+                _mmf?.Dispose();
+                _mmf = null;
+                _fileStream?.Dispose();
+                _fileStream = null;
 
-            _exclusiveFileLock?.Dispose();
+                _exclusiveFileLock?.Dispose();
 
-            base.Dispose(true);
-            // GC.Collect();
-            // GC.WaitForPendingFinalizers();
+                base.Dispose(true);
+                // GC.Collect();
+                // GC.WaitForPendingFinalizers();
+            }
         }
     }
 

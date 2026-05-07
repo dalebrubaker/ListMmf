@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using BruSoftware.ListMmf;
 using FluentAssertions;
 using Xunit;
@@ -308,5 +311,57 @@ public class ListMmfTests
             }
         }
         File.Delete(FileName);
+    }
+
+    [Fact]
+    public async Task CountAndIndexRead_DuringCapacityGrowth_ShouldNotUseStalePointers()
+    {
+        const string FileName = $"{nameof(CountAndIndexRead_DuringCapacityGrowth_ShouldNotUseStalePointers)}";
+        File.Delete(FileName);
+        File.Delete(FileName + UtilsListMmf.LockFileExtension);
+
+        var readerExceptions = new ConcurrentQueue<Exception>();
+        var done = false;
+
+        try
+        {
+            using var listMmf = new ListMmf<long>(FileName, DataType.Int64, 1);
+            var reader = Task.Run(() =>
+            {
+                while (!Volatile.Read(ref done))
+                {
+                    try
+                    {
+                        var count = listMmf.Count;
+                        if (count > 0)
+                        {
+                            _ = listMmf[count - 1];
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        readerExceptions.Enqueue(ex);
+                        Volatile.Write(ref done, true);
+                    }
+                }
+            });
+
+            for (var i = 0; i < 20_000 && readerExceptions.IsEmpty; i++)
+            {
+                listMmf.Add(i);
+            }
+
+            Volatile.Write(ref done, true);
+            await reader.WaitAsync(TimeSpan.FromSeconds(5));
+
+            readerExceptions.Should().BeEmpty();
+            listMmf.Count.Should().Be(20_000);
+        }
+        finally
+        {
+            Volatile.Write(ref done, true);
+            File.Delete(FileName);
+            File.Delete(FileName + UtilsListMmf.LockFileExtension);
+        }
     }
 }
