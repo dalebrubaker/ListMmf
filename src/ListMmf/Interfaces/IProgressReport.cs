@@ -1,4 +1,6 @@
-﻿// ReSharper disable once CheckNamespace
+﻿using System.Threading;
+
+// ReSharper disable once CheckNamespace
 namespace BruSoftware.ListMmf;
 
 /// <summary>
@@ -32,4 +34,20 @@ public interface IProgressReport
     /// <param name="countFinal">the final count</param>
     /// <param name="stopMessage">optional</param>
     void End(long countFinal, string stopMessage = "");
+
+    /// <summary>
+    /// Log a message to the progress display (e.g. status text below the progress bar).
+    /// </summary>
+    void LogMessage(string message) { }
+
+    /// <summary>
+    /// Update the task description text shown in the progress display.
+    /// </summary>
+    void UpdateDescription(string description) { }
+
+    /// <summary>
+    /// Cancellation token that is signaled when the user cancels via the progress dialog.
+    /// Default returns <see cref="CancellationToken.None"/> for implementations that don't support it.
+    /// </summary>
+    CancellationToken Token => CancellationToken.None;
 }
