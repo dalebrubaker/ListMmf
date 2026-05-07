@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
@@ -10,9 +10,8 @@
 		<RootNamespace>BruSoftware.ListMmf</RootNamespace>
                 <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                 <PlatformTarget>AnyCPU</PlatformTarget>
-                <Prefer32Bit>false</Prefer32Bit>
                 <Configurations>Debug;Release;Mixed</Configurations>
-                <Platforms>AnyCPU;x64</Platforms>
+                <Platforms>AnyCPU</Platforms>
                 <GenerateDocumentationFile>true</GenerateDocumentationFile>
                 <NoWarn>$(NoWarn);CS1591;CS1572;CS1573</NoWarn>
                 <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -36,7 +35,7 @@
 		<StartupObject/>
 	</PropertyGroup>
 
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Mixed|x64' ">
+	<PropertyGroup Condition=" '$(Configuration)' == 'Mixed' ">
 		<Optimize Condition=" '$(Optimize)' == '' ">true</Optimize>
 	</PropertyGroup>
 
@@ -46,8 +45,8 @@
 	</ItemGroup>
 
         <ItemGroup>
-                <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
-                <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
+                <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.201" PrivateAssets="All"/>
+                <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
         </ItemGroup>
 
 </Project>
