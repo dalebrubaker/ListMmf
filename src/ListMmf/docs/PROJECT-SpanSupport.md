@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Adding `Span<T>` support to ListMmf classes represents a major performance optimization opportunity that could deliver 60-80% performance improvements for bulk operations while maintaining the existing unsafe pointer foundation. **UPDATE**: BruTrader22 limits files to int32 element counts, making this a much simpler 1-day implementation focused on `GetRange()` and optimized `AddRange()` methods.
+Adding `Span<T>` support to ListMmf classes represents a major performance optimization opportunity that could deliver 60-80% performance improvements for bulk operations while maintaining the existing unsafe pointer foundation. **UPDATE**: BruTrader26 limits files to int32 element counts, making this a much simpler 1-day implementation focused on `GetRange()` and optimized `AddRange()` methods.
 
 ## Background
 
@@ -17,7 +17,7 @@ The current ListMmf implementation uses unsafe pointers for individual element a
 ## Technical Challenges (UPDATED)
 
 ### 1. Size Limitations - ~~RESOLVED~~
-- **Reality**: BruTrader22 limits files to int32 element counts, so Span<T> size limits are not a concern
+- **Reality**: BruTrader26 limits files to int32 element counts, so Span<T> size limits are not a concern
 - **Solution**: Simple bounds checking in GetRange()
 
 ### 2. Pointer Lifetime Management - ~~MINIMAL CONCERN~~

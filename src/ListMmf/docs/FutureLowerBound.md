@@ -1,7 +1,7 @@
 # Future LowerBound() Performance Optimization Analysis
 
 ## Overview
-`ListMmfTimeSeriesDateTimeSeconds.LowerBound()` is heavily used in BruTrader22 for timestamp-based searches, making it a critical performance bottleneck in high-frequency trading scenarios. This document outlines potential optimizations for future implementation.
+`ListMmfTimeSeriesDateTimeSeconds.LowerBound()` is heavily used in BruTrader26 for timestamp-based searches, making it a critical performance bottleneck in high-frequency trading scenarios. This document outlines potential optimizations for future implementation.
 
 ## Current Implementation Analysis
 
