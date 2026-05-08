@@ -1,40 +1,55 @@
-# Future LowerBound() Performance Optimization Analysis
+# LowerBound() Search Optimization Status
 
 ## Overview
-`ListMmfTimeSeriesDateTimeSeconds.LowerBound()` is heavily used in BruTrader26 for timestamp-based searches, making it a critical performance bottleneck in high-frequency trading scenarios. This document outlines potential optimizations for future implementation.
+`ListMmfTimeSeriesDateTimeSeconds.LowerBound()` is heavily used in BruTrader26 for timestamp-based searches, making it a critical performance bottleneck in high-frequency trading scenarios.
 
-## Current Implementation Analysis
+This note originally described future work against the old binary-search-only implementation. That is now partially superseded: interpolation search with `SearchStrategy.Auto`, `SearchStrategy.Binary`, and `SearchStrategy.Interpolation` has been implemented for `LowerBound()`, `UpperBound()`, and `BinarySearch()`.
+
+The remaining future work is the more specialized end-biased, hint-based, and bulk lower-bound APIs described below.
+
+## Current Implementation Status
 
 ### Performance Characteristics
-- **Algorithm**: Standard binary search with O(log n) complexity
-- **Memory Access Pattern**: Random access via `UnsafeRead(i)` on each iteration
-- **Cache Performance**: Poor due to scattered memory accesses
-- **Branch Predictability**: Standard binary search branching pattern
+- **Default strategy**: `SearchStrategy.Auto`
+- **Uniform large ranges**: Auto uses interpolation search for O(log log n) expected behavior
+- **Small or non-uniform ranges**: Auto falls back to standard binary search
+- **Explicit control**: Callers can force `SearchStrategy.Binary` or `SearchStrategy.Interpolation`
+- **Memory access pattern**: Still direct random access via `UnsafeRead(i)`, but interpolation reduces probes for uniform data
 
 ### Current Code Pattern
 ```csharp
-public long LowerBound(long first, long last, DateTime value)
+public long LowerBound(DateTime value, SearchStrategy strategy = SearchStrategy.Auto)
 {
+    return LowerBound(0, Count, value, strategy);
+}
+
+public long LowerBound(long first, long last, DateTime value, SearchStrategy strategy = SearchStrategy.Auto)
+{
+    var length = last - first;
     var valueSeconds = value.ToUnixSeconds();
-    count = last - first;
-    while (count > 0)
+
+    var useInterpolation = strategy switch
     {
-        var step = count / 2;
-        var i = first + step;
-        var arrayValue = UnsafeRead(i);  // Individual memory access per iteration
-        if (arrayValue < valueSeconds)
-        {
-            first = ++i;
-            count -= step + 1;
-        }
-        else
-        {
-            count = step;
-        }
-    }
-    return first;
+        SearchStrategy.Interpolation => true,
+        SearchStrategy.Binary => false,
+        SearchStrategy.Auto => length >= InterpolationMinSize && IsDataUniform(),
+        _ => false
+    };
+
+    return useInterpolation
+        ? InterpolationLowerBound(first, last, valueSeconds)
+        : BinaryLowerBound(first, last, valueSeconds);
 }
 ```
+
+## Completed Work
+- Added `SearchStrategy` enum with `Auto`, `Binary`, and `Interpolation`
+- Added interpolation search implementations for lower bound, upper bound, and exact search
+- Added automatic uniformity detection for choosing interpolation on large uniform datasets
+- Kept binary search as the reliable fallback strategy
+- Added search-strategy benchmarks in `src/ListMmfBenchmarks/BenchmarkSearchStrategies.cs`
+- Added regression tests for interpolation searches near the end of large datasets
+- Fixed a rare interpolation-search hang when interpolation selected the high endpoint
 
 ## High-Frequency Trading Usage Patterns
 
@@ -49,9 +64,11 @@ public long LowerBound(long first, long last, DateTime value)
 - **Frequency**: Potentially millions of calls per trading session
 - **Latency sensitivity**: Sub-microsecond improvements matter in HFT
 
-## Optimization Opportunities
+## Remaining Optimization Opportunities
 
 ### 1. End-Biased Search Optimization
+**Status**: Not implemented as a dedicated API.
+
 **Problem**: Most searches are for recent data, but binary search starts from the middle.
 
 **Solution**: 
@@ -62,6 +79,8 @@ public long LowerBound(long first, long last, DateTime value)
 **Expected Improvement**: 20-40% for searches in the last 10% of data
 
 ### 2. Hint-Based Search Methods
+**Status**: Not implemented.
+
 **Problem**: Sequential searches don't leverage spatial locality.
 
 **Solution**:
@@ -72,6 +91,8 @@ public long LowerBound(long first, long last, DateTime value)
 **Expected Improvement**: 15-30% for sequential/nearby searches
 
 ### 3. Cache-Aware Binary Search
+**Status**: Partially superseded by interpolation search for uniform data. Branchless search, prefetching, and alternate layouts remain future work.
+
 **Problem**: Random memory access pattern causes cache misses.
 
 **Solutions**:
@@ -82,6 +103,8 @@ public long LowerBound(long first, long last, DateTime value)
 **Expected Improvement**: 5-15% general improvement
 
 ### 4. Bulk Operations
+**Status**: Not implemented for lower-bound searches.
+
 **Problem**: Multiple individual searches have repeated overhead.
 
 **Solutions**:
@@ -91,9 +114,9 @@ public long LowerBound(long first, long last, DateTime value)
 
 **Expected Improvement**: 30-50% for bulk operations
 
-## Implementation Strategy
+## Remaining Implementation Strategy
 
-### Phase 1: Quick Wins (1-2 days)
+### Phase 1: End-Biased and Hint-Based APIs (1-2 days)
 1. **Add LowerBoundFromEnd() method**
    ```csharp
    public long LowerBoundFromEnd(DateTime value, long searchFromEndCount = 1000)
@@ -104,7 +127,7 @@ public long LowerBound(long first, long last, DateTime value)
    ```
 3. **Implement exponential search + binary search hybrid**
 
-### Phase 2: Advanced Optimizations (3-5 days)
+### Phase 2: Advanced Cache/Branch Optimizations (3-5 days)
 1. **Branchless binary search implementation**
 2. **Memory prefetching hints**
 3. **Branch prediction optimizations**
@@ -147,7 +170,7 @@ public long LowerBound(long first, long last, DateTime value)
 - End-biased search methods
 
 ### Medium Risk Optimizations
-- Modifying existing LowerBound() implementation
+- Changing existing `LowerBound()` default strategy heuristics
 - Branchless algorithms (may be slower on some CPUs)
 - Memory prefetching (architecture-dependent)
 
@@ -176,8 +199,8 @@ public long LowerBound(long first, long last, DateTime value)
 ## Implementation Notes
 
 ### Backward Compatibility
-- Keep existing LowerBound() methods unchanged
-- Add new optimized methods with clear naming
+- Existing `LowerBound()` source calls continue to work through optional `SearchStrategy` parameters
+- New specialized methods should be additive and clearly named
 - Provide migration path for performance-critical code
 
 ### Testing Requirements
@@ -194,13 +217,15 @@ public long LowerBound(long first, long last, DateTime value)
 
 ## Conclusion
 
-LowerBound() optimization represents a significant opportunity for HFT performance improvement. The combination of end-biased search optimization and hint-based methods could provide 15-30% improvement in the most common use cases, which translates to measurable improvements in order processing latency and system throughput.
+The original binary-search-only implementation has been improved with interpolation search and automatic strategy selection. That completes the broad general-purpose search optimization for large, uniform timestamp data.
 
-**Recommendation**: Start with Phase 1 (quick wins) to validate the approach, then proceed based on measured performance improvements and business impact.
+The document should remain open for the narrower future work: end-biased search, hint-based search, bulk lower-bound operations, and lower-level cache/branch optimizations.
+
+**Recommendation**: Treat interpolation search as completed work. Start remaining work with explicit end-biased and hint-based APIs only if BruTrader26 call sites can use them directly and benchmarks show a clear win over `SearchStrategy.Auto`.
 
 ---
 
-**Status**: Analysis complete - ready for future implementation
-**Priority**: High for HFT performance optimization
-**Estimated Effort**: 1-3 weeks depending on scope
-**Business Impact**: Significant latency reduction in order processing
+**Status**: Partially complete - interpolation/auto strategy implemented; specialized APIs remain future work
+**Priority**: Medium until call-site benchmarks prove additional value
+**Estimated Remaining Effort**: 1-2 weeks depending on scope
+**Business Impact**: Potential additional latency reduction in end-biased or sequential search workloads

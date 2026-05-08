@@ -1,20 +1,8 @@
 # BruSoftware.ListMmf
 
-High-performance memory-mapped file implementation of .NET's `IList<T>` interface for inter-process communication and large data handling.
+High-performance, memory-mapped, `List<T>`-style collections for .NET. ListMmf is designed for large persisted datasets and single-writer/multiple-reader inter-process sharing.
 
-## Features
-
-- **Full IList<T> Compatibility**: Implements standard .NET collection interfaces
-- **Memory-Mapped Performance**: Ultra-fast data access using memory-mapped files
-- **Inter-Process Communication**: Share lists between processes seamlessly
-- **Large Data Support**: Handle datasets larger than available RAM
-- **64-bit Optimized**: Lock-free operations for 8-byte and smaller data types
-- **Persistent Storage**: Data persists across application restarts
-- **Time Series Support**: Specialized implementations for DateTime-based series with advanced search strategies
-- **Intelligent Search Algorithms**: Auto-detects data distribution for optimal search (3-5x faster on uniform data)
-- **Variable-Width Storage**: Optimized storage for different integer sizes (Int24, Int40, Int48, Int56)
-- **Bit Array Support**: Efficient storage for boolean arrays
-- **SourceLink Enabled**: Debug into library source directly from consuming applications
+The NuGet package uses this file as its package README.
 
 ## Installation
 
@@ -22,282 +10,302 @@ High-performance memory-mapped file implementation of .NET's `IList<T>` interfac
 dotnet add package BruSoftware.ListMmf
 ```
 
+## Requirements
+
+- .NET 9.0 or later
+- 64-bit process
+- Windows or Linux with `System.IO.MemoryMappedFiles` support
+- One writer per data file; multiple read-only readers are supported
+
+## Key Features
+
+- Persistent collections backed by memory-mapped files
+- `long` indexing and `long Count` through `IReadOnlyList64<T>`
+- Append-oriented writes with `Add`, `AddRange`, `SetLast`, and truncation support
+- Zero-copy `ReadOnlySpan<T>` access for compatible storage types
+- Fixed-width primitive, floating point, `DateTime`, Unix-seconds, bit, and odd-byte integer storage
+- Compact integer storage through `SmallestInt64ListMmf`
+- Time-series lists with `BinarySearch`, `LowerBound`, and `UpperBound`
+- Optimized interpolation search for Unix-seconds time series through `SearchStrategy`
+- Numeric adapters that expose compact on-disk files as `IListMmf<long>`
+
 ## Quick Start
 
-### Basic Usage
+```csharp
+using BruSoftware.ListMmf;
+
+var path = "shared-list.mmf";
+
+using var writer = new ListMmf<int>(path, DataType.Int32);
+writer.Add(42);
+writer.AddRange(new[] { 100, 255 });
+writer.SetLast(256);
+
+Console.WriteLine(writer[0]);        // 42
+Console.WriteLine(writer.Count);     // 3
+
+ReadOnlySpan<int> recent = writer.AsSpan(start: 1, length: 2);
+Console.WriteLine(recent[0]);        // 100
+
+using var reader = new ListMmf<int>(path, DataType.Int32, isReadOnly: true);
+Console.WriteLine(reader.Count);     // 3
+```
+
+`ListMmf<T>` intentionally exposes a get-only indexer. Mutations are append-oriented; use `Add`, `AddRange`, `SetLast`, `Truncate`, or `TruncateBeginning`.
+
+## Type Selection
+
+`ListMmf<T>` stores values using the exact `T` and `DataType` you choose. It does not auto-upgrade when values exceed the chosen type's range.
 
 ```csharp
 using BruSoftware.ListMmf;
 
-// Create or open a memory-mapped list with an appropriate type
-// Use Int32 for most integers (±2.1B range), Int64 for larger/unknown ranges
-var list = new ListMmf<int>("shared-list.mmf", DataType.Int32);
+using var prices = new ListMmf<int>("prices.mmf", DataType.Int32);
+prices.Add(10_050); // Store $100.50 as cents.
 
-// Use it like any IList<T>
-list.Add(42);
-list.Add(100);
-list.Add(255);
+int realtimeValue = GetPriceFromFeed();
+prices.Add(realtimeValue);
 
-// Access elements
-int value = list[0];  // 42
-list[1] = 200;        // Update value
-
-// Share between processes - another process can open the same list
-using var sharedList = new ListMmf<int>("shared-list.mmf", DataType.Int32);
-Console.WriteLine(sharedList.Count);  // 3
+using var smallPrices = new ListMmf<short>("small-prices.mmf", DataType.Int16);
+smallPrices.Add(checked((short)realtimeValue)); // Throw instead of silently truncating.
 ```
 
-### ⚠️ Type Safety and Overflow Protection
+For production data, prefer `Int32` or `Int64` unless you have hard range guarantees. Use `checked` casts when narrowing values before calling `Add`.
 
-**ListMmf uses fixed types and does NOT auto-upgrade like SmallestInt.** Choose appropriate types upfront:
+See [BEST-PRACTICES.md](https://github.com/dalebrubaker/ListMmf/blob/main/BEST-PRACTICES.md) for more guidance on type selection and overflow handling.
+
+## Core Types
+
+### `ListMmf<T>`
+
+Main generic memory-mapped list for struct storage.
 
 ```csharp
-// ✅ GOOD: Use Int32 or Int64 for production data
-var prices = new ListMmf<int>("prices.mmf", DataType.Int32);     // ±2.1B range
-var volumes = new ListMmf<long>("volumes.mmf", DataType.Int64);  // ±9.2E+18 range
+using var list = new ListMmf<long>(
+    path: "values.mmf",
+    dataType: DataType.Int64,
+    capacityItems: 1_000_000);
 
-// ❌ AVOID: Small types risk overflow and data corruption
-var prices = new ListMmf<short>("prices.mmf", DataType.Int16);   // Only ±32K!
+list.Add(123);
+list.AddRange(new long[] { 456, 789 });
 
-// If you must cast, use checked() to throw on overflow instead of corrupting data:
-int realtimeValue = GetFromDataFeed();
-try {
-    prices.Add(checked((short)realtimeValue));  // Throws OverflowException if too large
-} catch (OverflowException) {
-    Logger.Error($"Value {realtimeValue} exceeds type range");
-}
+long count = list.Count;
+long value = list[0];
+ReadOnlySpan<long> window = list.AsSpan(0, 2);
 ```
 
-**📘 See [BEST-PRACTICES.md](BEST-PRACTICES.md) for detailed guidance on type selection and overflow handling.**
+Useful members:
 
-### Zero-Copy Span Access
+- `Count`, `Capacity`, `Path`, `WidthBits`, `DataType`
+- `Add(T value)`
+- `AddRange(IEnumerable<T> collection)`
+- `AddRange(ReadOnlySpan<T> span)`
+- `SetLast(T value)`
+- `ReadUnchecked(long index)`
+- `AsSpan(long start, int length)`
+- `Truncate(long newCount)`
+- `TruncateBeginning(long newCount, IProgress<long>? progress = null)`
+
+### `ListMmfBitArray`
+
+Specialized bit storage for boolean values.
 
 ```csharp
-// Inspect a window of data without allocating new arrays
-ReadOnlySpan<int> recent = sharedList.AsSpan(start: 1, length: 2);
-Console.WriteLine(recent[0]);
+using var flags = new ListMmfBitArray("flags.mmf");
+flags.Add(true);
+flags.Add(false);
+
+long setBits = flags.GetCardinality();
 ```
 
-> [!NOTE]
-> Legacy callers can continue to use `GetRange` but the method now forwards to `AsSpan` internally.
-> Prefer the `AsSpan` overloads for new code so the zero-copy semantics are obvious at call sites.
+It also supports `And`, `Or`, `Xor`, and `Not` operations between bit arrays.
 
-### Time Series Data with Advanced Search Strategies
+### `ListMmfTimeSeriesDateTime`
 
-```csharp
-// Optimized for DateTime series with ordered data
-var timeSeries = new ListMmfTimeSeriesDateTime("market-data");
-
-// Add timestamps
-timeSeries.Add(DateTime.UtcNow);
-
-// Efficient search with automatic strategy selection (NEW in v1.0.8)
-// Auto-detects if data is uniformly distributed and uses optimal algorithm
-var index = timeSeries.LowerBound(targetDateTime);  // 3-5x faster on uniform data
-
-// Or choose explicit strategy for backtesting/analytics:
-var index = timeSeries.LowerBound(targetDateTime, SearchStrategy.Interpolation);  // O(log log n)
-var index = timeSeries.LowerBound(targetDateTime, SearchStrategy.Binary);         // O(log n)
-var index = timeSeries.LowerBound(targetDateTime, SearchStrategy.Auto);           // Smart auto-detect
-```
-
-**Search Performance** (for 2M-2B items):
-- **Binary**: ~21-31 comparisons (standard)
-- **Interpolation**: ~5-7 comparisons (3-5x faster on uniform data like daily trades)
-- **Auto**: Automatically chooses best strategy with one-time detection
-
-See [SEARCH-STRATEGIES.md](SEARCH-STRATEGIES.md) for detailed usage guide.
-
-### Variable-Width Integer Storage (SmallestInt)
+Stores ordered `DateTime` values as ticks.
 
 ```csharp
-// SmallestInt automatically uses the smallest storage size based on your data range
-var optimizedList = new SmallestInt64ListMmf(DataType.Int24AsInt64, "optimized-data.bt");
+var start = DateTime.UtcNow;
 
-// Stores using minimal bytes (Int24, Int40, etc.) and auto-upgrades when needed
-optimizedList.Add(1000);      // Stored as Int24 (3 bytes)
-optimizedList.Add(10000000);  // Auto-upgrades to Int32 (4 bytes)
-```
+using var times = new ListMmfTimeSeriesDateTime(
+    "times.ticks.mmf",
+    TimeSeriesOrder.AscendingOrEqual);
 
-**When to use SmallestInt vs standard ListMmf:**
-- **SmallestInt**: Saves storage (5-10%) but 5-8x slower, auto-upgrades, not Python-compatible
-- **ListMmf**: Fast, Python-compatible, predictable, but no auto-upgrade (throws on overflow)
-
-See [BEST-PRACTICES.md](BEST-PRACTICES.md#when-to-use-listmmf-vs-smallestint) for detailed comparison.
-
-### Fast Int64 conversion for odd-byte files (no SmallestInt*)
-
-Odd-byte structs such as `UInt24AsInt64` and `Int40AsInt64` expose zero-copy spans, but expanding them to full 64-bit integers previously required extra allocations or the SmallestInt wrappers. New extension methods keep conversions allocation-conscious:
-
-```csharp
-using BruSoftware.ListMmf;
-
-using var list = new ListMmf<UInt40AsInt64>("ticks.u40.mmf", DataType.UInt40AsInt64);
-
-// Reuse a caller-owned buffer when iterating through large files
-var chunkSize = 1_024;
-var buffer = GC.AllocateUninitializedArray<long>(chunkSize);
-long position = 0;
-
-while (position < list.Count)
+times.AddRange(new[]
 {
-    var toRead = (int)Math.Min(chunkSize, list.Count - position);
-    list.CopyAsInt64(position, buffer.AsSpan(0, toRead));
-    Process(buffer.AsSpan(0, toRead));
-    position += toRead;
-}
+    start,
+    start.AddSeconds(1),
+    start.AddSeconds(2)
+});
 
-// Pool-backed helper returns IMemoryOwner<long> trimmed to your requested length
-using var owner = list.RentAsInt64(start: 0, length: chunkSize);
-var span = owner.Memory.Span;
-Consume(span);
+long lower = times.LowerBound(start.AddMilliseconds(1500));
+long upper = times.UpperBound(start.AddSeconds(1));
+long found = times.BinarySearch(start.AddSeconds(2));
 ```
 
-These helpers work with `ListMmf<T>` writers and `IReadOnlyList64Mmf<T>` readers for all supported odd-byte types (24/40/48/56-bit, signed and unsigned). They expand values to `long` without per-element allocations and are ideal when you need repeated analysis passes. For one-off whole-file conversions, continue to use `ListMmfWidthConverter`.
+### `ListMmfTimeSeriesDateTimeSeconds`
 
-### Open any numeric file as `long`
+Stores ordered `DateTime` values as Unix seconds (`int`) and supports search strategy selection.
 
-BruTrader and other downstream tools can now work purely with `long` values even when the on-disk representation uses odd-byte widths. The new factory returns an allocation-conscious adapter that exposes `IListMmf<long>` and `IReadOnlyList64Mmf<long>` while delegating storage to the original type.
+```csharp
+var start = DateTime.UtcNow;
+
+using var seconds = new ListMmfTimeSeriesDateTimeSeconds(
+    "times.seconds.mmf",
+    TimeSeriesOrder.AscendingOrEqual);
+
+seconds.AddRange(new[]
+{
+    start,
+    start.AddSeconds(1),
+    start.AddSeconds(2)
+});
+
+long auto = seconds.LowerBound(start.AddMilliseconds(1500));
+long binary = seconds.LowerBound(start.AddMilliseconds(1500), SearchStrategy.Binary);
+long interpolation = seconds.LowerBound(start.AddMilliseconds(1500), SearchStrategy.Interpolation);
+```
+
+`SearchStrategy.Auto` detects sufficiently uniform data and uses interpolation search when it is likely to help.
+
+See [SEARCH-STRATEGIES.md](https://github.com/dalebrubaker/ListMmf/blob/main/SEARCH-STRATEGIES.md) for more detail.
+
+### `SmallestInt64ListMmf`
+
+Stores `long` values using the smallest supported integer `DataType` that can hold the observed range. It can upgrade the backing file when a new value no longer fits.
+
+```csharp
+using var compact = new SmallestInt64ListMmf(
+    DataType.Int24AsInt64,
+    "compact-values.mmf");
+
+compact.Add(1_000);
+compact.Add(10_000_000); // Upgrades if the current width cannot hold the value.
+```
+
+Use this when compact storage matters more than predictable fixed-width layout. Use standard `ListMmf<T>` when you need stable file format, best speed, or simple interop.
+
+### `SmallestEnumListMmf<T>`
+
+Stores enum values using compact integer backing storage.
+
+```csharp
+using var states = new SmallestEnumListMmf<MyState>(
+    typeof(MyState),
+    "states.mmf");
+
+states.Add(MyState.Active);
+```
+
+## Odd-Byte Integer Storage
+
+ListMmf supports 24, 40, 48, and 56-bit signed and unsigned integer structs:
+
+- `Int24AsInt64`, `Int40AsInt64`, `Int48AsInt64`, `Int56AsInt64`
+- `UInt24AsInt64`, `UInt40AsInt64`, `UInt48AsInt64`, `UInt56AsInt64`
+
+Use `CopyAsInt64` when you own the destination buffer, or `RentAsInt64` when temporary pooled storage is convenient.
+
+```csharp
+using BruSoftware.ListMmf;
+
+using var list = new ListMmf<UInt40AsInt64>(
+    "ticks.u40.mmf",
+    DataType.UInt40AsInt64);
+
+list.Add(new UInt40AsInt64(1_000_000));
+
+var buffer = GC.AllocateUninitializedArray<long>((int)list.Count);
+list.CopyAsInt64(0, buffer);
+
+using var owner = list.RentAsInt64(start: 0, length: (int)list.Count);
+ReadOnlySpan<long> values = owner.Memory.Span;
+```
+
+## Open Any Numeric File As `long`
+
+`UtilsListMmf.OpenAsInt64` opens standard and odd-byte numeric files behind an `IListMmf<long>` adapter. Writes are checked, so values that no longer fit the current on-disk width throw `DataTypeOverflowException` with upgrade guidance.
 
 ```csharp
 using BruSoftware.ListMmf;
 using System.IO.MemoryMappedFiles;
 
-// Inspect values from a UInt24-backed file without rewriting it
-using var bars = UtilsListMmf.OpenAsInt64("Closes.bt", MemoryMappedFileAccess.ReadWrite);
+using var values = UtilsListMmf.OpenAsInt64(
+    "Closes.bt",
+    MemoryMappedFileAccess.ReadWrite,
+    seriesName: "Closes");
 
-// Zero-copy reads reuse an internal pooled buffer for odd-byte widths
-ReadOnlySpan<long> window = bars.AsSpan(start: bars.Count - 1_000, length: 1_000);
+long last = values[values.Count - 1];
+values.Add(last + 1);
 
-// Checked writes throw DataTypeOverflowException when the value no longer fits
-try
-{
-    bars.Add(checked((long)1_000_000));
-}
-catch (DataTypeOverflowException ex)
-{
-    Console.WriteLine($"{ex.Message}\nUpgrade suggestion: {ex.SuggestedDataType}");
-}
-
-// Monitor capacity consumption (returns the larger of the positive/negative utilization ratios)
-var status = ((IListMmfLongAdapter)bars).GetDataTypeUtilization();
+var adapter = (IListMmfLongAdapter)values;
+var status = adapter.GetDataTypeUtilization();
 Console.WriteLine($"{status.Utilization:P1} of {status.AllowedMax:N0} range in use");
-
-// Optional: trigger a friendly warning when utilization crosses a threshold
-((IListMmfLongAdapter)bars).ConfigureUtilizationWarning(0.90, info =>
-{
-    Console.WriteLine($"WARNING: {info.Utilization:P0} of {info.AllowedMax:N0} capacity consumed");
-});
 ```
 
-`UtilsListMmf.OpenAsInt64` automatically maps every supported `DataType` (including the odd-byte Int24/UInt24/Int40/UInt40/... variants) to its concrete `ListMmf<T>` and wraps it in the high-performance adapter. Writes remain O(1) with pooled buffers, and the adapter throws `DataTypeOverflowException` with upgrade guidance instead of silently truncating.
-
-## Advanced Features
-
-### Read-Only Views
+## Interfaces
 
 ```csharp
-// Create read-only views for safe concurrent access
-var readOnlyView = new ReadOnlyList64Mmf<double>("data", isReadOnly: true);
-
-// Multiple readers can access simultaneously without locks
-double sum = readOnlyView.Sum();
-```
-
-### Custom Data Types
-
-```csharp
-// Support for custom structs (must be blittable)
-[StructLayout(LayoutKind.Sequential)]
-public struct MarketTick
+public interface IReadOnlyList64<out T> : IEnumerable<T>
 {
-    public long Timestamp;
-    public double Price;
-    public int Volume;
+    T this[long index] { get; }
+    long Count { get; }
 }
 
-var tickData = new ListMmf<MarketTick>("market-ticks");
-```
-
-### Performance Monitoring
-
-```csharp
-// Track performance metrics
-var list = new ListMmf<long>("tracked-list");
-list.ProgressReport += (sender, args) => 
+public interface IReadOnlyList64Mmf<T> : IReadOnlyList64<T>
 {
-    Console.WriteLine($"Operation: {args.Operation}, Items: {args.ItemsProcessed}");
-};
+    T ReadUnchecked(long index);
+    ReadOnlySpan<T> AsSpan(long start, int length);
+    ReadOnlySpan<T> AsSpan(long start);
+    ReadOnlySpan<T> GetRange(long start, int length);
+    ReadOnlySpan<T> GetRange(long start);
+}
+
+public interface IListMmf<T> : IListMmf, IEnumerable<T>
+{
+    T this[long index] { get; }
+    void Add(T value);
+    void AddRange(IEnumerable<T> collection);
+    void AddRange(ReadOnlySpan<T> span);
+    void SetLast(T value);
+}
 ```
 
-## Architecture
+## File Model
 
-### 64-bit Only Design
+Each ListMmf file begins with a small header containing:
 
-This library requires a 64-bit process to ensure atomic operations on 8-byte values without locking. This design choice enables:
-- Lock-free reads and writes for primitive types
-- Better performance for concurrent access
-- Simplified memory management
+- `Version`
+- `DataType`
+- `Count`
 
-### Memory-Mapped Files
+The list payload starts after the header and any parent-reserved header bytes used by specialized list types. Capacity grows by remapping the file when needed; readers see `Count` updated only after appended data is written.
 
-The underlying storage uses Windows memory-mapped files, providing:
-- Virtual memory management by the OS
-- Automatic paging to/from disk
-- Shared memory between processes
-- Persistence across application restarts
+## Concurrency
 
-### File Structure
+- One writer may open a file for mutation.
+- Multiple read-only readers may open the same file with `isReadOnly: true`.
+- Values 8 bytes or smaller are written with atomic processor-sized operations on 64-bit systems.
+- Structs larger than 8 bytes may require external synchronization if readers observe concurrent writer updates.
+- Multiple writers are rejected by the file locking layer.
 
-Data files are stored with metadata headers containing:
-- Data type information
-- Element size
-- Capacity and count
-- Version information
+## Performance Notes
 
-## Performance
+- Random access is direct pointer-based memory access.
+- `AsSpan` avoids allocations for compatible storage types.
+- `ReadUnchecked` is intended for tight loops where the caller has already cached and validated `Count`.
+- Capacity growth remaps the file. For long-lived spans or pointer-sensitive consumers, avoid using spans across calls that may grow capacity.
+- Time-series search is `O(log n)` with binary search and can be faster on uniform Unix-seconds data with interpolation search.
 
-- **Reads**: Near-memory speed for cached pages
-- **Writes**: Atomic operations for 8-byte and smaller types
-- **Memory**: Only active pages consume RAM
-- **Scaling**: Handles multi-GB datasets efficiently
+## Additional Documentation
 
-## Thread Safety
-
-- **Multiple Readers**: Thread-safe, no locking needed
-- **Single Writer + Multiple Readers**: Supported pattern
-- **Atomic Operations**: Lock-free for ≤8 byte types (int, long, double)
-- **Multiple Writers**: Not supported (throws IOException on second writer)
-- **Large Structures**: Types >8 bytes may require external synchronization
-
-**Example:**
-```csharp
-// Process A: Writer (exclusive)
-using var writer = new ListMmf<long>("shared.mmf", DataType.Int64);
-writer.Add(12345);
-
-// Process B & C: Readers (concurrent, lock-free)
-using var reader1 = new ListMmf<long>("shared.mmf", DataType.Int64);
-using var reader2 = new ListMmf<long>("shared.mmf", DataType.Int64);
-Console.WriteLine(reader1.Count + reader2.Count);  // Safe
-```
-
-## Requirements
-
-- .NET 9.0 or later
-- 64-bit process
-- Windows or Linux with memory-mapped file support
+- [Best Practices](https://github.com/dalebrubaker/ListMmf/blob/main/BEST-PRACTICES.md)
+- [Search Strategies](https://github.com/dalebrubaker/ListMmf/blob/main/SEARCH-STRATEGIES.md)
+- [Quick Reference](https://github.com/dalebrubaker/ListMmf/blob/main/QUICK-REFERENCE.md)
+- [Architecture Notes](https://github.com/dalebrubaker/ListMmf/blob/main/src/ListMmf/docs/ARCHITECTURE.md)
 
 ## License
 
-Copyright © Dale A. Brubaker 2022-2025
+Licensed under the terms in [LICENSE.txt](https://github.com/dalebrubaker/ListMmf/blob/main/LICENSE.txt).
 
-Licensed under the terms in LICENSE.txt
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests on [GitHub](https://github.com/dalebrubaker/ListMmf).
-
-## Support
-
-For questions and support, please open an issue on the [GitHub repository](https://github.com/dalebrubaker/ListMmf/issues).
+Copyright (c) Dale A. Brubaker 2022-2025.
