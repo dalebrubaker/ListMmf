@@ -786,8 +786,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             throw new ListMmfException($"Truncate new length {newCount} cannot be greater than Capacity {_capacity}");
 
         // Change Count first so readers won't use a wrong value
+        // Capacity and the mapping are left alone: remapping would invalidate pointers/spans held by readers
+        // (and throws after DisallowResetPointers). Use TrimExcess() or Capacity to reclaim space explicitly.
         Count = newCount;
-        ResetCapacity(newCount);
     }
 
     /// <inheritdoc cref="IListMmf{T}" />

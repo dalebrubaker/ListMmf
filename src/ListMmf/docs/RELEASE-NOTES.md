@@ -1,5 +1,15 @@
 # Release Notes
 
+## 1.4.1
+
+- fix: `Truncate` now only reduces `Count`, as documented on `IListMmf.Truncate`; it no longer changes `Capacity` or remaps the file.
+  - Previously `Truncate` called `ResetCapacity`, which threw `ResetPointersDisallowedException` after `DisallowResetPointers()` and could invalidate pointers/spans held by readers.
+  - Applies to `ListMmfBase<T>` and `ListMmfBitArray` (including `ListMmfBitArray.TruncateBeginning`).
+  - `ListMmfBitArray.Truncate` clears the discarded bits so they cannot reappear when the array grows again.
+  - Space is still reclaimed by `TrimExcess()`/`Capacity`, and by `Dispose()` when pointers are not locked.
+
+Internal: Added regression tests for truncating with locked pointers (list and bit array) and for dispose-time trimming.
+
 ## 1.4.0
 
 - fix: guard memory-mapped pointer access during capacity growth and disposal

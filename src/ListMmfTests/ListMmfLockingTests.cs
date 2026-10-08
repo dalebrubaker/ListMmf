@@ -42,18 +42,118 @@ public class ListMmfLockingTests : IDisposable
         // Arrange
         using var listMmf = new ListMmf<int>(_testFilePath, DataType.Int32, 100);
 
-        // Act - Add data and truncate (which calls ResetPointers)
+        // Act - Add data and truncate
         for (var i = 0; i < 2000; i++)
         {
             listMmf.Add(i);
         }
 
-        // This should work fine before locking
+        // Truncate only reduces Count (no remap), so it works with or without the lock
         listMmf.Truncate(1000);
 
         // Assert
         listMmf.Count.Should().Be(1000);
         listMmf.IsResetPointersDisallowed.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Truncate_AfterDisallowResetPointers_ReducesCountOnly_AndDoesNotRemap()
+    {
+        // Arrange
+        using var listMmf = new ListMmf<int>(_testFilePath, DataType.Int32, 100);
+        for (var i = 0; i < 2000; i++)
+        {
+            listMmf.Add(i);
+        }
+        listMmf.DisallowResetPointers();
+        var capacityBefore = listMmf.Capacity;
+        var spanBefore = listMmf.AsSpan(0, 500); // pointer into the current mapping
+
+        // Act
+        var act = () => listMmf.Truncate(500);
+
+        // Assert
+        act.Should().NotThrow();
+        listMmf.Count.Should().Be(500);
+        listMmf.Capacity.Should().Be(capacityBefore);
+        for (var i = 0; i < 500; i++)
+        {
+            listMmf[i].Should().Be(i);
+            spanBefore[i].Should().Be(i); // still readable, so the view was not remapped
+        }
+    }
+
+    [Fact]
+    public void Truncate_BitArray_AfterDisallowResetPointers_ReducesLengthOnly_AndDoesNotRemap()
+    {
+        // Arrange
+        using var bits = new ListMmfBitArray(_testFilePath, 10_000);
+        for (var i = 0; i < 1000; i++)
+        {
+            bits.Add(i % 3 == 0);
+        }
+        bits.DisallowResetPointers();
+        var capacityBefore = bits.Capacity;
+
+        // Act
+        var act = () => bits.Truncate(70); // not a multiple of 32
+
+        // Assert
+        act.Should().NotThrow();
+        bits.Count.Should().Be(70);
+        bits.Capacity.Should().Be(capacityBefore);
+        var expectedCardinality = 0;
+        for (var i = 0; i < 70; i++)
+        {
+            bits[i].Should().Be(i % 3 == 0);
+            if (i % 3 == 0)
+            {
+                expectedCardinality++;
+            }
+        }
+        bits.GetCardinality().Should().Be(expectedCardinality);
+
+        // Growing again must expose zeros, not the discarded bits (72, 75, ... were true)
+        bits.Set(199, false);
+        bits.Count.Should().Be(200);
+        for (var i = 70; i < 200; i++)
+        {
+            bits[i].Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public void Truncate_WithoutLock_LeavesCapacityUnchanged_AndDisposeTrims()
+    {
+        // Arrange
+        long capacityBefore;
+        long lengthBefore;
+        using (var listMmf = new ListMmf<int>(_testFilePath, DataType.Int32, 100))
+        {
+            for (var i = 0; i < 100_000; i++)
+            {
+                listMmf.Add(i);
+            }
+            capacityBefore = listMmf.Capacity;
+
+            // Act
+            listMmf.Truncate(10);
+
+            // Assert - Truncate itself never shrinks
+            listMmf.Count.Should().Be(10);
+            listMmf.Capacity.Should().Be(capacityBefore);
+            lengthBefore = new FileInfo(_testFilePath).Length;
+        }
+
+        // Dispose trims the file down to Count when pointers are not locked
+        new FileInfo(_testFilePath).Length.Should().BeLessThan(lengthBefore);
+        using var reopened = new ListMmf<int>(_testFilePath, DataType.Int32, 100);
+        reopened.Count.Should().Be(10);
+        reopened.Capacity.Should().BeLessThan(capacityBefore);
+        for (var i = 0; i < 10; i++)
+        {
+            reopened[i].Should().Be(i);
+        }
     }
 
     [Fact]
@@ -131,7 +231,7 @@ public class ListMmfLockingTests : IDisposable
             // Assert - The new instance should NOT be locked
             listMmf2.IsResetPointersDisallowed.Should().BeFalse();
 
-            // Should be able to truncate (which would trigger ResetPointers)
+            // Should be able to truncate
             listMmf2.Truncate(1);
             listMmf2.Count.Should().Be(1);
         }

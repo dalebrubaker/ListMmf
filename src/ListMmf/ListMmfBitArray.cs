@@ -196,11 +196,34 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
         if (Path.Contains("Directions"))
         {
         }
+        SetLengthAndClearDiscarded(newCount);
+    }
+
+    /// <summary>
+    /// Shrink Length to newCount (&lt;= Length) without changing Capacity or remapping.
+    /// </summary>
+    private void SetLengthAndClearDiscarded(long newCount)
+    {
         var newInt32s = GetArrayLength(newCount);
-        if (newInt32s < Capacity)
+        var oldInt32s = base.Count;
+
+        // Change Length first so readers won't use a wrong value
+        Length = newCount;
+
+        // Clear the discarded bits so they can't reappear (GetCardinality counts whole Int32s, and Length
+        // growth assumes new bits are zero). Capacity and the mapping are not changed.
+        var bitsInLastInt32 = (int)(newCount % BitsPerInt32);
+        if (bitsInLastInt32 != 0)
         {
-            // Change Length first so readers won't use a wrong value
-            Length = newCount;
+            var lastInt32Index = newInt32s - 1;
+            UnsafeWrite(lastInt32Index, UnsafeRead(lastInt32Index) & (int)((1u << bitsInLastInt32) - 1));
+        }
+        for (var i = newInt32s; i < oldInt32s; i++)
+        {
+            UnsafeWrite(i, 0);
+        }
+        if (newInt32s < oldInt32s)
+        {
             base.Truncate(newInt32s);
         }
     }
@@ -244,24 +267,8 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
             progress?.Report(bitsProcessed);
         }
 
-        // Clear any remaining bits in the last Int32 that weren't overwritten
-        // This prevents wrong values from leftover bits in the highest underlying Int32
-        var lastValidBitIndex = newCount - 1;
-        var lastInt32Index = lastValidBitIndex / 32;
-        var bitsInLastInt32 = (int)(lastValidBitIndex % 32) + 1;
-
-        // Clear bits beyond newCount in the last Int32 to prevent garbage values
-        if (bitsInLastInt32 < 32)
-        {
-            var lastInt32 = UnsafeRead(lastInt32Index);
-            var mask = (1u << bitsInLastInt32) - 1; // Create mask for valid bits
-            lastInt32 &= (int)mask; // Clear high bits
-            UnsafeWrite(lastInt32Index, lastInt32);
-        }
-
-        // Change Length first so readers won't use a wrong value
-        Length = newCount;
-        ResetCapacity(newCount);
+        // Clears leftover bits and Int32s beyond newCount, then sets Length. Capacity and the mapping are unchanged.
+        SetLengthAndClearDiscarded(newCount);
     }
 
     public void SetLast(bool value)
