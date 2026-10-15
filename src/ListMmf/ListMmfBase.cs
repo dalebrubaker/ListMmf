@@ -53,6 +53,13 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// </summary>
     protected readonly int _width;
 
+    /// <summary>
+    /// Held for the whole of every remap (ResetView, growing or shrinking Capacity, TrimExcess) and of Dispose,
+    /// from before the old view is unmapped until the new pointers are set (or cleared).
+    /// A subclass that reads its own pointers (e.g. extra header fields from _basePointerView, or _ptrArray)
+    /// can take lock (SyncRoot) around the read, and the view can't be remapped or unmapped while it holds the lock.
+    /// Base-class reads (Count, the indexer, ReadUnchecked, Version, DataType) don't take it: see <see cref="MmfReaders"/>.
+    /// </summary>
     protected readonly object SyncRoot = new();
 
     /// <summary>
@@ -564,6 +571,9 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <summary>
     /// This method is called whenever _mmf and View are changed.
     /// Inheritors should first call base.ResetPointers() and then reset their own pointers (if any) from BasePointerByte
+    /// It runs in the middle of a remap, under SyncRoot, while readers are waiting for the new mapping to be published.
+    /// Overrides must only compute pointers: they must not read Count, Version, DataType, the indexer, ReadUnchecked or anything else that reads through the base class
+    /// (on this thread those throw InvalidOperationException during a remap).
     /// </summary>
     /// <returns>the number of header bytes reserved by this class</returns>
     protected virtual int ResetPointers()

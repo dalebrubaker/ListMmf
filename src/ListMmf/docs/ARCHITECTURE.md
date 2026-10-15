@@ -53,7 +53,12 @@ same time, including during a remap or `Dispose`. These reads take no lock:
   After `Dispose`, `Count` returns 0 and item reads throw
   `ObjectDisposedException` (the indexer throws `ListMmfTruncatedException`
   because it sees Count 0).
-- `SyncRoot` now only serializes remap and `Dispose` against each other.
+- Base-class reads don't take `SyncRoot`, but every remap and `Dispose` holds
+  it from before the old view is unmapped until the new pointers are set.
+  Subclasses that read their own pointers (extra header fields, `_ptrArray`)
+  can rely on this: under `lock (SyncRoot)` the view can't be remapped or
+  unmapped. `ResetPointers` overrides run inside a remap and must only compute
+  pointers, never read `Count`, `Version`, `DataType` or items.
 
 Spans from `AsSpan` live outside any read section. Don't use one after the
 list has been remapped (grown or shrunk) or disposed.
