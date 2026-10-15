@@ -1,5 +1,17 @@
 # Release Notes
 
+## 1.5.0
+
+- perf: `Count`, the indexer, `ReadUnchecked`, `Version` and `DataType` no longer take `SyncRoot`.
+  - Readers use an atomically published mapping snapshot. A remap or `Dispose` unmaps the old view only after every thread reading through it has finished (see "Concurrent reads during remap and Dispose" in ARCHITECTURE.md).
+  - Still safe to read from other threads while the writer grows/shrinks the file or disposes the list. `Count` still returns 0 after `Dispose`.
+  - The `ListMmf<T>`, `ListMmfTimeSeriesDateTime` and `ListMmfTimeSeriesDateTimeSeconds` indexers read Count and the item from the same mapping, in one pass.
+- feat: `ListMmfBase<T>` adds protected `TryReadInBounds`, `TryReadHeader` and `TryWriteHeader` for subclasses.
+- fix: the `ListMmf<T>`, `ListMmfTimeSeriesDateTime` and `ListMmfTimeSeriesDateTimeSeconds` indexer bounds checks compared against `(uint)Count`, which rejected valid indexes once a list held more than `uint.MaxValue` items.
+- fix: `ListMmfBitArray.Length`/`Count` after `Dispose` read through a stale pointer; they now return 0.
+
+Internal: Added tests for concurrent reads while the writer remaps repeatedly and while the list is disposed, and a `BenchmarkCountRead` benchmark (`dotnet run -c Release --project src/ListMmfBenchmarks -- count`).
+
 ## 1.4.1
 
 - fix: `Truncate` now only reduces `Count`, as documented on `IListMmf.Truncate`; it no longer changes `Capacity` or remaps the file.

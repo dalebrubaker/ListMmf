@@ -22,6 +22,10 @@ internal static class Program
         {
             BenchmarkLowerBound();
         }
+        else if (args.Length > 0 && args[0] == "count")
+        {
+            BenchmarkRunner.Run<BenchmarkCountRead>();
+        }
         else
         {
             //DebugTestPointerHugeFile();

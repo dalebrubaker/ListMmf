@@ -433,9 +433,7 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
     {
         get
         {
-            // Following trick can reduce the range check by one
-            var count = Count;
-            if ((ulong)index >= (uint)count)
+            if (!TryReadInBounds(index, out var seconds, out var count))
             {
                 if (_isDisposed)
                 {
@@ -444,7 +442,6 @@ public class ListMmfTimeSeriesDateTimeSeconds : ListMmfBase<int>, IReadOnlyList6
                 Debugger.Break();
                 throw new ArgumentOutOfRangeException(nameof(index), count, $"Maximum index is {count - 1}");
             }
-            var seconds = base.ReadUnchecked(index);
             if (seconds == 0)
             {
                 var (lastValidIndex, lastValidTimestamp) = GetLastValidTimestampForErrorReporting();

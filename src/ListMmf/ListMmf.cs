@@ -235,15 +235,12 @@ public unsafe class ListMmf<T> : ListMmfBase<T>, IReadOnlyList64Mmf<T>, IListMmf
     {
         get
         {
-            // Following trick can reduce the range check by one
-            var count = Count;
-            if ((ulong)index >= (uint)count)
+            if (!TryReadInBounds(index, out var result, out var count))
             {
                 var msg = $"index={index:N0} but maximum index is {count - 1:N0} for {Path}";
                 // Perhaps the file was truncated. Allow the user to handle ListMmfTruncatedException
                 throw new ListMmfTruncatedException(msg);
             }
-            var result = UnsafeRead(index);
             return result;
         }
     }

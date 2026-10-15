@@ -18,11 +18,9 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     private const int BitsPerInt32 = 32;
 
     /// <summary>
-    /// The long* into the BitArrayLength location in the view, which is the first location in the view
-    /// This is a "stale" pointer -- we don't get a new one on each read access, as Microsoft does in SafeBuffer.Read(T).
-    /// I don't know why they do that, and I don't seem to need it...
+    /// The byte offset of BitArrayLength from the start of the view, just after the base class header
     /// </summary>
-    private long* _ptrBitArrayLength;
+    private int _bitArrayLengthOffset;
 
     /// <summary>
     /// Open a Writer on path
@@ -64,7 +62,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     /// </summary>
     public long Length
     {
-        get => Unsafe.Read<long>(_ptrBitArrayLength);
+        get => TryReadHeader<long>(_bitArrayLengthOffset, out var length) ? length : 0; // 0 if disposed, like Count
         private set
         {
             if (value < 0)
@@ -81,7 +79,8 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
                 }
                 base.Count = newInts;
             }
-            Unsafe.Write(_ptrBitArrayLength, value);
+            if (!TryWriteHeader(_bitArrayLengthOffset, value))
+                throw new ObjectDisposedException(nameof(ListMmfBitArray));
         }
     }
 
@@ -612,7 +611,7 @@ public unsafe class ListMmfBitArray : ListMmfBase<int>, IListMmf<bool>, IReadOnl
     {
         var countBaseBytes = base.ResetPointers();
 
-        _ptrBitArrayLength = (long*)(_basePointerView + countBaseBytes);
+        _bitArrayLengthOffset = countBaseBytes;
         return countBaseBytes + MyHeaderBytes;
     }
 

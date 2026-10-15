@@ -24,6 +24,40 @@ This library can only be run in a 64-bit process, a design choice to avoid locki
 There is only one view of the entire file (which could be a persisted File or
 could be a non-persisted Memory-based MMF).
 
+## Concurrent reads during remap and Dispose
+
+Growing or shrinking the file replaces the MMF and view, and the old view is
+unmapped. Reading through an unmapped view is an `AccessViolationException`,
+which kills the process, so readers must never hold a pointer into a view
+that is being unmapped.
+
+Within one instance there is one writer thread, and any number of threads may
+call `Count`, the indexer, `ReadUnchecked`, `Version` and `DataType` at the
+same time, including during a remap or `Dispose`. These reads take no lock:
+
+- `ListMmfBase<T>` publishes an immutable `MmfMapping` (base, Count and array
+  pointers) in one field. Readers load it once per call and use only it, so
+  the indexer's Count and item come from the same mapping.
+- Each read marks its thread's `MmfReaders.Slot` with the list it is reading,
+  loads the mapping, reads, and clears the slot. Nothing shared is written, so
+  a read costs a few nanoseconds and readers don't contend with each other.
+- A remap publishes `MmfMapping.Remapping`, and `Dispose` publishes `null`.
+  Then `MmfReaders.WaitForReaders` calls
+  `Interlocked.MemoryBarrierProcessWide()` and waits for every slot marked
+  with this list to clear. After the barrier, each reader either has a mark
+  the writer can see (so the writer waits for it) or loads the mapping after
+  the publish (so it gets the replacement). Only then is the old view
+  unmapped.
+- Readers that see `Remapping` clear their slot and spin until the new
+  mapping is published, so `Count` never reads 0 in the middle of a remap.
+  After `Dispose`, `Count` returns 0 and item reads throw
+  `ObjectDisposedException` (the indexer throws `ListMmfTruncatedException`
+  because it sees Count 0).
+- `SyncRoot` now only serializes remap and `Dispose` against each other.
+
+Spans from `AsSpan` live outside any read section. Don't use one after the
+list has been remapped (grown or shrunk) or disposed.
+
 ## Header
 
 The first headerReserveBytes (if any) are reserved by use by the creator of the

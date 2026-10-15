@@ -390,12 +390,11 @@ public class ListMmfTimeSeriesDateTime : ListMmfBase<long>, IReadOnlyList64Mmf<D
     {
         get
         {
-            // Following trick can reduce the range check by one
-            if ((ulong)index >= (uint)Count)
+            if (!TryReadInBounds(index, out var ticks, out var count))
             {
-                throw new ArgumentOutOfRangeException(nameof(index), Count, $"Maximum index is {Count - 1}");
+                throw new ArgumentOutOfRangeException(nameof(index), count, $"Maximum index is {count - 1}");
             }
-            var result = new DateTime(UnsafeRead(index));
+            var result = new DateTime(ticks);
             if (result.Ticks == 0)
             {
                 var msg = $"Why are we reading MinValue for {Path}? This can happen on corrupted data during machine crash, don't know why.";

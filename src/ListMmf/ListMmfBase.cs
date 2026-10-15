@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Security;
+using System.Threading;
 using BruSoftware.ListMmf.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,7 +17,10 @@ namespace BruSoftware.ListMmf;
 /// Supports both ReadWrite (default) and Read access modes.
 /// - ReadWrite mode: Acquires exclusive lock, no concurrent writers allowed
 /// - Read mode: No locks acquired, multiple readers allowed, FileShare.ReadWrite
-/// Multi-thread access is not supported within a single instance.
+/// Within one instance: one writer thread, plus any number of threads calling Count, the indexer, ReadUnchecked,
+/// Version or DataType at the same time, including while the writer grows/remaps the file or disposes the list.
+/// Those reads are lock-free: see <see cref="MmfReaders"/> for how a remap or Dispose waits for them.
+/// Spans from AsSpan are not covered: don't use one after the list has been remapped or disposed.
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
@@ -25,6 +29,10 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// This class only has Version, DataType and Count
     /// </summary>
     private const int HeaderBytesBase = 16;
+
+    private const int VersionOffset = 0;
+    private const int DataTypeOffset = 4;
+    private const int CountOffset = 8;
 
     /// <summary>
     /// currently used by MemoryMappedFiles
@@ -61,7 +69,18 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
 
     private FileStream? _fileStream;
     private readonly ExclusiveFileLock? _exclusiveFileLock;
-    private Func<long> _funcGetCount;
+
+    /// <summary>
+    /// The pointers readers use. null before the first ResetView, after Dispose, or after a failed remap.
+    /// <see cref="MmfMapping.Remapping"/> while the writer is remapping.
+    /// Only replaced under SyncRoot, and the old view is unmapped only after MmfReaders.WaitForReaders.
+    /// </summary>
+    private MmfMapping? _mapping;
+
+    /// <summary>
+    /// The managed thread id doing the current remap, or 0. Lets a read on that thread fail instead of waiting on itself.
+    /// </summary>
+    private int _remappingThreadId;
 
     /// <summary>
     /// True if opened in read-only mode (no locks, FileShare.ReadWrite)
@@ -86,20 +105,6 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// I don't know why they do that, and I don't seem to need it...
     /// </summary>
     private long* _ptrCount;
-
-    /// <summary>
-    /// The long* into the DataType location in the view (the second 4 bytes)
-    /// This is a "stale" pointer -- we don't get a new one on each read access, as Microsoft does in SafeBuffer.Read(T).
-    /// I don't know why they do that, and I don't seem to need it...
-    /// </summary>
-    private int* _ptrDataType;
-
-    /// <summary>
-    /// The long* into the Version location in the view (the first 4 bytes)
-    /// This is a "stale" pointer -- we don't get a new one on each read access, as Microsoft does in SafeBuffer.Read(T).
-    /// I don't know why they do that, and I don't seem to need it...
-    /// </summary>
-    private int* _ptrVersion;
 
     private MemoryMappedViewAccessor? _view;
 
@@ -143,7 +148,6 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         if (!Environment.Is64BitProcess)
             throw new PlatformNotSupportedException("Requires a 64-bit process (x64 or ARM64).");
         _width = Unsafe.SizeOf<T>();
-        _funcGetCount = GetCountWriter;
         _accessName = (isReadOnly ? "Reader " : "Writer ") + path;
         Path = path;
         _parentHeaderBytes = parentHeaderBytes;
@@ -232,7 +236,19 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// </summary>
     public long Count
     {
-        get => _funcGetCount.Invoke(); // Returns 0 if disposed
+        get
+        {
+            var slot = MmfReaders.Current;
+            try
+            {
+                var mapping = EnterRead(slot);
+                return mapping == null ? 0 : Volatile.Read(ref *mapping.PtrCount); // Returns 0 if disposed
+            }
+            finally
+            {
+                ExitRead(slot);
+            }
+        }
         protected set
         {
             if (IsReadOnly)
@@ -241,12 +257,24 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             // {
             //     throw new ListMmfException($"Attempt to set Count={value} which must be <= _capacity={_capacity}");
             // }
-            lock (SyncRoot)
+            var slot = MmfReaders.Current;
+            var isWritten = false;
+            try
             {
-                if (_ptrCount == null)
-                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
-                Unsafe.Write(_ptrCount, value);
+                var mapping = EnterRead(slot);
+                if (mapping != null)
+                {
+                    // Release: a reader that sees the new Count also sees the items written before it
+                    Volatile.Write(ref *mapping.PtrCount, value);
+                    isWritten = true;
+                }
             }
+            finally
+            {
+                ExitRead(slot);
+            }
+            if (!isWritten)
+                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
         }
     }
 
@@ -257,22 +285,14 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         get
         {
-            lock (SyncRoot)
-            {
-                if (_ptrVersion == null)
-                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
-                var version = Unsafe.Read<int>(_ptrVersion);
-                return version;
-            }
+            if (!TryReadHeader<int>(VersionOffset, out var version))
+                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+            return version;
         }
         protected set
         {
-            lock (SyncRoot)
-            {
-                if (_ptrVersion == null)
-                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
-                Unsafe.Write(_ptrVersion, value);
-            }
+            if (!TryWriteHeader(VersionOffset, value))
+                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
         }
     }
 
@@ -283,22 +303,14 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         get
         {
-            lock (SyncRoot)
-            {
-                if (_ptrDataType == null)
-                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
-                var dataType = Unsafe.Read<int>(_ptrDataType);
-                return (DataType)dataType;
-            }
+            if (!TryReadHeader<int>(DataTypeOffset, out var dataType))
+                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+            return (DataType)dataType;
         }
         protected init
         {
-            lock (SyncRoot)
-            {
-                if (_ptrDataType == null)
-                    throw new ObjectDisposedException(nameof(ListMmfBase<T>));
-                Unsafe.Write(_ptrDataType, (int)value);
-            }
+            if (!TryWriteHeader(DataTypeOffset, (int)value))
+                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
         }
     }
 
@@ -350,23 +362,141 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         }
     }
 
-    private static long GetCountDisposed()
+    /// <summary>
+    /// Starts a read section on this list and returns the mapping to read through, or null if disposed.
+    /// The caller MUST call ExitRead(slot) in a finally, and must not call anything that can block or
+    /// touch another list before then.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private MmfMapping? EnterRead(MmfReaders.Slot slot)
     {
-        return 0;
+        // Volatile.Write then Volatile.Read keeps the JIT from reordering the two; the CPU's store-load
+        // reordering is covered by Interlocked.MemoryBarrierProcessWide in MmfReaders.WaitForReaders.
+        Volatile.Write(ref slot.Owner, this);
+        var mapping = Volatile.Read(ref _mapping);
+        if (mapping is { IsRemapping: true })
+        {
+            mapping = WaitForRemap(slot);
+        }
+        return mapping;
     }
 
-    private long GetCountWriter()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void ExitRead(MmfReaders.Slot slot)
     {
-        lock (SyncRoot)
+        // Release: every read through the mapping completes before the writer can see the slot clear
+        Volatile.Write(ref slot.Owner, null);
+    }
+
+    /// <summary>
+    /// Leaves the read section while the writer remaps (so the writer isn't waiting on us), then re-enters
+    /// once a mapping (or null) has been published.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private MmfMapping? WaitForRemap(MmfReaders.Slot slot)
+    {
+        if (Volatile.Read(ref _remappingThreadId) == Environment.CurrentManagedThreadId)
         {
-            var ptr = _ptrCount;
-            if (ptr == null)
-            {
-                return 0;
-            }
-            var count = Unsafe.Read<long>(ptr);
-            return count;
+            throw new InvalidOperationException($"Read from {Path} during its own remap on the same thread");
         }
+        var spinner = new SpinWait();
+        while (true)
+        {
+            ExitRead(slot);
+            spinner.SpinOnce();
+            Volatile.Write(ref slot.Owner, this);
+            var mapping = Volatile.Read(ref _mapping);
+            if (mapping is not { IsRemapping: true })
+            {
+                return mapping;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads a header field at byteOffset from the start of the view. Returns false if disposed.
+    /// </summary>
+    protected bool TryReadHeader<TValue>(int byteOffset, out TValue value) where TValue : unmanaged
+    {
+        var slot = MmfReaders.Current;
+        try
+        {
+            var mapping = EnterRead(slot);
+            if (mapping == null)
+            {
+                value = default;
+                return false;
+            }
+            value = Unsafe.Read<TValue>(mapping.BasePointer + byteOffset);
+            return true;
+        }
+        finally
+        {
+            ExitRead(slot);
+        }
+    }
+
+    /// <summary>
+    /// Writes a header field at byteOffset from the start of the view. Returns false if disposed.
+    /// </summary>
+    protected bool TryWriteHeader<TValue>(int byteOffset, TValue value) where TValue : unmanaged
+    {
+        var slot = MmfReaders.Current;
+        try
+        {
+            var mapping = EnterRead(slot);
+            if (mapping == null)
+            {
+                return false;
+            }
+            Unsafe.Write(mapping.BasePointer + byteOffset, value);
+            return true;
+        }
+        finally
+        {
+            ExitRead(slot);
+        }
+    }
+
+    /// <summary>
+    /// Publishes replacement (a new mapping, Remapping, or null) and waits until no reader can still be
+    /// reading through the view being replaced. Call under SyncRoot.
+    /// </summary>
+    private void PublishAndWaitForReaders(MmfMapping? replacement)
+    {
+        Volatile.Write(ref _mapping, replacement);
+        MmfReaders.WaitForReaders(this);
+    }
+
+    /// <summary>
+    /// Readers see Remapping (and wait) until FinishRemap or FailRemap. Call under SyncRoot.
+    /// </summary>
+    private void BeginRemap()
+    {
+        Volatile.Write(ref _remappingThreadId, Environment.CurrentManagedThreadId);
+        PublishAndWaitForReaders(MmfMapping.Remapping);
+    }
+
+    /// <summary>
+    /// A remap threw part way. Readers stop waiting and see the list as disposed (Count 0), matching the
+    /// null pointers this state used to leave behind.
+    /// </summary>
+    private void FailRemap(Exception ex)
+    {
+        _logger.LogError(ex, "Remap failed for {Path}; reads will see it as disposed", Path);
+        Volatile.Write(ref _mapping, null);
+        Volatile.Write(ref _remappingThreadId, 0);
+    }
+
+    /// <summary>
+    /// Unmaps the current view. Only call once readers can no longer reach it (after PublishAndWaitForReaders).
+    /// </summary>
+    private void UnmapView()
+    {
+        ClearPointers();
+        ReleasePointerIfAcquired();
+        _view?.Dispose();
+        _view = null;
     }
 
     private void CreateMmf(long capacityBytes)
@@ -414,9 +544,10 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             {
                 _view.SafeMemoryMappedViewHandle.ReleasePointer();
             }
-            catch
+            catch (Exception ex)
             {
                 // Best effort - view might already be disposed
+                _logger.LogWarning(ex, "ReleasePointer failed for {Path}", Path);
             }
 
             _pointerAcquired = false;
@@ -427,8 +558,6 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     private void ClearPointers()
     {
         _ptrCount = null;
-        _ptrVersion = null;
-        _ptrDataType = null;
         _ptrArray = null;
     }
 
@@ -459,12 +588,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
         safeBuffer.AcquirePointer(ref _basePointerView);
         _pointerAcquired = true;
         _basePointerView += _view.PointerOffset;
-        var sizeSoFar = 0;
-        _ptrVersion = (int*)(_basePointerView + sizeSoFar);
-        sizeSoFar += sizeof(int);
-        _ptrDataType = (int*)(_basePointerView + sizeSoFar);
-        sizeSoFar += sizeof(int);
-        _ptrCount = (long*)(_basePointerView + sizeSoFar);
+        _ptrCount = (long*)(_basePointerView + CountOffset);
 
         _ptrArray = _basePointerView + _parentHeaderBytes + HeaderBytesBase;
         return HeaderBytesBase;
@@ -496,25 +620,46 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     {
         lock (SyncRoot)
         {
-            ClearPointers();
-
-            // Release pointer before disposing the view.
-            ReleasePointerIfAcquired();
-            _view?.Dispose();
-            var access = IsReadOnly ? MemoryMappedFileAccess.Read : MemoryMappedFileAccess.ReadWrite;
-            _view = _mmf?.CreateViewAccessor(0, 0, access);
-            if (!IsReadOnly && _fileStream!.Length != CapacityBytes)
-                // Set the file length up to the view length so we don't write off the end
-                _fileStream.SetLength(CapacityBytes);
-            var totalHeaderBytes = ResetPointers();
-            if (totalHeaderBytes != _parentHeaderBytes + HeaderBytesBase)
-                throw new ListMmfException(
-                    $"{nameof(ResetPointers)} returns {totalHeaderBytes} but expected {_parentHeaderBytes + HeaderBytesBase}");
-            _capacity = (CapacityBytes - _parentHeaderBytes - HeaderBytesBase)
-                        / _width; // for the header fields just before the beginning of the array
-            if (_capacity < Count)
-                throw new ListMmfException($"_capacity={_capacity:N0} cannot be less than Count={Count:N0} for {this}");
+            BeginRemap();
+            try
+            {
+                UnmapView();
+                MapView();
+            }
+            catch (Exception ex)
+            {
+                FailRemap(ex);
+                throw;
+            }
         }
+        ThrowIfCapacityBelowCount();
+    }
+
+    /// <summary>
+    /// Maps a new view of _mmf, resets the pointers and publishes them to readers. Call under SyncRoot after BeginRemap.
+    /// </summary>
+    private void MapView()
+    {
+        var access = IsReadOnly ? MemoryMappedFileAccess.Read : MemoryMappedFileAccess.ReadWrite;
+        _view = _mmf?.CreateViewAccessor(0, 0, access);
+        if (!IsReadOnly && _fileStream!.Length != CapacityBytes)
+            // Set the file length up to the view length so we don't write off the end
+            _fileStream.SetLength(CapacityBytes);
+        var totalHeaderBytes = ResetPointers();
+        if (totalHeaderBytes != _parentHeaderBytes + HeaderBytesBase)
+            throw new ListMmfException(
+                $"{nameof(ResetPointers)} returns {totalHeaderBytes} but expected {_parentHeaderBytes + HeaderBytesBase}");
+        _capacity = (CapacityBytes - _parentHeaderBytes - HeaderBytesBase)
+                    / _width; // for the header fields just before the beginning of the array
+        Volatile.Write(ref _mapping, new MmfMapping(_basePointerView, _ptrCount, _ptrArray));
+        Volatile.Write(ref _remappingThreadId, 0);
+    }
+
+    private void ThrowIfCapacityBelowCount()
+    {
+        var count = Count;
+        if (_capacity < count)
+            throw new ListMmfException($"_capacity={_capacity:N0} cannot be less than Count={count:N0} for {this}");
     }
 
     /// <summary>
@@ -587,31 +732,39 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             var oldCapacityItems = Capacity;
             var fi = new FileInfo(Path);
 
-            ClearPointers();
-            ReleasePointerIfAcquired();
-            _view?.Dispose();
-            _view = null;
-            _mmf?.Dispose();
-            _mmf = null;
-            if (capacityBytes != 0 && capacityBytes < fi.Length)
-                // We want to shorten (Truncate) the file
-                try
-                {
-                    _fileStream!.SetLength(capacityBytes);
-                }
-                catch (Exception)
-                {
-                    // Ignore -- some reader may have this file open
-                    //s_logger.Warn("Unable to shrink to {CapacityBytes:N0} from {FileLength:N0} for {This}", capacityBytes, _fileStream.Length, this);
-                }
+            BeginRemap();
+            try
+            {
+                UnmapView();
+                _mmf?.Dispose();
+                _mmf = null;
+                if (capacityBytes != 0 && capacityBytes < fi.Length)
+                    // We want to shorten (Truncate) the file
+                    try
+                    {
+                        _fileStream!.SetLength(capacityBytes);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Ignore -- some reader may have this file open
+                        _logger.LogWarning(ex, "Unable to shrink {Path} to {CapacityBytes:N0} bytes from {FileLength:N0}",
+                            Path, capacityBytes, _fileStream!.Length);
+                    }
 
-            if (capacityBytes != 0 && capacityBytes < _fileStream!.Length)
-                // We can't open a file for ReadWrite with a smaller capacity, except 0
-                capacityBytes = _fileStream.Length;
-            _mmf = MemoryMappedFile.CreateFromFile(_fileStream!, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
-                HandleInheritability.None, true);
-            ResetView();
+                if (capacityBytes != 0 && capacityBytes < _fileStream!.Length)
+                    // We can't open a file for ReadWrite with a smaller capacity, except 0
+                    capacityBytes = _fileStream.Length;
+                _mmf = MemoryMappedFile.CreateFromFile(_fileStream!, null, capacityBytes, MemoryMappedFileAccess.ReadWrite,
+                    HandleInheritability.None, true);
+                MapView();
+            }
+            catch (Exception ex)
+            {
+                FailRemap(ex);
+                throw;
+            }
         }
+        ThrowIfCapacityBelowCount();
     }
 
     /// <summary>
@@ -639,12 +792,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected T UnsafeRead(long index)
     {
-        lock (SyncRoot)
-        {
-            if (_ptrArray == null)
-                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
-            return Unsafe.Read<T>(_ptrArray + index * _width);
-        }
+        return ReadItem(index);
     }
 
     /// <summary>
@@ -659,12 +807,49 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
 #endif
     public T ReadUnchecked(long index)
     {
-        // Avoid going to properties (i.e. Capacity or Count) which lock
-        lock (SyncRoot)
+        return ReadItem(index);
+    }
+
+    private T ReadItem(long index)
+    {
+        var slot = MmfReaders.Current;
+        try
         {
-            if (_ptrArray == null)
-                throw new ObjectDisposedException(nameof(ListMmfBase<T>));
-            return Unsafe.Read<T>(_ptrArray + index * _width);
+            var mapping = EnterRead(slot);
+            if (mapping != null)
+            {
+                return Unsafe.Read<T>(mapping.PtrArray + index * _width);
+            }
+        }
+        finally
+        {
+            ExitRead(slot);
+        }
+        throw new ObjectDisposedException(nameof(ListMmfBase<T>));
+    }
+
+    /// <summary>
+    /// Reads Count and, if 0 &lt;= index &lt; Count, the item at index, both from the same mapping.
+    /// Returns false (with the Count it saw, 0 if disposed) when index is out of range.
+    /// </summary>
+    protected bool TryReadInBounds(long index, out T value, out long count)
+    {
+        var slot = MmfReaders.Current;
+        try
+        {
+            var mapping = EnterRead(slot);
+            count = mapping == null ? 0 : Volatile.Read(ref *mapping.PtrCount);
+            if ((ulong)index >= (ulong)count)
+            {
+                value = default;
+                return false;
+            }
+            value = Unsafe.Read<T>(mapping!.PtrArray + index * _width);
+            return true;
+        }
+        finally
+        {
+            ExitRead(slot);
         }
     }
 
@@ -672,6 +857,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// Returns a ReadOnlySpan&lt;T&gt; representing a range of elements from the ListMmf.
     /// Provides zero-copy access to the underlying memory-mapped data.
     /// The span is only valid while the ListMmf remains unchanged and should be used within method scope.
+    /// It points into the current mapping: using it after the list grows/remaps or is disposed reads unmapped memory.
     /// </summary>
     /// <param name="start">The starting index (inclusive)</param>
     /// <param name="length">The number of elements to include in the span</param>
@@ -680,8 +866,22 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
     /// <exception cref="ListMmfOnlyInt32SupportedException">If length exceeds int.MaxValue</exception>
     public ReadOnlySpan<T> AsSpan(long start, int length)
     {
+        // Take Count and the array pointer from the same mapping
+        long count;
+        byte* ptrArray;
+        var slot = MmfReaders.Current;
+        try
+        {
+            var mapping = EnterRead(slot);
+            count = mapping == null ? 0 : Volatile.Read(ref *mapping.PtrCount);
+            ptrArray = mapping == null ? null : mapping.PtrArray;
+        }
+        finally
+        {
+            ExitRead(slot);
+        }
+
         // Bounds validation
-        var count = Count;
         if (start < 0 || start > count)
             throw new ArgumentOutOfRangeException(nameof(start), $"start={start} must be >= 0 and <= Count={count}");
         if (length < 0) throw new ArgumentOutOfRangeException(nameof(length), "length must be >= 0");
@@ -690,7 +890,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
                 $"start + length ({start + length}) exceeds Count={count}");
 
         // Create span from existing pointer arithmetic
-        return new ReadOnlySpan<T>(_ptrArray + start * _width, length);
+        return new ReadOnlySpan<T>(ptrArray + start * _width, length);
     }
 
     /// <summary>
@@ -842,14 +1042,11 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
             {
                 // Only trim if ResetPointers is allowed
                 if (!_isResetPointersDisallowed) TrimExcess();
-                _funcGetCount = GetCountDisposed;
                 _isDisposed = true;
 
-                ClearPointers();
-                ReleasePointerIfAcquired();
-
-                _view?.Dispose(); // must be disposed before _mmf
-                _view = null;
+                // From here Count returns 0 and reads throw ObjectDisposedException
+                PublishAndWaitForReaders(null);
+                UnmapView(); // the view must be disposed before _mmf
                 _mmf?.Dispose();
                 _mmf = null;
                 _fileStream?.Dispose();
@@ -879,7 +1076,7 @@ public unsafe class ListMmfBase<T> : ListMmfBaseDebug where T : struct
 
     public string GetInfo()
     {
-        var count = _isDisposed || _view == null || _ptrCount == null ? 0 : Count;
+        var count = Count;
         var result = $"count={count:N0}/_capacity={_capacity:N0} {_accessName}";
 #if DEBUG
         result += $" {InstanceId}";
